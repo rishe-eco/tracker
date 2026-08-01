@@ -9,6 +9,13 @@ import {
   submitAttempt,
 } from "../../services/skills/evidenceSession";
 import {
+  lockClarityDiagnosis,
+  lockClarityPrediction,
+  serveClarityItem,
+  startClarityRevision,
+  submitClarityAttempt,
+} from "../../services/skills/clarity/claritySession";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1058,6 +1065,45 @@ mutations.skipSkillAssessment = requireAuth(async (_, { skillKey }: any, ctx) =>
   });
   return true;
 });
+
+// ── Clarity Lab ─────────────────────────────────────────────────────────────
+//
+// Validation lives at the resolver boundary (convention #4); the sequencing
+// rules — prediction before reveal, diagnosis before scores — live in the
+// service, because they are rules about the attempt rather than about the
+// request.
+
+mutations.startClarityItem = requireAuth(async (_, { mode, moduleKey }: any, ctx) =>
+  serveClarityItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null)
+);
+
+mutations.lockClarityPrediction = requireAuth(async (_, { attemptId, prediction }: any, ctx) => {
+  if (typeof prediction !== "string" || !prediction.trim()) {
+    throw new Error("A prediction cannot be empty.");
+  }
+  await lockClarityPrediction(ctx.prisma, ctx.user.id, attemptId, prediction);
+  return true;
+});
+
+mutations.lockClarityDiagnosis = requireAuth(async (_, { attemptId, criteria }: any, ctx) => {
+  if (!Array.isArray(criteria)) throw new Error("criteria must be a list.");
+  await lockClarityDiagnosis(ctx.prisma, ctx.user.id, attemptId, criteria);
+  return true;
+});
+
+mutations.submitClarityAttempt = requireAuth(
+  async (_, { attemptId, text, timeZoneOffsetMinutes }: any, ctx) => {
+    if (typeof text !== "string") throw new Error("text is required.");
+    return submitClarityAttempt(ctx.prisma, ctx.user.id, attemptId, {
+      text,
+      timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? 0,
+    });
+  }
+);
+
+mutations.startClarityRevision = requireAuth(async (_, { attemptId }: any, ctx) =>
+  startClarityRevision(ctx.prisma, ctx.user.id, attemptId)
+);
 
 mutations.planSkillSchedule = requireAuth(
   async (_, { skillKey, startDate, sessionsPerWeek, timeOfDay, sessionsPerModule }: any, ctx) => {

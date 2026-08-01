@@ -124,6 +124,16 @@ export type ClarityItemSurface = {
    * the core revise-and-diagnose loop — run with no model configured at all.
    */
   authoredMisread?: string;
+  /**
+   * Repair only: a competent fix, authored alongside the drill.
+   *
+   * Never reaches the client — `toPublicClarityItem` cannot return it. It exists
+   * so the validator can prove the drill is *satisfiable*: the weak text must
+   * fail its own criterion under the detector, and this must clear it. Without
+   * that check a drill can quietly teach something the rubric then marks wrong,
+   * and nothing anywhere would notice.
+   */
+  exemplarFix?: string;
   /** Shown after the learner has committed their own diagnosis. */
   reveal: string;
 };

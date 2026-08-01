@@ -4,33 +4,42 @@ import bcrypt from "bcrypt";
 // Shared Prisma client for all tests — points to test.db via DATABASE_URL env var
 export const prisma = new PrismaClient();
 
-/** Delete all rows in dependency order (children before parents). */
+/**
+ * Delete all rows in dependency order (children before parents).
+ *
+ * Runs as a single transaction: `$transaction` with an array executes the
+ * operations in order, so the dependency ordering below still holds, but the
+ * whole thing commits once instead of 21 times. As 21 separate writes this
+ * took ~2.4s per test against SQLite; batched it is ~35ms.
+ */
 export async function clearDb() {
-  await prisma.note.deleteMany();
-  await prisma.action.deleteMany();
-  await prisma.dayState.deleteMany();
-  await prisma.intervalStep.deleteMany();
-  await prisma.interval.deleteMany();
-  await prisma.routineStep.deleteMany();
-  await prisma.routine.deleteMany();
-  await prisma.project.deleteMany();
-  // Goals self-reference via parentGoalId — clear children first by nulling the FK
-  await prisma.goal.updateMany({ data: { parentGoalId: null, parentMilestoneId: null } });
-  await prisma.milestone.deleteMany();
-  await prisma.goal.deleteMany();
-  // Journals (entries and access before journals, journals before users)
-  await prisma.journalEntry.deleteMany();
-  await prisma.journalAccess.deleteMany();
-  await prisma.journal.deleteMany();
-  await prisma.apiToken.deleteMany();
-  // Skills: check events cascade from attempts, and attempts reference probes,
-  // so delete leaves first.
-  await prisma.skillCheckEvent.deleteMany();
-  await prisma.skillAttempt.deleteMany();
-  await prisma.skillProbe.deleteMany();
-  await prisma.skillModuleProgress.deleteMany();
-  await prisma.skillProfile.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.$transaction([
+    prisma.note.deleteMany(),
+    prisma.action.deleteMany(),
+    prisma.dayState.deleteMany(),
+    prisma.intervalStep.deleteMany(),
+    prisma.interval.deleteMany(),
+    prisma.routineStep.deleteMany(),
+    prisma.routine.deleteMany(),
+    prisma.project.deleteMany(),
+    // Goals self-reference via parentGoalId — clear children first by nulling the FK
+    prisma.goal.updateMany({ data: { parentGoalId: null, parentMilestoneId: null } }),
+    prisma.milestone.deleteMany(),
+    prisma.goal.deleteMany(),
+    // Journals (entries and access before journals, journals before users)
+    prisma.journalEntry.deleteMany(),
+    prisma.journalAccess.deleteMany(),
+    prisma.journal.deleteMany(),
+    prisma.apiToken.deleteMany(),
+    // Skills: check events cascade from attempts, and attempts reference probes,
+    // so delete leaves first.
+    prisma.skillCheckEvent.deleteMany(),
+    prisma.skillAttempt.deleteMany(),
+    prisma.skillProbe.deleteMany(),
+    prisma.skillModuleProgress.deleteMany(),
+    prisma.skillProfile.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
 }
 
 /** Create a user with a low-cost bcrypt hash (rounds=4 for speed). */

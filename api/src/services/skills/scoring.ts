@@ -10,8 +10,7 @@
  */
 
 import type { EvidenceItemSpec, FaultTag, Verdict } from "../../content/skills/types";
-import { isControl } from "../../content/skills/types";
-import { FAULT_TAG } from "../../content/skills/evidence/v1/spec";
+import { isControl, PROFILE_FAULT_TAG as FAULT_TAG } from "../../content/skills/types";
 
 export type CheckEventInput = {
   /** opened_sideways | search_issued | source_submitted | verdict_set | revealed */

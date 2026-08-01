@@ -65,6 +65,39 @@ export function isControl(profile: EvidenceProfile): boolean {
 }
 
 /**
+ * The verdict and the failing element that a profile implies. These are
+ * properties of the taxonomy, not of any one content version, so they live here
+ * — scoring must not import them from a specific version's spec file, or a
+ * second version silently scores against the first one's table.
+ *
+ * Each version's spec restates them locally so the pack reads on its own; a unit
+ * test asserts the copies still agree with these.
+ */
+export const PROFILE_VERDICT: Record<EvidenceProfile, Verdict> = {
+  true_cited: "supported",
+  true_uncited: "supported",
+  fabricated_citation: "unsupported",
+  plausible_nonexistent: "unsupported",
+  subtle_numeric: "unsupported",
+  real_source_misquoted: "misattributed",
+  real_source_wrong_claim: "misattributed",
+  outdated: "outdated",
+  contested_as_settled: "contested",
+};
+
+export const PROFILE_FAULT_TAG: Record<EvidenceProfile, FaultTag> = {
+  true_cited: "none",
+  true_uncited: "none",
+  fabricated_citation: "citation",
+  real_source_misquoted: "quote",
+  real_source_wrong_claim: "claim_support",
+  outdated: "recency",
+  contested_as_settled: "framing",
+  plausible_nonexistent: "existence",
+  subtle_numeric: "figure",
+};
+
+/**
  * Fixed verdict set, so accuracy is scorable. `cant_tell` is a legitimate
  * answer, not a cop-out — it is keyed correct where the check genuinely cannot
  * resolve in the time available.

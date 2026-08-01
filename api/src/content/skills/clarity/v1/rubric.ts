@@ -17,7 +17,7 @@
  * versions are never charted on one line.
  */
 
-import type { CriterionId, RubricCriterion, RubricLevel } from "../types";
+import type { ClarityModuleKey, CriterionId, RubricCriterion, RubricLevel } from "../types";
 
 export const RUBRIC_VERSION = "clarity-rubric/v1";
 
@@ -96,6 +96,16 @@ export const RUBRIC: RubricCriterion[] = [
 ];
 
 export const CRITERION_BY_ID = new Map(RUBRIC.map((c) => [c.id, c]));
+
+/**
+ * Module → the criterion it trains. The 1:1 mapping is deliberate: feedback, the
+ * module and the score share one vocabulary, and mastery requires level 2 on a
+ * module's *own* criterion so a globally strong writer can't coast through `c4`
+ * while still leaving referents dangling.
+ */
+export const RUBRIC_CRITERIA_BY_MODULE = Object.fromEntries(
+  RUBRIC.map((c) => [c.moduleKey, c.id])
+) as Record<ClarityModuleKey, CriterionId>;
 
 /** Criteria a detector can score without any model. */
 export const DETECTOR_CRITERIA: CriterionId[] = RUBRIC.filter(

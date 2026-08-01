@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ITEM_SPEC_BY_ID } from "../content/skills/evidence/v1";
+import { ITEM_SPEC_BY_ID } from "../content/skills/evidence/v2";
 import {
   evaluateMastery,
   evaluateTestedOut,
@@ -22,16 +22,16 @@ import {
   type EvidenceSubmission,
 } from "../services/skills/scoring";
 
-// ev-a3: plausible_nonexistent, key "unsupported", fault tag "existence".
-const FAULTY = ITEM_SPEC_BY_ID.get("ev-a3")!;
-// ev-a5: control (true_cited), key "supported", MDN is a non-independent host.
-const CONTROL = ITEM_SPEC_BY_ID.get("ev-a5")!;
+// ev2-a4: plausible_nonexistent, key "unsupported", fault tag "existence".
+const FAULTY = ITEM_SPEC_BY_ID.get("ev2-a4")!;
+// ev2-a3: control (true_cited), key "supported", nature.com is a non-independent host.
+const CONTROL = ITEM_SPEC_BY_ID.get("ev2-a3")!;
 
 const submission = (over: Partial<EvidenceSubmission> = {}): EvidenceSubmission => ({
   verdict: "unsupported",
   confidence: 80,
   faultTag: "existence",
-  sources: [{ url: "https://tc39.es/ecma262/" }],
+  sources: [{ url: "https://www.fda.gov/food/buy-store-serve-safe-food" }],
   latencyMs: 45_000,
   ...over,
 });
@@ -71,7 +71,7 @@ describe("scoreEvidenceItem", () => {
       submission({
         verdict: "supported",
         faultTag: "none",
-        sources: [{ url: "https://developer.mozilla.org/en-US/docs/Web/API/structuredClone" }],
+        sources: [{ url: "https://www.nature.com/articles/201993a0" }],
       }),
       goodEvents()
     );

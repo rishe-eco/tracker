@@ -393,6 +393,122 @@ export const typeDefs = gql`
     warnings: [String!]!
   }
 
+  # ── Clarity Lab ───────────────────────────────────────────────────────────
+  #
+  # Deliberately its own set of types rather than a widening of the Evidence
+  # ones. The two tools measure different things — Evidence scores behaviour,
+  # Clarity scores a product against a rubric — and a shared type would have to
+  # make every field on both sides nullable to accommodate the other.
+
+  type ClarityModule {
+    moduleKey: String!
+    title: String!
+    concept: String!
+    model: String!
+    "The rubric criterion this module trains. 1:1, so feedback and score share a vocabulary."
+    criterion: String!
+    state: String!
+    currentStep: Int!
+    masteredAt: String
+    nextReviewAt: String
+  }
+
+  "What the learner is allowed to see. No required slots, no seeded faults, no reveal."
+  type ClarityItem {
+    itemId: String!
+    moduleKey: String!
+    "elicitation | revision | repair"
+    type: String!
+    difficulty: Int!
+    scenario: String!
+    contextSheet: String
+    weakText: String
+    "Revision items ship the reader's misread up front — that *is* the stimulus."
+    authoredMisread: String
+  }
+
+  type ClarityServedItem {
+    attemptId: ID!
+    item: ClarityItem!
+    "Elicitation only: a prediction must be locked before scores are available."
+    needsPrediction: Boolean!
+    "Revision and elicitation. Repair drills collapse to write then score."
+    needsDiagnosis: Boolean!
+    "Set when this attempt revises another; the draft is shown alongside."
+    draftText: String
+  }
+
+  type ClarityCriterionScore {
+    criterion: String!
+    "0-2, or null when nothing scored it. Null is not zero."
+    level: Int
+    "detector | judge | detector+judge | unscored"
+    source: String!
+    findings: [String!]!
+    "The judge must quote the learner's own words to justify a level."
+    evidenceQuote: String
+  }
+
+  type ClarityScore {
+    criteria: [ClarityCriterionScore!]!
+    "Sum over scored criteria only."
+    total: Int!
+    "12 with a reader, 6 without. Always shown beside the total, never implied."
+    maxPossible: Int!
+    scoredCount: Int!
+    unscored: [String!]!
+    isVoid: Boolean!
+    isComplete: Boolean!
+  }
+
+  type ClarityDiagnosis {
+    correct: [String!]!
+    missed: [String!]!
+    spurious: [String!]!
+  }
+
+  type ClarityAttemptResult {
+    attemptId: ID!
+    score: ClarityScore!
+    "Tagged criteria against what actually failed. Null on repair drills."
+    diagnosis: ClarityDiagnosis
+    "Repair drills only: did the fix clear the bar the drill sets?"
+    repairPassed: Boolean
+    "Revision total minus draft total. Null unless this attempt revises another."
+    delta: Int
+    reveal: String!
+    moduleState: String!
+    masteryUnmet: [String!]!
+    atCriterion: Boolean!
+    "Criteria a judge levelled but which cannot count until calibration passes."
+    feedbackOnly: [String!]!
+  }
+
+  type ClarityCriterionMean {
+    criterion: String!
+    mean: Float
+    count: Int!
+  }
+
+  type ClarityProgress {
+    contentVersion: String!
+    rubricVersion: String!
+    locale: String!
+    reviewStatus: String!
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    "False when no reader is configured: elicitation is unavailable and three criteria go unscored."
+    readerAvailable: Boolean!
+    "False until a calibration pass runs. Judge levels are shown but enter no probe total."
+    anyCriterionCalibrated: Boolean!
+    "Criteria scored without a model in this locale."
+    detectorCriteria: [String!]!
+    totalAttempts: Int!
+    criterionMeans: [ClarityCriterionMean!]!
+    revisionDeltas: [Int!]!
+    meanDelta: Float
+  }
+
   type SkillProgress {
     skillKey: SkillKey!
     contentVersion: String!
@@ -458,6 +574,11 @@ export const typeDefs = gql`
     skillDueReviews: [SkillModule!]!
     "Module sittings currently on the calendar, past and future."
     skillPlan(skillKey: SkillKey!): [SkillPlannedSession!]!
+
+    "Clarity Lab: the six modules, each with the rubric criterion it trains."
+    clarityModules: [ClarityModule!]!
+    "Clarity Lab: per-criterion trend, revision deltas, and what is scoreable in this install."
+    clarityProgress: ClarityProgress!
   }
 
   type AuthPayload {
@@ -654,6 +775,38 @@ export const typeDefs = gql`
 
     "Skip the baseline. Allowed — but then later scores are comparable to nothing, and the progress surface says so."
     skipSkillAssessment(skillKey: SkillKey!): Boolean!
+
+    """
+    Clarity Lab: open an attempt and serve the next item. Elicitation items are
+    withheld when no reader is configured — they cannot be completed without
+    one, and serving an item that dead-ends at the reveal is worse than serving
+    fewer. Returns null when the pool is spent.
+    """
+    startClarityItem(mode: SkillMode!, moduleKey: String): ClarityServedItem
+
+    """
+    Commit what the learner expects the reader to produce, before seeing it.
+    Elicitation only, and not editable afterwards — a prediction you can revise
+    once you have the answer measures nothing.
+    """
+    lockClarityPrediction(attemptId: ID!, prediction: String!): Boolean!
+
+    """
+    Commit which criteria the learner believes failed, before any score is
+    shown. Required on revision and elicitation items: submitting without it is
+    rejected, because a diagnosis entered after the levels is a recollection.
+    """
+    lockClarityDiagnosis(attemptId: ID!, criteria: [String!]!): Boolean!
+
+    "Score the artifact. Only here are the reveal and the levels returned."
+    submitClarityAttempt(attemptId: ID!, text: String!, timeZoneOffsetMinutes: Int): ClarityAttemptResult!
+
+    """
+    Open a revision of a scored attempt. A new attempt row rather than an edit,
+    so the draft survives and the delta compares two scored artifacts. Revisions
+    never count toward mastery — the learner has just been told what failed.
+    """
+    startClarityRevision(attemptId: ID!): ClarityServedItem!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

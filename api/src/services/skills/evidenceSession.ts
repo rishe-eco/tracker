@@ -29,7 +29,6 @@ import {
   type PublicEvidenceItem,
   type Verdict,
 } from "../../content/skills/types";
-import { MODULE_ORDER } from "../../content/skills/evidence/v1";
 import { scoreEvidenceItem, scoreSession, type CheckEventInput } from "./scoring";
 import { evaluateMastery, type ScoredAttempt } from "./mastery";
 import { nextReviewAt, onReviewFailed, onReviewPassed, toDayKey } from "./scheduler";

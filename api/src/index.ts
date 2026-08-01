@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import { env } from "process";
 import cors from "cors";
 import { authenticateApiToken, looksLikeApiToken } from "./services/apiTokens";
+import { applySqlitePragmas } from "./db/sqlitePragmas";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -78,6 +79,8 @@ const enforceTokenScope = {
 };
 
 async function startServer() {
+  await applySqlitePragmas(prisma);
+
   const PORT = env.PORT || 4000;
   const server = new ApolloServer({
     typeDefs,

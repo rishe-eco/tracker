@@ -9,8 +9,14 @@
  * Spec: 00-skills-engine.md §5.1, §6; 02-evidence-lab.md §4, §5, §11.
  */
 
-import { EVIDENCE_MODULE_KEYS, isControl, type EvidencePack, type Locale } from "./types";
-import { buildEvidencePack, EXPECTED_VERDICT, ITEM_SPECS } from "./evidence/v1";
+import {
+  EVIDENCE_MODULE_KEYS,
+  isControl,
+  PROFILE_VERDICT,
+  type EvidencePack,
+  type Locale,
+} from "./types";
+import { CURRENT_VERSION, EVIDENCE_VERSIONS } from "./versions";
 
 export type ValidationIssue = {
   severity: "error" | "warning";
@@ -23,7 +29,31 @@ const LOCALES: Locale[] = ["en", "fa"];
 /** Minimum share of control (true-claim) items in any scored form. */
 export const MIN_CONTROL_RATIO = 1 / 3;
 
-export function validateEvidenceContent(): ValidationIssue[] {
+/**
+ * Minimum practice items per module. Mastery needs MASTERY_REQUIRED_STRICT
+ * at-criterion attempts inside a MASTERY_WINDOW-attempt window, so a module with
+ * fewer items than the window can never reach the bar however well the learner
+ * does. v1 shipped two pool items in total and four of six modules had no
+ * practice at all — that is the failure this rule exists to make loud.
+ */
+export const MIN_POOL_ITEMS_PER_MODULE = 6;
+
+export function validateEvidenceContent(
+  contentVersion: string = CURRENT_VERSION.evidence
+): ValidationIssue[] {
+  const version = EVIDENCE_VERSIONS[contentVersion];
+  if (!version) {
+    return [
+      {
+        severity: "error",
+        code: "unknown-version",
+        message: `No content version "${contentVersion}" is registered.`,
+      },
+    ];
+  }
+  const { specs: ITEM_SPECS, build: buildEvidencePack } = version;
+  const EXPECTED_VERDICT = PROFILE_VERDICT;
+
   const issues: ValidationIssue[] = [];
   const err = (code: string, message: string) => issues.push({ severity: "error", code, message });
   const warn = (code: string, message: string) => issues.push({ severity: "warning", code, message });
@@ -76,6 +106,29 @@ export function validateEvidenceContent(): ValidationIssue[] {
         "control-ratio",
         `Form ${formId} is ${(ratio * 100).toFixed(0)}% control items (${controls}/${items.length}); ` +
           `minimum is ${(MIN_CONTROL_RATIO * 100).toFixed(0)}%. Without true claims the score measures suspicion, not discrimination.`
+      );
+    }
+  }
+
+  // ── Practice coverage, per module ───────────────────────────────────────
+  // A module the learner can open and cannot practise is worse than one that
+  // isn't there: the button works, the page is empty, and nothing says why.
+  for (const moduleKey of EVIDENCE_MODULE_KEYS) {
+    const pool = ITEM_SPECS.filter((i) => i.formId === "pool" && i.moduleKey === moduleKey);
+    if (pool.length < MIN_POOL_ITEMS_PER_MODULE) {
+      err(
+        "pool-too-small",
+        `Module "${moduleKey}" has ${pool.length} practice item(s); at least ${MIN_POOL_ITEMS_PER_MODULE} are needed. ` +
+          `Below the mastery window, the module cannot reach mastery no matter how the learner performs.`
+      );
+    }
+    const controls = pool.filter((i) => isControl(i.profile)).length;
+    if (pool.length > 0 && controls / pool.length < MIN_CONTROL_RATIO) {
+      err(
+        "pool-control-ratio",
+        `Module "${moduleKey}" practice pool is ${controls}/${pool.length} control items; minimum is ` +
+          `${(MIN_CONTROL_RATIO * 100).toFixed(0)}%. Mastery requires zero false alarms, so a pool without ` +
+          `true claims makes the bar untestable as well as the training misleading.`
       );
     }
   }

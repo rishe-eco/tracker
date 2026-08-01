@@ -18,6 +18,36 @@ const serve = (ctx: any, moduleKey?: string) =>
     ctx
   );
 
+describe("first visit", () => {
+  it("loads modules and progress together on a brand-new account", async () => {
+    // The Evidence Lab page asks for both in parallel and both create the
+    // profile on first contact. Before the fix, the loser of that race hit the
+    // (userId, skillKey) unique constraint, its query returned null, and the
+    // page sat on a spinner until the learner reloaded — once per account, so
+    // exactly the kind of bug that survives a demo.
+    const ctx = makeCtx(await createTestUser());
+    const [modules, progress] = await Promise.all([
+      queryResolvers.skillModules(null, { skillKey: "evidence" }, ctx),
+      queryResolvers.skillProgress(null, { skillKey: "evidence" }, ctx),
+    ]);
+
+    expect(modules).toHaveLength(6);
+    expect(progress).not.toBeNull();
+    expect(await prisma.skillProfile.count()).toBe(1);
+  });
+
+  it("survives several concurrent first requests, not just two", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        queryResolvers.skillProgress(null, { skillKey: "evidence" }, ctx)
+      )
+    );
+    expect(results.every((r) => r != null)).toBe(true);
+    expect(await prisma.skillProfile.count()).toBe(1);
+  });
+});
+
 describe("startSkillItem", () => {
   it("serves an item without leaking anything that answers it", async () => {
     const ctx = makeCtx(await createTestUser());

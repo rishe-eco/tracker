@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, Prisma } from "@prisma/client";
 
 const REPEAT_UNIT_DAY = "day";
 const REPEAT_UNIT_WEEK = "week";
@@ -237,8 +237,34 @@ export type ActionGatheringOptions = {
 };
 
 /**
+ * Identity of a gathered action: one per source, per date, per time block.
+ * Used to dedupe against rows already in the database and against duplicate
+ * time blocks within a single run.
+ */
+function gatheredActionKey(action: {
+  forDate: Date | null;
+  sourceType: string | null;
+  sourceId: string | null;
+  startTimeOfDay: string | null;
+}): string {
+  return [
+    action.forDate?.getTime() ?? "",
+    action.sourceType,
+    action.sourceId,
+    action.startTimeOfDay,
+  ].join("|");
+}
+
+/**
  * Run action gathering for today, today+1, today+2 (or subset).
  * Creates gathered Actions from intervals and routines, and sets actionGatheringCompletedAt on DayState.
+ *
+ * Query shape matters here — this runs every time Today is opened. Everything
+ * the loop needs is read up front (four queries total, regardless of how many
+ * intervals or routines exist), and each date's writes commit as one
+ * transaction. Doing a findFirst-then-create round trip per action instead cost
+ * ~100-400ms per action against SQLite, so a user with 10 intervals across two
+ * time blocks waited ~23s.
  */
 export async function runActionGathering(
   prisma: PrismaClient,
@@ -271,12 +297,27 @@ export async function runActionGathering(
     null
   );
 
+  // Both prefetched for the whole window rather than per date.
+  const forDates = dateKeys.map(dateKeyToDate);
+
+  const dayStates = await prisma.dayState.findMany({
+    where: { userId, dateKey: { in: dateKeys } },
+    select: { dateKey: true, actionGatheringCompletedAt: true },
+  });
+  const gatheredAtByDateKey = new Map(
+    dayStates.map((d) => [d.dateKey, d.actionGatheringCompletedAt])
+  );
+
+  const existingActions = await prisma.action.findMany({
+    where: { userId, forDate: { in: forDates }, isGathered: true },
+    select: { forDate: true, sourceType: true, sourceId: true, startTimeOfDay: true },
+  });
+  // Grows as we go, so duplicate time blocks within one run dedupe too.
+  const seen = new Set(existingActions.map(gatheredActionKey));
+
   for (const dateKey of dateKeys) {
     if (skipCompletedDates) {
-      const existing = await prisma.dayState.findUnique({
-        where: { userId_dateKey: { userId, dateKey } },
-      });
-      const gatheredAt = existing?.actionGatheringCompletedAt;
+      const gatheredAt = gatheredAtByDateKey.get(dateKey);
       if (
         gatheredAt != null &&
         (newestTemplateChange == null || gatheredAt >= newestTemplateChange)
@@ -286,87 +327,62 @@ export async function runActionGathering(
     }
 
     const forDate = dateKeyToDate(dateKey);
+    const toCreate: Prisma.ActionUncheckedCreateInput[] = [];
+
+    const collect = (
+      template: { id: string; title: string; estimatedTimeMinutes: number | null },
+      sourceType: "interval" | "routine",
+      occurrences: { startTimeOfDay: string }[]
+    ) => {
+      for (const { startTimeOfDay } of occurrences) {
+        const key = gatheredActionKey({
+          forDate,
+          sourceType,
+          sourceId: template.id,
+          startTimeOfDay,
+        });
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        toCreate.push({
+          userId,
+          title: template.title,
+          estimatedTimeMinutes: template.estimatedTimeMinutes ?? undefined,
+          startTimeOfDay,
+          forDate,
+          sourceType,
+          sourceId: template.id,
+          isGathered: true,
+          priority: "P",
+        });
+      }
+    };
 
     // ---- Intervals: one action per interval per date per time block (if occurs)
     for (const interval of intervals) {
       if (!intervalOccursOnDate(interval, dateKey)) continue;
-
-      const occurrences = getIntervalOccurrencesForDate(interval);
-      for (const { startTimeOfDay } of occurrences) {
-        const existing = await prisma.action.findFirst({
-          where: {
-            userId,
-            forDate,
-            sourceType: "interval",
-            sourceId: interval.id,
-            startTimeOfDay,
-            isGathered: true,
-          },
-        });
-        if (existing) continue;
-
-        await prisma.action.create({
-          data: {
-            userId,
-            title: interval.title,
-            estimatedTimeMinutes: interval.estimatedTimeMinutes ?? undefined,
-            startTimeOfDay,
-            forDate,
-            sourceType: "interval",
-            sourceId: interval.id,
-            isGathered: true,
-            priority: "P",
-          },
-        });
-        actionsCreated++;
-      }
+      collect(interval, "interval", getIntervalOccurrencesForDate(interval));
     }
 
     // ---- Routines: one action per routine per date per time block
     for (const routine of routines) {
       if (!routineOccursOnDate(routine, dateKey)) continue;
-
-      const occurrences = getRoutineOccurrencesForDate(routine);
-      for (const { startTimeOfDay } of occurrences) {
-        const existing = await prisma.action.findFirst({
-          where: {
-            userId,
-            forDate,
-            sourceType: "routine",
-            sourceId: routine.id,
-            startTimeOfDay,
-            isGathered: true,
-          },
-        });
-        if (existing) continue;
-
-        await prisma.action.create({
-          data: {
-            userId,
-            title: routine.title,
-            estimatedTimeMinutes: routine.estimatedTimeMinutes ?? undefined,
-            startTimeOfDay,
-            forDate,
-            sourceType: "routine",
-            sourceId: routine.id,
-            isGathered: true,
-            priority: "P",
-          },
-        });
-        actionsCreated++;
-      }
+      collect(routine, "routine", getRoutineOccurrencesForDate(routine));
     }
 
-    // Mark this date's gathering as complete
-    await prisma.dayState.upsert({
-      where: { userId_dateKey: { userId, dateKey } },
-      create: {
-        userId,
-        dateKey,
-        actionGatheringCompletedAt: new Date(),
-      },
-      update: { actionGatheringCompletedAt: new Date() },
-    });
+    // One transaction per date: the actions and the completion marker land
+    // together, so a failure can't leave a date marked gathered but empty.
+    const completedAt = new Date();
+    await prisma.$transaction([
+      ...toCreate.map((data) => prisma.action.create({ data })),
+      prisma.dayState.upsert({
+        where: { userId_dateKey: { userId, dateKey } },
+        create: { userId, dateKey, actionGatheringCompletedAt: completedAt },
+        update: { actionGatheringCompletedAt: completedAt },
+      }),
+    ]);
+
+    actionsCreated += toCreate.length;
     dateKeysProcessed.push(dateKey);
   }
 

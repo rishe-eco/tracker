@@ -293,6 +293,19 @@ export const typeResolvers = {
       parent.nextReviewAt != null ? new Date(parent.nextReviewAt).toISOString() : null,
   },
 
+  ClarityModule: {
+    masteredAt: (parent: any) =>
+      parent.masteredAt != null ? new Date(parent.masteredAt).toISOString() : null,
+    nextReviewAt: (parent: any) =>
+      parent.nextReviewAt != null ? new Date(parent.nextReviewAt).toISOString() : null,
+  },
+
+  ClarityCriterionMean: {
+    // Rounded at the edge rather than in the service: the service keeps full
+    // precision for trend maths, and two decimals is all a six-line chart shows.
+    mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
+  },
+
   SkillPlannedSession: {
     tbd: (parent: any) => new Date(parent.tbd).toISOString(),
   },

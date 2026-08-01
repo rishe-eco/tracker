@@ -1,11 +1,15 @@
 import { requireAuth } from "../auth";
 import { getTodayActions, getPreDayStatus, getNotDoneActionsForDate } from "../../services/todayPreDayAfterDay";
 import { getModules, getProgress } from "../../services/skills/evidenceSession";
+import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
 import { getPlan } from "../../services/skills/planning";
 
 /**
- * Clarity Lab is P1 (06-specs/00-skills-engine.md §14). Failing loudly beats
- * returning an empty Evidence Lab under a clarity label.
+ * Clarity Lab has its own fields (`clarityModules`, `clarityProgress`) rather
+ * than sharing these. The two tools measure different things, so a shared type
+ * would have to make every field on both sides nullable. Passing `clarity` here
+ * is therefore a caller error, and failing loudly beats returning an empty
+ * Evidence Lab under a clarity label.
  */
 function assertEvidence(skillKey: string) {
   if (skillKey !== "evidence") {
@@ -285,4 +289,8 @@ export const queryResolvers = {
     assertEvidence(skillKey);
     return getPlan(ctx.prisma, ctx.user.id, "evidence");
   }),
+
+  clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id)),
+
+  clarityProgress: requireAuth((_, __, ctx) => getClarityProgress(ctx.prisma, ctx.user.id)),
 };
