@@ -1,0 +1,11 @@
+# Root of the monorepo only — each workspace has its own .gitignore.
+
+node_modules
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local agent/editor state
+.claude/settings.local.json

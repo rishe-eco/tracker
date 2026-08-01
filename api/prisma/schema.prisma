@@ -1,0 +1,512 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Priority: P = high urgency + high importance, S = low urgency + high importance,
+// O = high urgency + low importance (outsource), B = low urgency + low importance (bucket list)
+enum Priority {
+  P // Primary
+  S // Secondary
+  O // Outsource
+  B // BucketList
+}
+
+// How often an interval repeats (e.g. repeatValue=2 + repeatUnit=week = every 2 weeks)
+enum RepeatUnit {
+  minute
+  hour
+  day
+  week
+  month
+  year
+}
+
+enum IntervalStatus {
+  active
+  inactive
+}
+
+// How action was disposed in After-day wizard (null = still scheduled or done)
+enum ActionFate {
+  Postponed
+  OutsourceWoo
+  Backlog
+  BucketList
+  PassedArchived
+}
+
+// Source of gathered actions; null = user-created (standalone or project-linked).
+// `skill` actions are *not* gathered (isGathered stays false) — they are ordinary
+// scheduled actions that happen to know which skill module they belong to, so the
+// daily-cycle branching over gathered actions never sees them.
+enum ActionSourceType {
+  interval
+  routine
+  skill
+}
+
+model Action {
+  id                   String            @id @default(uuid())
+  title                String
+  tbd                  DateTime?
+  done                 Boolean           @default(false)
+  priority             Priority          @default(P)
+  estimatedTimeMinutes Int? // Required when tbd is set; max 1440 (24h)
+  startTimeOfDay       String? // "HH:mm" - when to start; optional at create, required in Pre-day for day actions
+  createdAt            DateTime          @default(now())
+  projectId            String?
+  project              Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Gathered action fields (Option A: reuse Action)
+  sourceType           ActionSourceType?
+  sourceId             String? // interval or routine id
+  forDate              DateTime? // calendar day this gathered action is for (hidden until this day)
+  isGathered           Boolean           @default(false)
+  actionFate           ActionFate? // set when disposed in After-day wizard
+}
+
+model DayState {
+  id                         String    @id @default(uuid())
+  userId                     String
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateKey                    String // "YYYY-MM-DD" local date (calendar day)
+  afterDayCompletedAt        DateTime?
+  actionGatheringCompletedAt DateTime?
+  preDayCompletedAt          DateTime?
+
+  @@unique([userId, dateKey])
+}
+
+model Goal {
+  id                   String      @id @default(cuid())
+  title                String
+  dod                  String?
+  isGoalGroup          Boolean     @default(false) // Goal group: children are goals, not projects; milestones contain goals
+  parentGoalId         String?
+  parentMilestoneId    String?
+  parentGoal           Goal?       @relation("GoalChildren", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  childGoals           Goal[]      @relation("GoalChildren")
+  parentMilestone      Milestone?  @relation("MilestoneChildGoals", fields: [parentMilestoneId], references: [id], onDelete: SetNull)
+  milestones           Milestone[] @relation("GoalMilestones")
+  projects             Project[]
+  intervals            Interval[]
+  createdAt            DateTime    @default(now())
+  startDate            DateTime?
+  endDate              DateTime?
+  dodClarityStatus     String? // "green" | "amber" — null means check not run
+  dodFlaggedDimensions String? // JSON array of flagged dimension keys
+  userId               String
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journals             Journal[]
+}
+
+model Milestone {
+  id             String     @id @default(cuid())
+  title          String
+  doa            String? // Definition of achieved
+  goalId         String
+  goal           Goal       @relation("GoalMilestones", fields: [goalId], references: [id], onDelete: Cascade)
+  childGoals     Goal[]     @relation("MilestoneChildGoals") // Goals under this milestone (when parent goal is a goal group)
+  projects       Project[]
+  intervals      Interval[]
+  createdAt      DateTime   @default(now())
+  predictionDate DateTime? // Optional; no effect on ordering or logic
+  order          Int        @default(0) // Display order within goal (lower first; last milestone kept at end)
+  isLast         Boolean    @default(false) // At most one per goal; new milestones are added before this one
+}
+
+// Project links to goal OR milestone, not both. Enforced by DB check in migration.
+model Project {
+  id          String     @id @default(uuid())
+  title       String
+  dod         String?
+  type        String     @default("individual")
+  priority    Priority   @default(P)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  actions     Action[]
+  intervals   Interval[]
+  goalId      String? // Optional direct link to goal
+  milestoneId String? // Optional link via milestone (goal derived from milestone)
+  goal        Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journals    Journal[]
+}
+
+// Conceptual steps for each repetition of an interval (not the same as Action).
+model IntervalStep {
+  id         String   @id @default(uuid())
+  title      String
+  order      Int      @default(0)
+  intervalId String
+  interval   Interval @relation(fields: [intervalId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+// Intervals can be standalone or scoped to a goal OR a milestone OR a project (one at most).
+// endTime = until when repetitions count. App-level: when scoped to goal/project/milestone, endTime is typically required.
+// Repeat: use repeatValue+repeatUnit for recurrence, and/or customRepeatDates (JSON array of ISO date-time strings) for specific dates.
+model Interval {
+  id                   String         @id @default(uuid())
+  title                String
+  status               IntervalStatus @default(active)
+  estimatedTimeMinutes Int? // Required; max 1440 (24h)
+  endTime              DateTime? // Optional; until which date/time repetitions must be considered
+  repeatValue          Int            @default(1) // e.g. every 2 weeks => repeatValue=2, repeatUnit=week
+  repeatUnit           RepeatUnit? // Null when using only customRepeatDates
+  customRepeatDates    String? // JSON array of ISO date-time strings for specific repeat dates
+  customRepeatRule     String? // JSON: { unit: "week", daysOfWeek: [1..7] } or { unit: "month", daysOfMonth: [1..31] } or { unit: "year", months: [1..12], daysOfMonth?: [1..31] }
+  predictedToDoTime    String? // Optional "HH:mm" default to-do time for gathered actions
+  steps                IntervalStep[]
+  goalId               String?
+  milestoneId          String?
+  projectId            String?
+  goal                 Goal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestone            Milestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  project              Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId               String
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+// Routine: daily-with-timer style; no link to goal/milestone/project.
+model RoutineStep {
+  id        String   @id @default(uuid())
+  title     String
+  order     Int      @default(0)
+  routineId String
+  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Routine {
+  id                   String         @id @default(uuid())
+  title                String
+  status               IntervalStatus @default(active)
+  estimatedTimeMinutes Int? // Required; max 1440 (24h)
+  endTime              DateTime?
+  timeOfDayBlocks      String? // JSON array of "HH:mm" - when in the day (multiple blocks)
+  timerDurationMinutes Int? // Timer length per occurrence
+  steps                RoutineStep[]
+  userId               String
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  entityType String // "action" | "project" | "goal" | "milestone" | "routine" | "interval"
+  entityId   String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+}
+
+model Journal {
+  id               String          @id @default(uuid())
+  title            String
+  description      String?
+  isArchived       Boolean         @default(false)
+  linkedGoalId     String?
+  linkedProjectId  String?
+  goal             Goal?           @relation(fields: [linkedGoalId], references: [id], onDelete: SetNull)
+  project          Project?        @relation(fields: [linkedProjectId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  entries          JournalEntry[]
+  accessList       JournalAccess[]
+  defaultForUserId String?         @unique
+  defaultForUser   User?           @relation("UserDefaultJournal", fields: [defaultForUserId], references: [id], onDelete: SetNull)
+}
+
+model JournalAccess {
+  id        Int      @id @default(autoincrement())
+  journalId String
+  userEmail String
+  addedAt   DateTime @default(now())
+  journal   Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([journalId, userEmail])
+}
+
+model JournalEntry {
+  id                  String   @id @default(uuid())
+  journalId           String
+  body                String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  isArchived          Boolean  @default(false)
+  timestampOverridden Boolean  @default(false)
+  journal             Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+}
+
+model OnboardingProgress {
+  id              Int       @id @default(autoincrement())
+  userId          String    @unique
+  lastSlideViewed Int       @default(0)
+  completedAt     DateTime?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ModuleIntroViewed {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  moduleKey String
+  viewedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleKey])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  actions             Action[]
+  projects            Project[]
+  goals               Goal[]
+  intervals           Interval[]
+  routines            Routine[]
+  dayStates           DayState[]
+  notes               Note[]
+  onboardingProgress  OnboardingProgress?
+  moduleIntrosViewed  ModuleIntroViewed[]
+  discoverableByEmail Boolean               @default(false)
+  defaultJournal      Journal?              @relation("UserDefaultJournal")
+  apiTokens           ApiToken[]
+  skillProfiles       SkillProfile[]
+  skillModuleProgress SkillModuleProgress[]
+  skillAttempts       SkillAttempt[]
+  skillProbes         SkillProbe[]
+}
+
+/// A personal access token for the public API. The secret is never stored —
+/// only its SHA-256 digest, so a database leak cannot yield working tokens.
+model ApiToken {
+  id         String        @id @default(uuid())
+  name       String
+  /// SHA-256 of the full token. Tokens are 32 random bytes, so an unsalted
+  /// digest is safe here (nothing to guess) and stays a single indexed lookup.
+  tokenHash  String        @unique
+  /// Leading characters, kept so the UI can identify a token it can't show again.
+  prefix     String
+  scope      ApiTokenScope @default(read)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime      @default(now())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum ApiTokenScope {
+  read
+  write
+}
+
+// ─── Skill tools: Clarity Lab / Evidence Lab ────────────────────────────────
+// Spec: tracker-canon/06-specs/00-skills-engine.md §9.
+//
+// Content — modules, items, rubrics, frozen search snapshots — lives in the
+// repo, not here. A generated item cannot support a pre/post comparison, so the
+// item bank is authored and versioned like code. These tables hold only
+// per-user state, and every scored row carries the content and scoring versions
+// that produced it: totals from different versions are not comparable and must
+// never be charted on one line.
+
+enum SkillKey {
+  clarity
+  evidence
+}
+
+enum SkillModuleState {
+  not_started
+  in_progress
+  mastered
+  tested_out
+  due_review
+}
+
+enum SkillMode {
+  assessment
+  module
+  review
+  calibrated_practice
+  open_practice
+}
+
+enum SkillTimepoint {
+  baseline
+  post
+  delayed
+}
+
+/// One per user per skill. Pins the learner to a content version so a mid-programme
+/// content bump can't silently change what their scores mean.
+model SkillProfile {
+  id                      String    @id @default(uuid())
+  userId                  String
+  skillKey                SkillKey
+  contentVersion          String
+  locale                  String    @default("en")
+  assessmentStartedAt     DateTime?
+  assessmentCompletedAt   DateTime?
+  /// Skipping is allowed, but then there is no baseline and later scores are
+  /// comparable to nothing — the progress surface has to say so.
+  assessmentSkipped       Boolean   @default(false)
+  /// JSON array of moduleKey, ordered by the baseline profile. Parsed in typeResolvers.
+  recommendedOrder        String?
+  /// Set only when the learner consents to their own text leaving the server.
+  aiConsentAt             DateTime?
+  /// Opt-in: write module sessions and due reviews into the calendar as
+  /// scheduled actions. Off by default — a tool that fills someone's calendar
+  /// without being asked is a tool they uninstall.
+  calendarPlanningEnabled Boolean   @default(false)
+  /// "HH:mm" — the hour planned sessions and generated reviews land on.
+  planTimeOfDay           String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillKey])
+}
+
+model SkillModuleProgress {
+  id                     String           @id @default(uuid())
+  userId                 String
+  skillKey               SkillKey
+  moduleKey              String
+  state                  SkillModuleState @default(not_started)
+  /// 1–7 in the module step template: concept, model, guided, feedback,
+  /// diagnose, independent, review.
+  currentStep            Int              @default(1)
+  /// Buffered mid-step answer so a module resumes exactly where it stopped
+  /// (convention #8).
+  partialResponse        String?
+  consecutiveAtCriterion Int              @default(0)
+  /// "YYYY-MM-DD" of the last at-criterion unscaffolded attempt. Mastery
+  /// requires two *distinct* days — same-session repetition measures short-term
+  /// retention only, which is the illusion this tool exists to dispel.
+  lastCriterionDay       String?
+  masteredAt             DateTime?
+  /// Index into the expanding review schedule (1d, 3d, 7d, 21d, 60d).
+  reviewIntervalIndex    Int              @default(0)
+  nextReviewAt           DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillKey, moduleKey])
+  @@index([userId, nextReviewAt])
+}
+
+model SkillAttempt {
+  id                  String            @id @default(uuid())
+  userId              String
+  skillKey            SkillKey
+  moduleKey           String?
+  itemId              String
+  formId              String?
+  mode                SkillMode
+  probeId             String?
+  responseText        String?
+  /// Draft → revision chain. The delta between the two is the learning signal
+  /// for Clarity Lab.
+  revisionOfAttemptId String?
+  /// JSON: per-criterion levels and composites. Never contains the answer key.
+  scores              String
+  /// JSON: derived behavioural metrics (lateral, independence, latency).
+  behaviors           String?
+  /// 0–100, collected with the verdict, feeds the Brier score.
+  confidence          Int?
+  latencyMs           Int?
+  contentVersion      String
+  rubricVersion       String?
+  judgeModelVersion   String?
+  /// "detector" | "judge" | "behavior" | "mixed" — so an en detector-scored
+  /// criterion and a fa judge-scored one are never silently treated as equivalent.
+  scoredBy            String
+  createdAt           DateTime          @default(now())
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  probe               SkillProbe?       @relation(fields: [probeId], references: [id], onDelete: SetNull)
+  checkEvents         SkillCheckEvent[]
+
+  @@index([userId, skillKey, moduleKey])
+  @@index([probeId])
+}
+
+model SkillProbe {
+  id                String         @id @default(uuid())
+  userId            String
+  skillKey          SkillKey
+  timepoint         SkillTimepoint
+  formId            String
+  /// The delayed probe is scheduled ~7 days after the post probe. It is the
+  /// piece the published literature is missing, so it is a first-class row and
+  /// not an afterthought.
+  scheduledFor      DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  /// JSON: per-dimension and composite totals.
+  totals            String?
+  contentVersion    String
+  rubricVersion     String?
+  judgeModelVersion String?
+  /// JSON: self-efficacy answers. Collected, never scored — they exist to show
+  /// the learner their own self-report diverging from their behaviour.
+  selfReport        String?
+  createdAt         DateTime       @default(now())
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts          SkillAttempt[]
+
+  @@unique([userId, skillKey, timepoint])
+}
+
+/// Rows, not a JSON blob on the attempt: time-to-first-check and
+/// check-before-verdict ordering are primary outcome measures and have to be
+/// queryable. Ownership is inherited from the attempt.
+model SkillCheckEvent {
+  id        String       @id @default(uuid())
+  attemptId String
+  /// opened_sideways | search_issued | source_submitted | verdict_set | revealed
+  kind      String
+  payload   String?
+  /// Milliseconds from item start. The ordering is the measurement: a check
+  /// performed after the verdict was committed is not a check.
+  offsetMs  Int
+  createdAt DateTime     @default(now())
+  attempt   SkillAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+}

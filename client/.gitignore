@@ -1,0 +1,22 @@
+.DS_Store
+/node_modules/
+
+# React Router
+/.react-router/
+/build/
+/dist/
+
+# Local env overrides — Vite's convention for machine-specific values and the
+# one place secrets are likely to land. The committed .env / .env.production
+# hold only API URLs and stay tracked.
+.env.local
+.env.*.local
+*.local
+
+# Playwright: generated credentials, reports, and run state
+/e2e/.auth/e2e-user.json
+/playwright-report/
+/test-results/
+
+/coverage/
+*.log

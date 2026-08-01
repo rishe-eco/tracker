@@ -1,0 +1,24 @@
+node_modules
+
+# Keep environment variables out of version control
+.env
+.env.*
+!.env.example
+
+/dist
+/coverage
+
+# SQLite. Unanchored so these match at any depth — `prisma/*.db` missed the
+# nested `prisma/prisma/` copies, which is how a stray dev.db and the vitest
+# test.db ended up in version control.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.db.backup-*
+*.db.bak
+
+# Docker bind-mount data dir (holds the production SQLite DB on the server)
+/data
+
+*.log
