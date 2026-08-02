@@ -19,6 +19,8 @@ import JournalsListPage from "./components/journals/JournalsListPage";
 import JournalDetailPage from "./components/journals/JournalDetailPage";
 import EvidenceLabPage from "./components/skills/EvidenceLabPage";
 import EvidenceDrillPage from "./components/skills/EvidenceDrillPage";
+import ClarityLabPage from "./components/skills/ClarityLabPage";
+import ClaritySessionPage from "./components/skills/ClaritySessionPage";
 import { Navigate } from "react-router";
 
 export default [
@@ -53,6 +55,14 @@ export default [
   {
     path: "/tools/skills/evidence/drill",
     element: <EvidenceDrillPage />,
+  },
+  {
+    path: "/tools/skills/clarity",
+    element: <ClarityLabPage />,
+  },
+  {
+    path: "/tools/skills/clarity/session",
+    element: <ClaritySessionPage />,
   },
   {
     path: "/tools/journals/:id",

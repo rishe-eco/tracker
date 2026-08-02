@@ -1332,3 +1332,129 @@ export const CLEAR_SKILL_SCHEDULE = `
     clearSkillSchedule(skillKey: $skillKey)
   }
 `;
+
+// ── Clarity Lab ─────────────────────────────────────────────────────────────
+//
+// Its own field set rather than a widening of the Evidence queries: the two
+// tools measure different things, and a shared shape would make every field on
+// both sides nullable.
+
+export const GET_CLARITY_MODULES = `
+  query ClarityModules {
+    clarityModules {
+      moduleKey
+      title
+      concept
+      model
+      criterion
+      state
+      currentStep
+      masteredAt
+      nextReviewAt
+    }
+  }
+`;
+
+export const GET_CLARITY_PROGRESS = `
+  query ClarityProgress {
+    clarityProgress {
+      contentVersion
+      rubricVersion
+      locale
+      reviewStatus
+      hasBaseline
+      assessmentSkipped
+      readerAvailable
+      anyCriterionCalibrated
+      detectorCriteria
+      totalAttempts
+      criterionMeans {
+        criterion
+        mean
+        count
+      }
+      revisionDeltas
+      meanDelta
+    }
+  }
+`;
+
+const CLARITY_SERVED_FIELDS = `
+  attemptId
+  needsPrediction
+  needsDiagnosis
+  draftText
+  item {
+    itemId
+    moduleKey
+    type
+    difficulty
+    scenario
+    contextSheet
+    weakText
+    authoredMisread
+  }
+`;
+
+export const START_CLARITY_ITEM = `
+  mutation StartClarityItem($mode: SkillMode!, $moduleKey: String) {
+    startClarityItem(mode: $mode, moduleKey: $moduleKey) {
+      ${CLARITY_SERVED_FIELDS}
+    }
+  }
+`;
+
+export const START_CLARITY_REVISION = `
+  mutation StartClarityRevision($attemptId: ID!) {
+    startClarityRevision(attemptId: $attemptId) {
+      ${CLARITY_SERVED_FIELDS}
+    }
+  }
+`;
+
+export const LOCK_CLARITY_PREDICTION = `
+  mutation LockClarityPrediction($attemptId: ID!, $prediction: String!) {
+    lockClarityPrediction(attemptId: $attemptId, prediction: $prediction)
+  }
+`;
+
+export const LOCK_CLARITY_DIAGNOSIS = `
+  mutation LockClarityDiagnosis($attemptId: ID!, $criteria: [String!]!) {
+    lockClarityDiagnosis(attemptId: $attemptId, criteria: $criteria)
+  }
+`;
+
+export const SUBMIT_CLARITY_ATTEMPT = `
+  mutation SubmitClarityAttempt($attemptId: ID!, $text: String!, $timeZoneOffsetMinutes: Int) {
+    submitClarityAttempt(attemptId: $attemptId, text: $text, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      attemptId
+      score {
+        criteria {
+          criterion
+          level
+          source
+          findings
+          evidenceQuote
+        }
+        total
+        maxPossible
+        scoredCount
+        unscored
+        isVoid
+        isComplete
+      }
+      diagnosis {
+        correct
+        missed
+        spurious
+      }
+      repairPassed
+      delta
+      reveal
+      moduleState
+      masteryUnmet
+      atCriterion
+      feedbackOnly
+    }
+  }
+`;

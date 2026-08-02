@@ -348,8 +348,9 @@
     "journalsDescription": "Running records of thought and progress, optionally anchored to a goal or project.",
     "openJournals": "Open Journals",
     "skillsTitle": "Skills",
-    "skillsDescription": "Practice the habits that decide whether working with AI helps or hurts — starting with evidence-seeking.",
-    "openEvidenceLab": "Open Evidence Lab"
+    "skillsDescription": "Practice the habits that decide whether working with AI helps or hurts: saying precisely what you want, and checking what comes back.",
+    "openEvidenceLab": "Open Evidence Lab",
+    "openClarityLab": "Open Clarity Lab"
   },
   "calendarPage": {
     "title": "Calendar",
@@ -932,17 +933,51 @@
       "title": "Evidence Lab",
       "subtitle": "Training one reflex: leave a confident answer and check it against something independent. The aim is discrimination, not suspicion.",
       "startDrill": "Start a drill",
+      "startFirstDrill": "Start your first drill",
+      "drillLength": "One item takes about a minute.",
       "modulesTitle": "Modules",
+      "modulesSubtitle": "Each one teaches a single move and comes with its own practice items. You don't have to do them in order.",
+      "conceptLabel": "The idea",
+      "exampleLabel": "What it looks like",
       "practiceModule": "Practice",
       "dueOn": "due {{date}}"
     },
+    "moduleName": {
+      "e1-stop": "Notice the moment",
+      "e2-source": "Ask what the source even is",
+      "e3-sideways": "Find better coverage",
+      "e4-trace": "Trace to the original",
+      "e5-independence": "Two sources, or one?",
+      "e6-reflex": "Under time pressure"
+    },
     "intro": {
-      "step1Title": "Check, don't judge",
-      "step1Body": "You'll see AI answers that look exactly like real ones. Some are wrong; some are perfectly correct. Your job is to find out which — not to find fault.",
-      "step2Title": "Go sideways, fast",
-      "step2Body": "Don't reason about the answer on its own terms. Open something independent, spend forty seconds, come back. Speed is part of the skill, not a compromise.",
-      "step3Title": "Commit before you look",
-      "step3Body": "You give a verdict and a confidence before anything is revealed. That's deliberate: it's the only way to find out what you actually would have concluded."
+      "step1Title": "A place to practise one thing",
+      "step1Body": "Evidence Lab is a training tool. It trains a single skill: deciding whether to believe what an AI has just told you. It's self-contained — nothing you do here touches your goals, projects or calendar unless you ask it to.",
+      "step2Title": "Confident and wrong look the same",
+      "step2Body": "AI answers are fluent whether or not they're accurate. No wording, formatting or tone reliably separates the two, so the only thing that works is stepping outside the answer and checking. That's a habit, and habits need repetitions.",
+      "step3Title": "One item at a time, about a minute each",
+      "step3Body": "You'll see a question someone asked and the answer an AI gave. You check it however you like — searches open in a new tab — then commit a verdict before anything is revealed, and then you find out. Most people do five or six in a sitting.",
+      "step4Title": "You commit before you see the answer",
+      "step4Body": "Your verdict and your confidence are locked in first. It's deliberate and slightly uncomfortable: it's the only way to learn what you would actually have concluded, rather than what you'd have said afterwards.",
+      "step5Title": "Roughly a third of the answers are correct",
+      "step5Body": "Flagging a true answer costs you exactly what missing a false one costs. The skill is telling them apart, not being vigilant — someone who suspects everything scores badly here, and the scoring is built to make that visible.",
+      "step6Title": "Six short modules, then open practice",
+      "step6Body": "Each module teaches one move — noticing when a claim is worth checking, reading a citation as a claim, going to an independent source — and has items to practise it. Progress is tracked per module and reviews return on a widening schedule. No streaks: nothing breaks if you skip a week."
+    },
+    "how": {
+      "title": "How a drill works",
+      "premise": "Every item is one realistic exchange: somebody asked a question, an AI answered. Some answers are accurate. Some contain a fault — an invented source, a figure that expired, a real study cited for something it doesn't say. Nothing in the writing tells you which kind you're looking at.",
+      "readTitle": "Read the question, then the answer",
+      "readBody": "They're shown in two separate boxes. The top one is what was asked; the one below it is what the AI replied. Only the reply is being judged.",
+      "checkTitle": "Check it against something independent",
+      "checkBody": "Open the sideways panel, run a search — it opens in a new tab — and paste back the link and the line that settles it. Forty seconds is the target, not five minutes.",
+      "commitTitle": "Commit a verdict",
+      "commitBody": "Choose a verdict, say which part fails if any does, and set how confident you are. This locks the item.",
+      "revealTitle": "Find out",
+      "revealBody": "You see the correct verdict, an explanation of what a fast correct check would have looked like, and how your attempt scored.",
+      "catchTitle": "The one thing worth knowing before you start",
+      "catchBody": "Checking means finding out, not finding fault. Flagging a correct answer counts against you exactly as much as missing a faulty one — and the headline score, discrimination, is precisely the gap between the two.",
+      "privacy": "Searches open in your own browser tab: Evidence Lab records that you searched and when, never what you searched or what you read. No AI service is involved anywhere — every item is scored against an answer key written in advance."
     },
     "banners": {
       "draftLocale": "This language's items are machine-drafted and awaiting review by a native speaker. Practice works normally; wording may change.",
@@ -991,7 +1026,20 @@
       "figure": "A number or figure"
     },
     "drill": {
-      "itemLabel": "Module: {{module}}",
+      "questionLabel": "The question that was asked",
+      "answerLabel": "What the AI answered",
+      "answerCaption": "This is what you're judging",
+      "stageRead": "Read",
+      "stageCheck": "Check",
+      "stageDecide": "Decide",
+      "checkStepTitle": "Check it before you decide",
+      "decideStepTitle": "Commit your verdict",
+      "verdictHint": "\"Supported\" means you checked and it holds up. \"Can't tell yet\" is a real answer, not a pass.",
+      "howTitle": "How this works",
+      "how1": "Read the answer above. Nothing about how it's written tells you whether it's accurate.",
+      "how2": "Check it against an independent source. Searches open in a new tab.",
+      "how3": "Commit a verdict and a confidence. That locks the item.",
+      "how4": "Then it's revealed — the correct verdict, and what a fast check would have looked like.",
       "sidewaysHint": "Read the answer, then check it before deciding. Fluency tells you nothing about accuracy.",
       "checkSideways": "Check sideways",
       "frozenResults": "Results frozen with this item, so every attempt meets the same evidence.",
@@ -1005,8 +1053,15 @@
       "confidenceLabel": "Confidence: {{value}}%",
       "commitWarning": "Committing locks your verdict and reveals the answer. Checks made after this point don't count.",
       "commit": "Commit verdict",
-      "correctVerdict": "Correct verdict: {{verdict}}",
-      "masteryRemaining": "Still needed for mastery",
+      "resultLabel": "Result",
+      "gotItRight": "You got it right",
+      "gotItWrong": "Not this time",
+      "yourVerdict": "You said",
+      "actualVerdict": "The answer was",
+      "explanationLabel": "What was actually going on",
+      "scoreLabel": "How this attempt scored",
+      "scoreHint": "The verdict is only part of it. Checking before deciding, and checking against something independent, count separately — a right answer reached without checking isn't the skill being trained.",
+      "masteryRemaining": "Still needed to finish this module",
       "nextItem": "Next item",
       "backToOverview": "Back to Evidence Lab",
       "exhaustedTitle": "No items left in this pool",
@@ -1015,6 +1070,8 @@
       "overTrustNote": "You were confident, wrong, and didn't check. That combination is the strongest single predictor of a bad outcome when working with AI."
     },
     "errors": {
+      "couldNotLoad": "Evidence Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "retry": "Try again",
       "couldNotStart": "Could not start an item. Try again.",
       "couldNotSubmit": "Could not record your verdict. Try again."
     },
@@ -1033,6 +1090,160 @@
       "nothingUpcoming": "Nothing upcoming — reschedule to add more.",
       "twoSittingsNote": "Each module is scheduled twice on different days. That isn't padding: mastery needs correct, checked attempts on two separate days, so a single-sitting plan would look complete and never get there.",
       "rerunNote": "Rescheduling replaces upcoming sittings. Ones you've already done, and any in the past, are left alone."
+    }
+  },
+  "clarity": {
+    "title": "Clarity Lab",
+    "subtitle": "Training one thing: saying precisely what you want, with enough context. Not prompt tricks — the habit underneath them, which doesn't expire.",
+    "startSitting": "Start a sitting",
+    "startFirstSitting": "Start your first sitting",
+    "sittingLength": "One sitting is 8–15 minutes and produces one piece of writing plus a revision of it.",
+    "modulesTitle": "Modules",
+    "modulesSubtitle": "Six, each training one criterion of the rubric. You don't have to do them in order.",
+    "practiceModule": "Practise",
+    "conceptLabel": "The idea",
+    "exampleLabel": "What it looks like",
+    "rubricTitle": "The rubric",
+    "rubricHint": "Kept on screen on purpose, including while you write. It's the thing being taught, not a hidden grading scheme.",
+    "unscored": "not scored",
+    "unscoredHint": "Nothing assessed this, so it counts neither for nor against you. It is left out of the total rather than scored zero.",
+    "needsReaderShort": "needs a reader",
+    "backToLab": "Back to Clarity Lab",
+    "exhaustedTitle": "No items left here",
+    "exhaustedBody": "Every item in this pool has been used. An item is spent once it's been revealed — running it again would measure memory rather than skill. More arrive with the next content pass.",
+    "rubric": {
+      "R1": {
+        "label": "Ask placement",
+        "test": "One request, in the first two sentences"
+      },
+      "R2": {
+        "label": "Deliverable",
+        "test": "Kind, plus two of format / length / scope — and one thing out of scope"
+      },
+      "R3": {
+        "label": "Context supplied",
+        "test": "Every fact the task needs, and not much else"
+      },
+      "R4": {
+        "label": "Referents",
+        "test": "Nothing dangling; quantities bounded"
+      },
+      "R5": {
+        "label": "Success criteria",
+        "test": "A bar a third party could apply and get yes or no"
+      },
+      "R6": {
+        "label": "Economy & order",
+        "test": "Load-bearing constraint early; every sentence earns its place"
+      }
+    },
+    "moduleName": {
+      "c1-ask": "Lead with the ask",
+      "c2-deliverable": "Name the deliverable",
+      "c3-context": "Enough context, no more",
+      "c4-referents": "Nothing dangling",
+      "c5-done": "Say what done looks like",
+      "c6-economy": "Characters, actions, and cutting"
+    },
+    "itemType": {
+      "elicitation": "write from scratch",
+      "revision": "diagnose and rewrite",
+      "repair": "quick fix"
+    },
+    "intro": {
+      "step1Title": "A place to practise one thing",
+      "step1Body": "Clarity Lab trains a single skill: saying precisely what you want, with enough context for someone to act on it. It's self-contained — nothing here touches your goals, projects or calendar unless you ask it to.",
+      "step2Title": "This is not prompt tips",
+      "step2Body": "Specific prompt tricks expire as models change. What doesn't expire is the thing underneath them — being clear about what you want, for whom, and how you'll know it worked. That's ordinary good writing, and it was useful long before there was anything to prompt.",
+      "step3Title": "Your text was clear to you",
+      "step3Body": "That's the whole problem. Once you know what you meant, you can't really read your own sentence as a stranger would. So the tool doesn't tell you your writing was unclear — it shows you what a reader actually did with it, and lets the gap do the teaching.",
+      "step4Title": "A sitting is longer than a drill",
+      "step4Body": "8 to 15 minutes, about once a week. You'll produce one piece of writing and at least one revision of it. If this ever starts to feel like a daily drill, something has gone wrong — clarity is trained by revising, not by repetition.",
+      "step5Title": "The rubric is not hidden",
+      "step5Body": "Six criteria, on screen the whole time, including while you write. Writing toward them is the intended behaviour. They're each a checkable feature — \"does the request appear in the first two sentences?\" — rather than a judgement about whether something felt clear.",
+      "step6Title": "You commit before you see the score",
+      "step6Body": "On most items you'll first say which criteria you think failed. Only then are the levels shown. Naming why something didn't work is the half of this skill that carries to the next thing you write, so it gets measured separately."
+    },
+    "how": {
+      "title": "How a sitting works",
+      "premise": "Each item gives you something to write or something to fix. Some are drills of a single sentence; most are a short piece of writing and a rewrite of it. Everything is scored against the same six criteria you can see on the right.",
+      "readTitle": "Read the task.",
+      "readBody": "Some items include a context sheet — facts only you know. Deciding which of them the reader actually needs is part of the exercise, not a formality.",
+      "writeTitle": "Write it.",
+      "writeBody": "A plain box: no autocomplete, no suggestions, no assistant. The tool is training your composition, and a helper in the box would train the helper.",
+      "diagnoseTitle": "Say what failed.",
+      "diagnoseBody": "Before any score appears, you tag the criteria you think went wrong. Your tags versus what actually failed is its own result.",
+      "scoreTitle": "See the levels.",
+      "scoreBody": "One per criterion, each with the line from your own text that justified it. The total comes last, because it's the least useful thing on the screen.",
+      "reviseTitle": "Rewrite it.",
+      "reviseBody": "The draft stays visible and locked. The difference between the two is the number worth watching — and it should shrink over time, as the skill moves into your first draft.",
+      "lockTitle": "Why things lock",
+      "lockBody": "A diagnosis entered after you've seen the scores isn't a diagnosis, it's a recollection. Same for predicting what a reader will do. Both get committed first and can't be edited afterwards — that's the only way to find out what you'd actually have concluded."
+    },
+    "banners": {
+      "noReader": "No AI reader is configured, so three of the six criteria — deliverable, context and success criteria — can't be scored, and write-from-scratch items are unavailable. Diagnose-and-rewrite items and quick fixes work normally. Finishing a module needs all six criteria, so it stays out of reach until a reader is set up.",
+      "uncalibrated": "The AI reader hasn't been calibrated against human scoring yet. Its levels are shown as feedback, and are deliberately kept out of any before/after measurement until that's done.",
+      "noBaseline": "You haven't taken the baseline yet. Without one, later scores have nothing to be compared against."
+    },
+    "metrics": {
+      "perCriterion": "Per criterion",
+      "perCriterionHint": "Six lines rather than one number — this is what says which thing improved.",
+      "revisionDelta": "Draft to revision",
+      "revisionDeltaHint": "How much your rewrite improves on your draft. Counter-intuitively, you want this to fall: a shrinking gap means the first draft is arriving closer to where the rewrite would have ended up.",
+      "noRevisionsYet": "No revisions yet. Rewrite an attempt and this starts tracking."
+    },
+    "task": "The task",
+    "contextSheet": "What you know",
+    "contextSheetHint": "Not all of this is load-bearing. Passing on everything is not thoroughness — it hands the reader the sorting job you were meant to do.",
+    "weakText": "The text to work on",
+    "whatTheReaderDid": "What the reader did with it",
+    "diagnoseIt": "Diagnose it",
+    "diagnoseFirstHint": "Name what went wrong before you rewrite it.",
+    "diagnoseTitle": "Which criteria does it fail?",
+    "diagnoseBody": "Pick every one you think applies. More than one can fail at once, and saying so costs you nothing.",
+    "diagnoseWarning": "This locks before any score is shown, and can't be changed afterwards.",
+    "lockDiagnosis": "Lock diagnosis",
+    "yourAttempt": "Your version",
+    "rewrite": "Your rewrite",
+    "draftLocked": "Your draft — locked",
+    "editorPlaceholder": "Write it the way you'd actually send it.",
+    "noAssistNote": "No autocomplete, no suggestions, no AI help. That's deliberate.",
+    "continueToPrediction": "Continue",
+    "getFeedback": "Get feedback",
+    "submitLocks": "This scores what you've written and reveals the answer.",
+    "predictTitle": "Before you see it — what will the reader do?",
+    "predictBody": "If someone competent received exactly what you wrote, and nothing else, what do you think they'd send back?",
+    "predictPlaceholder": "They'd probably…",
+    "lockPrediction": "Lock prediction and reveal",
+    "predictNotEditable": "Not editable afterwards.",
+    "whatYouWrote": "What you wrote",
+    "whatYouPredicted": "What you predicted",
+    "whatTheReaderProduced": "What the reader produced",
+    "readerPending": "No AI reader is configured, so there's nothing to compare against here. This item type needs one; diagnose-and-rewrite items don't.",
+    "resultLabel": "Result",
+    "scored": "Here's how it scored",
+    "repairPassed": "Fixed — that clears the bar",
+    "repairFailed": "Not quite — the fault is still there",
+    "voidNote": "There wasn't enough here to assess, so nothing was scored. That's recorded as no data rather than as a zero.",
+    "perCriterion": "Criterion by criterion",
+    "explanation": "What was going on",
+    "yourDiagnosis": "Your diagnosis",
+    "spotted": "Spotted",
+    "missed": "Missed",
+    "spurious": "Flagged but fine",
+    "feedbackOnly": "Feedback only — this criterion's scoring hasn't been calibrated yet, so it doesn't count toward any measurement.",
+    "total": "Total",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "delta": "Draft to revision",
+    "deltaHint": "Only set once you've rewritten.",
+    "masteryRemaining": "Still needed to finish this module",
+    "reviseIt": "Rewrite it",
+    "nextItem": "Next item",
+    "errors": {
+      "couldNotLoad": "Clarity Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "couldNotStart": "Could not start an item. Try again.",
+      "couldNotSubmit": "Could not score that. Your text is still here — try again.",
+      "couldNotLock": "Could not save that. Try again."
     }
   }
 }

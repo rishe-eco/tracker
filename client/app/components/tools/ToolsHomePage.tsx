@@ -39,9 +39,14 @@ export default function ToolsHomePage() {
           <h2 className="text-lg font-semibold">{t("toolsHome.skillsTitle")}</h2>
           <p className="text-sm text-muted-foreground">{t("toolsHome.skillsDescription")}</p>
         </div>
-        <Button onClick={() => navigate("/tools/skills/evidence")}>
-          {t("toolsHome.openEvidenceLab")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => navigate("/tools/skills/evidence")}>
+            {t("toolsHome.openEvidenceLab")}
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/tools/skills/clarity")}>
+            {t("toolsHome.openClarityLab")}
+          </Button>
+        </div>
       </section>
     </main>
   );
