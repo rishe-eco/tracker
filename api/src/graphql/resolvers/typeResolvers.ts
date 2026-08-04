@@ -316,4 +316,18 @@ export const typeResolvers = {
     medianTimeToFirstCheckMs: (parent: any) =>
       parent.medianTimeToFirstCheckMs != null ? Math.round(parent.medianTimeToFirstCheckMs) : null,
   },
+
+  /**
+   * Dates as ISO strings, per the convention the rest of this file follows.
+   *
+   * Not cosmetic. A Prisma `Date` handed to a GraphQL `String` field serializes
+   * as epoch milliseconds — "1785738600000" — and `new Date` of that string is
+   * an Invalid Date, so the history view rendered a column of "Invalid Date"
+   * while every type checked and every test passed.
+   */
+  FnLoopSitting: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+    completedAt: (parent: any) =>
+      parent.completedAt != null ? new Date(parent.completedAt).toISOString() : null,
+  },
 };

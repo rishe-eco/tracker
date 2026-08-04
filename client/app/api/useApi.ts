@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import i18n from "../i18n/config";
 
 type GraphQLResponse<T> = {
   data: T | null;
@@ -44,6 +45,13 @@ export function useApi<T = any>(
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            // The language the person is reading the app in. Some content is
+            // authored server-side (the Feelings & Needs palettes and prompts,
+            // the Skills item packs) and has to come back in that language —
+            // the server reads this rather than keeping its own copy of the
+            // setting. Read off the live i18n instance, not a hook, so changing
+            // language does not re-render every caller of useApi.
+            "Accept-Language": i18n.language || "en",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ query, variables }),

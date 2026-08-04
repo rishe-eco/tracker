@@ -536,6 +536,233 @@ export const typeDefs = gql`
     accuracyRate: Float!
   }
 
+  # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
+  # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
+  # namespaced tool. The tool home reads only enough state to route into the
+  # Day-1 frame (once) or the daily loop. Nothing here is a count shown back to
+  # the user — sittingCount routes, it does not streak (plan §10).
+  type FeelingsNeedsState {
+    contentVersion: String!
+    """
+    The locale of the *practice content* — the palettes, prompts and catch copy.
+    Fixed to "en" for the demo (plan §2). Not the same thing as the interface
+    language: a Persian user gets Persian chrome around English practice
+    material, and the client is expected to compare these two and say so.
+    """
+    locale: String!
+    "draft | reviewed — a draft locale is a known state, surfaced not hidden."
+    reviewStatus: String!
+    "Whether the Day-1 felt-not-told frame has been completed (gates the loop)."
+    frameDone: Boolean!
+    "The one-time capability moment has been shown. A door, not a score."
+    graduationSurfaced: Boolean!
+    "How far the app has withdrawn its own prompts (P7). Higher = fewer prompts."
+    promptFadeLevel: Int!
+    "Total sittings so far — for routing only, never surfaced as a streak."
+    sittingCount: Int!
+  }
+
+  # The authored content pack. Note what is absent: the faux-feelings lexicon and
+  # its catch templates. Detection runs server-side and the composed catch is
+  # returned on a hit, so the trigger list has no reason to reach a browser.
+  type FnPaletteEntry {
+    id: String!
+    label: String!
+    """
+    The form to use when the word is carried into the next prompt rather than
+    put on a chip, authored together with the carry template it goes into.
+    Null when the chip label works as-is.
+    """
+    carryLabel: String
+    "early | broaden — feelings only; the pleasant/met-need weighting (P1, P3)."
+    tier: String
+  }
+
+  type FnFrameBeat {
+    prompt: String!
+    helper: String!
+  }
+
+  type FnFrameIntro {
+    title: String!
+    body: String!
+    begin: String!
+  }
+
+  type FnFrameRecall {
+    prompt: String!
+    helper: String!
+    ready: String!
+  }
+
+  type FnFramePlace {
+    prompt: String!
+    helper: String!
+    locationIds: [String!]!
+  }
+
+  type FnFrameTexture {
+    prompt: String!
+    helper: String!
+    textureIds: [String!]!
+  }
+
+  type FnFrameName {
+    prompt: String!
+    helper: String!
+    feelingIds: [String!]!
+  }
+
+  type FnFramePayoff {
+    line: String!
+    body: String!
+    close: String!
+  }
+
+  type FnFrame {
+    intro: FnFrameIntro!
+    recall: FnFrameRecall!
+    place: FnFramePlace!
+    texture: FnFrameTexture!
+    name: FnFrameName!
+    payoff: FnFramePayoff!
+  }
+
+  type FnLoopCopy {
+    breathePrompt: String!
+    "Null once the scaffold has faded (P7) — the app simply stops saying it."
+    breatheHint: String
+    breatheSkip: String!
+    "Where it sits. Already faded to its terse form when the fade level calls for it."
+    placePrompt: String!
+    "Null once the scaffold has faded."
+    placeHelper: String
+    "Carries the chosen place onto the texture step, via a {{place}} placeholder."
+    textureCarry: String!
+    texturePrompt: String!
+    "Null once the scaffold has faded."
+    textureHelper: String
+    nameCarry: String!
+    namePrompt: String!
+    nameOther: String!
+    nameOwnPlaceholder: String!
+    needCarry: String!
+    needPrompt: String!
+    needSkip: String!
+    smallStepPrompt: String!
+    smallStepPlaceholder: String!
+    smallStepSkip: String!
+    done: String!
+    addAnother: String!
+    addAnotherAsk: String!
+    addAnotherCapped: String!
+    finish: String!
+    recapHeading: String!
+    recapLead: String!
+    recapNotRelated: String!
+    repeatLead: String!
+    repeatPrompt: String!
+  }
+
+  type FnGraduation {
+    line: String!
+    body: String!
+    close: String!
+  }
+
+  "Which palette words to put on screen now. The pool is wide; the screen is small."
+  type FnDisplaySelection {
+    locationIds: [String!]!
+    textureIds: [String!]!
+    feelingIds: [String!]!
+    needIds: [String!]!
+  }
+
+  type FeelingsNeedsContent {
+    contentVersion: String!
+    locale: String!
+    reviewStatus: String!
+    "The full authored pools — the client resolves stored ids to labels from these."
+    locations: [FnPaletteEntry!]!
+    textures: [FnPaletteEntry!]!
+    feelings: [FnPaletteEntry!]!
+    needs: [FnPaletteEntry!]!
+    display: FnDisplaySelection!
+    frame: FnFrame!
+    loop: FnLoopCopy!
+    graduation: FnGraduation!
+    "Soft cap on passes per sitting, so the UI retires 'add another' rather than failing on it."
+    repeatSoftCap: Int!
+    breathSkippable: Boolean!
+  }
+
+  # One pass of the loop. Passes within a sitting are parallel and are never
+  # cross-referenced — relating them is storytelling (tier 4), deliberately
+  # deferred, so there is no field here that points at another pass.
+  type FnLoopEntry {
+    id: ID!
+    passIndex: Int!
+    "Where in the body. The hard_to_place value is a real answer, not a missing one."
+    bodyLocation: String
+    bodyTexture: String
+    feelingWord: String
+    "palette | own — 'own' is the 'other → type it' escape."
+    feelingSource: String
+    need: String
+    needSource: String
+    smallAction: String
+    distinctionCaught: Boolean!
+  }
+
+  type FnLoopSitting {
+    id: ID!
+    breathTaken: Boolean!
+    wasPrompted: Boolean!
+    completedAt: String
+    createdAt: String!
+    entries: [FnLoopEntry!]!
+  }
+
+  """
+  A distinction catch (P5), composed server-side when the person names a
+  faux-feeling. Offered on their own material, in the moment they produce it —
+  that timing is the mechanism. Everything here is an offer: the hints are
+  phrased as questions, and dismiss is how the person keeps their own word.
+  """
+  type FnCatch {
+    conceptId: String!
+    "The gentle line, with the person's own word already substituted in."
+    line: String!
+    "Candidate feelings underneath, as questions. Never assertions."
+    feelingHints: [String!]!
+    "Candidate needs underneath, as questions."
+    needHints: [String!]!
+    feelingHintsLabel: String!
+    needHintsLabel: String!
+    "How to wave it off. A catch you cannot decline is a quiz."
+    dismiss: String!
+    note: String!
+  }
+
+  """
+  The result of committing one step. Carries a catch only when naming a feeling
+  actually triggered one, which is rare by design — the touches are distributed,
+  and none fire until the loop is established.
+  """
+  type FnLoopResult {
+    sitting: FnLoopSitting!
+    catch: FnCatch
+  }
+
+  """
+  Closing a sitting, plus the one-time capability moment when it is due. A door,
+  not a score: it is offered once, carries no number, and cannot be lost again.
+  """
+  type FnFinishResult {
+    sitting: FnLoopSitting!
+    graduation: FnGraduation
+  }
+
   type Query {
     actions: [Action!]!
     action(id: ID!): Action
@@ -579,6 +806,20 @@ export const typeDefs = gql`
     clarityModules: [ClarityModule!]!
     "Clarity Lab: per-criterion trend, revision deltas, and what is scoreable in this install."
     clarityProgress: ClarityProgress!
+
+    "Feelings & Needs: the tool home's state — enough to route into the frame or the loop."
+    feelingsNeedsState: FeelingsNeedsState!
+    "Feelings & Needs: the authored content pack plus the palette selection to show now."
+    feelingsNeedsContent: FeelingsNeedsContent!
+    "Today's still-open sitting, if there is one. Null means start fresh."
+    activeLoopSitting: FnLoopSitting
+    """
+    Finished sittings, newest first — the person's own record of their own
+    material. A record and nothing more: no totals, no gaps marked, and no
+    pattern-recognition across entries, which plan §2 puts out of scope. Days
+    are grouped client-side because a day is a local-timezone concept.
+    """
+    loopHistory(limit: Int): [FnLoopSitting!]!
   }
 
   type AuthPayload {
@@ -824,6 +1065,64 @@ export const typeDefs = gql`
 
     "Remove future planned sittings and stop generating them. Completed ones stay."
     clearSkillSchedule(skillKey: SkillKey!): Int!
+
+    # ── Feelings & Needs: the daily loop ──────────────────────────────────────
+    # The wizard commits every step as it goes (convention #8); there is
+    # deliberately no "submit the loop" mutation. Partial state is valid state,
+    # which is what makes a sitting resumable.
+
+    """
+    Record the Day-1 frame as done. Idempotent — the frame happens once, and a
+    double submit is a double-click, not a second frame. Completing it is what
+    opens the daily loop.
+    """
+    completeFeelingsNeedsFrame: FeelingsNeedsState!
+
+    """
+    Open a sitting and its first pass. Returns the still-open sitting instead if
+    one exists, so a reload cannot split one practice across two rows.
+    wasPrompted records whether the app cued this — input to prompt-fade
+    inference (P7), never a metric.
+    """
+    startLoopSitting(wasPrompted: Boolean): FnLoopSitting!
+
+    "Mark the settling breath taken. No duration, and no way to fail it."
+    setLoopBreath(sittingId: ID!): FnLoopSitting!
+
+    """
+    Commit one step of one pass. Every field is optional; omitted fields are
+    left alone. Naming a feeling may surface a distinction catch alongside the
+    updated sitting — see FnLoopResult.
+    """
+    updateLoopEntry(
+      entryId: ID!
+      bodyLocation: String
+      bodyTexture: String
+      feelingWord: String
+      feelingSource: String
+      need: String
+      needSource: String
+      smallAction: String
+    ): FnLoopResult!
+
+    """
+    Add a pass for another distinct feeling. Refuses past the soft cap — the
+    bound is what keeps a plural sitting from becoming an emotional inventory.
+    """
+    addLoopPass(sittingId: ID!): FnLoopSitting!
+
+    """
+    Close the sitting. Drops a trailing pass left completely blank, and returns
+    the capability moment if this run is the one that earned it.
+    """
+    finishLoopSitting(sittingId: ID!): FnFinishResult!
+
+    """
+    Mark the capability moment seen. Explicit rather than marked on display, so
+    closing the tab mid-moment does not silently spend the only time it is
+    offered. Idempotent; nothing is incremented behind it.
+    """
+    acknowledgeGraduation: Boolean!
 
     register(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!

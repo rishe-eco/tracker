@@ -48,6 +48,16 @@ export default function ToolsHomePage() {
           </Button>
         </div>
       </section>
+
+      <section className="rounded-lg border bg-card p-5">
+        <div className="mb-4 space-y-1">
+          <h2 className="text-lg font-semibold">{t("toolsHome.learnTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("toolsHome.learnDescription")}</p>
+        </div>
+        <Button onClick={() => navigate("/tools/learn/feelings-needs")}>
+          {t("toolsHome.openFeelingsNeeds")}
+        </Button>
+      </section>
     </main>
   );
 }

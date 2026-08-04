@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { DEFAULT_LOCALE, type RequestLocale } from "../graphql/requestLocale";
 
 // Shared Prisma client for all tests — points to test.db via DATABASE_URL env var
 export const prisma = new PrismaClient();
@@ -38,6 +39,11 @@ export async function clearDb() {
     prisma.skillProbe.deleteMany(),
     prisma.skillModuleProgress.deleteMany(),
     prisma.skillProfile.deleteMany(),
+    // Feelings & Needs: entries hang off sittings, so leaves first here too.
+    prisma.loopEntry.deleteMany(),
+    prisma.loopSitting.deleteMany(),
+    prisma.frameCompletion.deleteMany(),
+    prisma.loopState.deleteMany(),
     prisma.user.deleteMany(),
   ]);
 }
@@ -63,7 +69,13 @@ export async function createTestUser(overrides?: {
   });
 }
 
-/** Build a resolver context object for the given user. */
-export function makeCtx(user: { id: string }) {
-  return { user, prisma };
+/**
+ * Build a resolver context object for the given user.
+ *
+ * `locale` defaults to English so the existing suite is untouched; pass "fa" to
+ * exercise the Persian content path. In the running server this comes off
+ * `Accept-Language` (`graphql/requestLocale.ts`).
+ */
+export function makeCtx(user: { id: string }, locale: RequestLocale = DEFAULT_LOCALE) {
+  return { user, prisma, locale };
 }

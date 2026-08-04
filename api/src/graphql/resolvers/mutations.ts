@@ -22,6 +22,15 @@ import {
   DEFAULT_SESSIONS_PER_WEEK,
   DEFAULT_TIME_OF_DAY,
 } from "../../services/skills/planning";
+import {
+  acknowledgeGraduation,
+  addPass,
+  finishSitting,
+  setBreath,
+  startSitting,
+  updateEntry,
+} from "../../services/feelingsNeeds/session";
+import { completeFrame } from "../../services/feelingsNeeds/state";
 
 const MAX_ESTIMATED_MINUTES = 24 * 60; // 24 hours
 
@@ -1129,5 +1138,39 @@ mutations.clearSkillSchedule = requireAuth(async (_, { skillKey }: any, ctx) => 
   assertEvidenceSkill(skillKey);
   return clearPlan(ctx.prisma, ctx.user.id, "evidence");
 });
+
+// ─── Feelings & Needs: the daily loop ────────────────────────────────────────
+// Each step commits on its own (convention #8). Every one of these returns the
+// whole sitting rather than the touched row, so the client always renders from
+// one server-owned shape and never has to reconcile a partial update.
+
+mutations.completeFeelingsNeedsFrame = requireAuth(async (_, __, ctx) =>
+  completeFrame(ctx.prisma, ctx.user.id, ctx.locale)
+);
+
+mutations.startLoopSitting = requireAuth(async (_, { wasPrompted }: any, ctx) =>
+  startSitting(ctx.prisma, ctx.user.id, { wasPrompted: wasPrompted ?? false })
+);
+
+mutations.setLoopBreath = requireAuth(async (_, { sittingId }: any, ctx) =>
+  setBreath(ctx.prisma, ctx.user.id, sittingId)
+);
+
+mutations.updateLoopEntry = requireAuth(async (_, args: any, ctx) => {
+  const { entryId, ...patch } = args;
+  return updateEntry(ctx.prisma, ctx.user.id, entryId, patch, ctx.locale);
+});
+
+mutations.addLoopPass = requireAuth(async (_, { sittingId }: any, ctx) =>
+  addPass(ctx.prisma, ctx.user.id, sittingId)
+);
+
+mutations.finishLoopSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
+  finishSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
+);
+
+mutations.acknowledgeGraduation = requireAuth(async (_, __: any, ctx) =>
+  acknowledgeGraduation(ctx.prisma, ctx.user.id)
+);
 
 export const mutationResolvers = mutations;

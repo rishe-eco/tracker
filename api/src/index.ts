@@ -7,6 +7,7 @@ import { env } from "process";
 import cors from "cors";
 import { authenticateApiToken, looksLikeApiToken } from "./services/apiTokens";
 import { applySqlitePragmas } from "./db/sqlitePragmas";
+import { requestLocale } from "./graphql/requestLocale";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -88,7 +89,7 @@ async function startServer() {
     plugins: [enforceTokenScope],
     context: async ({ req }) => {
       const { user, auth } = await authenticate(req);
-      return { user, auth, prisma };
+      return { user, auth, prisma, locale: requestLocale(req) };
     },
   });
 

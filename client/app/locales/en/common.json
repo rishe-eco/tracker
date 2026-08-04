@@ -350,7 +350,57 @@
     "skillsTitle": "Skills",
     "skillsDescription": "Practice the habits that decide whether working with AI helps or hurts: saying precisely what you want, and checking what comes back.",
     "openEvidenceLab": "Open Evidence Lab",
-    "openClarityLab": "Open Clarity Lab"
+    "openClarityLab": "Open Clarity Lab",
+    "learnTitle": "Feelings & Needs",
+    "learnDescription": "A short daily practice: notice what you feel, find a word for it, and the need underneath.",
+    "openFeelingsNeeds": "Open Feelings & Needs"
+  },
+  "learn": {
+    "feelingsNeeds": {
+      "title": "Feelings & Needs",
+      "subtitle": "A few quiet minutes with yourself: settle, notice where a feeling sits in your body, find a word for it, and the need it points at. No streaks, nothing to keep up.",
+      "back": "Back",
+      "nav": {
+        "continue": "Continue",
+        "next": "Next",
+        "back": "back"
+      },
+      "intro": {
+        "step1Title": "This is a place to notice",
+        "step1Body": "Not to fix anything or perform anything — just to catch what you're feeling and give it a word.",
+        "step2Title": "A short loop",
+        "step2Body": "Settle with one breath, notice where it sits in your body, name the feeling, and — if it points somewhere — the need underneath. A couple of minutes.",
+        "step3Title": "Nothing is counted",
+        "step3Body": "No streaks, no scores. It runs when you reach for it. That's the whole idea."
+      },
+      "frame": {
+        "cardTitle": "Start here, once",
+        "cardBody": "A one-time moment to feel how naming something gives you a handle on it — before the daily practice begins.",
+        "begin": "Begin",
+        "thatFeeling": "that {{texture}} thing —",
+        "done": "Done",
+        "locked": "The daily loop opens once you've done this."
+      },
+      "loop": {
+        "cardTitle": "Today's loop",
+        "cardBody": "Breathe, notice, name the feeling, and the need underneath.",
+        "start": "Start today's loop",
+        "length": "about 3 minutes"
+      },
+      "history": {
+        "title": "What you've written",
+        "open": "Previous entries",
+        "empty": "Nothing here yet. It fills up as you go."
+      },
+      "banners": {
+        "draftLocale": "This language is a draft — the wording has not had a native review yet.",
+        "contentNotYourLanguage": "The practice itself — the feeling and need words — is not in your language yet. Naming a feeling works better in the language you feel in, so this is a real limit of the demo rather than a cosmetic one."
+      },
+      "errors": {
+        "couldNotLoad": "Couldn't load Feelings & Needs just now.",
+        "retry": "Try again"
+      }
+    }
   },
   "calendarPage": {
     "title": "Calendar",

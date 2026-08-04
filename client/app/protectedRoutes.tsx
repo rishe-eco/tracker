@@ -21,6 +21,10 @@ import EvidenceLabPage from "./components/skills/EvidenceLabPage";
 import EvidenceDrillPage from "./components/skills/EvidenceDrillPage";
 import ClarityLabPage from "./components/skills/ClarityLabPage";
 import ClaritySessionPage from "./components/skills/ClaritySessionPage";
+import FeelingsNeedsPage from "./components/learn/FeelingsNeedsPage";
+import FeelingsNeedsLoopPage from "./components/learn/FeelingsNeedsLoopPage";
+import FeelingsNeedsHistoryPage from "./components/learn/FeelingsNeedsHistoryPage";
+import FeelingsNeedsFramePage from "./components/learn/FeelingsNeedsFramePage";
 import { Navigate } from "react-router";
 
 export default [
@@ -63,6 +67,24 @@ export default [
   {
     path: "/tools/skills/clarity/session",
     element: <ClaritySessionPage />,
+  },
+  {
+    // Learn · Feelings & Needs (Module 1). Namespaced under /tools/learn per the
+    // demo plan, mirroring how the skill tools sit under /tools/skills.
+    path: "/tools/learn/feelings-needs",
+    element: <FeelingsNeedsPage />,
+  },
+  {
+    path: "/tools/learn/feelings-needs/frame",
+    element: <FeelingsNeedsFramePage />,
+  },
+  {
+    path: "/tools/learn/feelings-needs/loop",
+    element: <FeelingsNeedsLoopPage />,
+  },
+  {
+    path: "/tools/learn/feelings-needs/history",
+    element: <FeelingsNeedsHistoryPage />,
   },
   {
     path: "/tools/journals/:id",

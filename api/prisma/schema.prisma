@@ -307,6 +307,9 @@ model User {
   skillModuleProgress SkillModuleProgress[]
   skillAttempts       SkillAttempt[]
   skillProbes         SkillProbe[]
+  frameCompletion     FrameCompletion?
+  loopSittings        LoopSitting[]
+  loopState           LoopState?
 }
 
 /// A personal access token for the public API. The secret is never stored —
@@ -509,4 +512,104 @@ model SkillCheckEvent {
   attempt   SkillAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@index([attemptId])
+}
+
+// ─── Learn · Feelings & Needs (Module 1) ────────────────────────────────────
+// Plan: ecosystem/working/learn-build/00-module1-demo-plan.md §8.
+// Mechanisms: ecosystem/working/learn-mechanisms/00-module1-process-anatomy.md.
+//
+// A Tracker-namespaced tool that reuses the skills-engine patterns (authored,
+// versioned content in the repo; per-user state here). LLM-free by design — the
+// distinction catch runs on an authored lexicon, not a model. These tables hold
+// only per-user state; the palettes, frame script, catch copy and lexicon live
+// in api/src/content/feelings-needs/, versioned like code.
+//
+// Guardrails baked into the shape (plan §10): nothing counts or streaks; loop
+// passes within a sitting are parallel and never cross-referenced (relating them
+// is storytelling — tier 4, deferred); graduation is a one-time door, not a score.
+
+/// The Day-1 "felt, not told" frame — completed once per user (P1).
+model FrameCompletion {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// One sitting of the daily loop. Groups its passes (a plural sitting holds
+/// several). `wasPrompted` records whether the app cued this sitting, so
+/// self-initiation can be inferred from prompt-withdrawal (P7) without a streak.
+model LoopSitting {
+  id          String      @id @default(uuid())
+  userId      String
+  breathTaken Boolean     @default(false)
+  wasPrompted Boolean     @default(false)
+  /// Null while the sitting is still open, which is what makes it resumable —
+  /// the wizard commits every step as it goes (convention #8), so a sitting the
+  /// person walked away from is indistinguishable from a finished one without
+  /// this. Not a completion metric: nothing counts finished sittings.
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     LoopEntry[]
+
+  @@index([userId, createdAt])
+}
+
+/// One pass of the loop: body texture → feeling word → (optional) need →
+/// (optional) small action. Passes are NEVER cross-referenced to each other —
+/// they are parallel, not related (plan §4.2). Ownership is inherited from the
+/// sitting, like SkillCheckEvent inherits it from the attempt.
+model LoopEntry {
+  id                String      @id @default(uuid())
+  sittingId         String
+  /// 0-based position within the sitting. A soft cap (a dial) bounds how many
+  /// passes a sitting can hold so it can never become a rumination inventory.
+  passIndex         Int
+  /// Where in the body it sat — P2's first half. Split out from `bodyTexture`
+  /// once it was clear the UI asked "where?" and offered texture words, which
+  /// read as a non-sequitur. `hard_to_place` is a legitimate value here, not a
+  /// missing answer: going blank is information, not failure (P2 failure mode c).
+  bodyLocation      String?
+  bodyTexture       String?
+  feelingWord       String?
+  /// "palette" | "own" — whether the word came from the palette or the
+  /// "other → type it" escape (the seam where free text, and later an LLM, live).
+  feelingSource     String?
+  need              String?
+  /// "palette" | "own"
+  needSource        String?
+  smallAction       String?
+  /// True when the distinction catch (P5) fired on this pass's material.
+  distinctionCaught Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  sitting           LoopSitting @relation(fields: [sittingId], references: [id], onDelete: Cascade)
+
+  @@index([sittingId])
+}
+
+/// Per-user drivers for prompt-fade and the one-time graduation moment (P7).
+/// Detect-don't-count: this is state, never a running total shown back to the
+/// user (decision-log 2026-08-01).
+model LoopState {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  contentVersion     String
+  //  `promptFadeLevel` was stored here and is now derived from the count of
+  //  completed sittings, for the same reason the `frameDone` mirror below went:
+  //  the sittings are the authoritative record, and a cached number beside them
+  //  is a number that can disagree with them. Deriving it also means there is
+  //  no write path to forget. See `computeFadeLevel`.
+  //
+  //  A `frameDone` mirror lived here and was dropped before anything wrote it.
+  //  FrameCompletion already records both the fact and its timestamp, and two
+  //  rows that must agree about one event are a desync waiting for the first
+  //  code path that forgets one of them. It is derived from FrameCompletion.
+  /// The capability moment ("this runs on its own now") is surfaced exactly
+  /// once. A door you've walked through can't be lost — this is what stops it
+  /// from re-firing, and there is deliberately no counter behind it.
+  graduationSurfaced Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

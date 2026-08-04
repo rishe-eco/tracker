@@ -3,6 +3,8 @@ import { getTodayActions, getPreDayStatus, getNotDoneActionsForDate } from "../.
 import { getModules, getProgress } from "../../services/skills/evidenceSession";
 import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
 import { getPlan } from "../../services/skills/planning";
+import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
+import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
 
 /**
  * Clarity Lab has its own fields (`clarityModules`, `clarityProgress`) rather
@@ -293,4 +295,21 @@ export const queryResolvers = {
   clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id)),
 
   clarityProgress: requireAuth((_, __, ctx) => getClarityProgress(ctx.prisma, ctx.user.id)),
+
+  // `ctx.locale` is the language the request arrived in (Accept-Language), which
+  // is what the authored content is served in. Not stored per user: see
+  // `graphql/requestLocale.ts`.
+  feelingsNeedsState: requireAuth((_, __, ctx) =>
+    getFeelingsNeedsState(ctx.prisma, ctx.user.id, ctx.locale)
+  ),
+
+  feelingsNeedsContent: requireAuth((_, __, ctx) =>
+    getContent(ctx.prisma, ctx.user.id, ctx.locale)
+  ),
+
+  activeLoopSitting: requireAuth((_, __, ctx) => getActiveSitting(ctx.prisma, ctx.user.id)),
+
+  loopHistory: requireAuth((_, { limit }: any, ctx) =>
+    getHistory(ctx.prisma, ctx.user.id, limit ?? undefined)
+  ),
 };

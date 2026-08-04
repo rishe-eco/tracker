@@ -1458,3 +1458,174 @@ export const SUBMIT_CLARITY_ATTEMPT = `
     }
   }
 `;
+
+// ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
+
+export const GET_FEELINGS_NEEDS_STATE = `
+  query FeelingsNeedsState {
+    feelingsNeedsState {
+      contentVersion
+      locale
+      reviewStatus
+      frameDone
+      graduationSurfaced
+      promptFadeLevel
+      sittingCount
+    }
+  }
+`;
+
+export const GET_FEELINGS_NEEDS_CONTENT = `
+  query FeelingsNeedsContent {
+    feelingsNeedsContent {
+      contentVersion
+      reviewStatus
+      repeatSoftCap
+      breathSkippable
+      locations { id label carryLabel }
+      textures { id label carryLabel }
+      feelings { id label carryLabel tier }
+      needs { id label }
+      display { locationIds textureIds feelingIds needIds }
+      frame {
+        intro { title body begin }
+        recall { prompt helper ready }
+        place { prompt helper locationIds }
+        texture { prompt helper textureIds }
+        name { prompt helper feelingIds }
+        payoff { line body close }
+      }
+      loop {
+        breathePrompt breatheHint breatheSkip
+        placePrompt placeHelper
+        textureCarry texturePrompt textureHelper
+        nameCarry namePrompt nameOther nameOwnPlaceholder
+        needCarry needPrompt needSkip
+        smallStepPrompt smallStepPlaceholder smallStepSkip
+        done addAnother addAnotherAsk addAnotherCapped finish
+        recapHeading recapLead recapNotRelated
+        repeatLead repeatPrompt
+      }
+    }
+  }
+`;
+
+/** Every loop mutation returns the whole sitting, so the client renders one shape. */
+const LOOP_SITTING_FIELDS = `
+  id
+  breathTaken
+  completedAt
+  entries {
+    id
+    passIndex
+    bodyLocation
+    bodyTexture
+    feelingWord
+    feelingSource
+    need
+    needSource
+    smallAction
+  }
+`;
+
+export const COMPLETE_FEELINGS_NEEDS_FRAME = `
+  mutation CompleteFeelingsNeedsFrame {
+    completeFeelingsNeedsFrame {
+      frameDone
+      sittingCount
+    }
+  }
+`;
+
+export const GET_ACTIVE_LOOP_SITTING = `
+  query ActiveLoopSitting {
+    activeLoopSitting { ${LOOP_SITTING_FIELDS} }
+  }
+`;
+
+export const GET_LOOP_HISTORY = `
+  query LoopHistory($limit: Int) {
+    loopHistory(limit: $limit) {
+      id
+      completedAt
+      entries {
+        id
+        passIndex
+        bodyLocation
+        bodyTexture
+        feelingWord
+        need
+        smallAction
+      }
+    }
+  }
+`;
+
+export const START_LOOP_SITTING = `
+  mutation StartLoopSitting($wasPrompted: Boolean) {
+    startLoopSitting(wasPrompted: $wasPrompted) { ${LOOP_SITTING_FIELDS} }
+  }
+`;
+
+export const SET_LOOP_BREATH = `
+  mutation SetLoopBreath($sittingId: ID!) {
+    setLoopBreath(sittingId: $sittingId) { ${LOOP_SITTING_FIELDS} }
+  }
+`;
+
+export const UPDATE_LOOP_ENTRY = `
+  mutation UpdateLoopEntry(
+    $entryId: ID!
+    $bodyLocation: String
+    $bodyTexture: String
+    $feelingWord: String
+    $feelingSource: String
+    $need: String
+    $needSource: String
+    $smallAction: String
+  ) {
+    updateLoopEntry(
+      entryId: $entryId
+      bodyLocation: $bodyLocation
+      bodyTexture: $bodyTexture
+      feelingWord: $feelingWord
+      feelingSource: $feelingSource
+      need: $need
+      needSource: $needSource
+      smallAction: $smallAction
+    ) {
+      sitting { ${LOOP_SITTING_FIELDS} }
+      catch {
+        conceptId
+        line
+        feelingHints
+        needHints
+        feelingHintsLabel
+        needHintsLabel
+        dismiss
+        note
+      }
+    }
+  }
+`;
+
+export const ADD_LOOP_PASS = `
+  mutation AddLoopPass($sittingId: ID!) {
+    addLoopPass(sittingId: $sittingId) { ${LOOP_SITTING_FIELDS} }
+  }
+`;
+
+export const FINISH_LOOP_SITTING = `
+  mutation FinishLoopSitting($sittingId: ID!) {
+    finishLoopSitting(sittingId: $sittingId) {
+      sitting { ${LOOP_SITTING_FIELDS} }
+      graduation { line body close }
+    }
+  }
+`;
+
+export const ACKNOWLEDGE_GRADUATION = `
+  mutation AcknowledgeGraduation {
+    acknowledgeGraduation
+  }
+`;

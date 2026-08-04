@@ -310,10 +310,27 @@ describe("skillModules / skillProgress", () => {
 });
 
 describe("calendar planning", () => {
+  /**
+   * Tomorrow, not a fixed date.
+   *
+   * This was hardcoded to "2026-08-03", which worked until that date arrived:
+   * `clearFuturePlan` only removes sittings still in the future, so once the
+   * wall clock passed the first 09:00 slot the re-plan test found 11 to remove
+   * instead of 12 — and every day after that, all of them were in the past.
+   * A planner test has to schedule into the future to be testing anything.
+   */
+  const startDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  })();
+
   const plan = (ctx: any, over: Record<string, any> = {}) =>
     mutationResolvers.planSkillSchedule(
       null,
-      { skillKey: "evidence", startDate: "2026-08-03", sessionsPerWeek: 3, timeOfDay: "09:00", ...over },
+      { skillKey: "evidence", startDate, sessionsPerWeek: 3, timeOfDay: "09:00", ...over },
       ctx
     );
 
