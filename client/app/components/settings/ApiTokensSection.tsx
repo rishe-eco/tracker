@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Check, Copy, KeyRound, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -22,14 +22,17 @@ type ApiToken = {
   createdAt: string;
 };
 
-function formatDate(value: string | null): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : format(d, "MMM d, yyyy");
-}
-
 export default function ApiTokensSection() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
+
+  // Inside the component because it needs the active calendar, which is a hook.
+  const formatDate = (value: string | null): string | null => {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : fmt(d, "dayMonthYear");
+  };
+
   const { call } = useApi();
   const [tokens, setTokens] = useState<ApiToken[] | null>(null);
   const [name, setName] = useState("");

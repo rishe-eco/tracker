@@ -4,6 +4,20 @@
     "persian": "فارسی",
     "switcherLabel": "زبان"
   },
+  "calendarSystem": {
+    "switcherLabel": "تقویم",
+    "description": "تاریخ‌ها با کدام تقویم نشان داده و وارد شوند. این جدا از زبان است — می‌توانی برنامه را فارسی ببینی و تاریخ‌ها میلادی باشند، یا برعکس.",
+    "gregorian": "میلادی",
+    "jalali": "جلالی",
+    "gregorianHint": "Gregorian",
+    "jalaliHint": "شمسی",
+    "openPicker": "باز کردن تقویم",
+    "clearDate": "پاک کردن",
+    "preview": "امروز این‌طور نوشته می‌شود: {{date}}"
+  },
+  "dateTime": {
+    "dateAtTime": "{{date}} ساعت {{time}}"
+  },
   "nav": {
     "today": "امروز",
     "calendar": "تقویم",
@@ -57,6 +71,9 @@
     "previous": "قبلی",
     "next": "بعدی",
     "noItems": "موردی وجود ندارد",
+    "moreItems_one": "{{count}}+ مورد دیگر",
+    "moreItems_other": "{{count}}+ مورد دیگر",
+    "showLess": "بستن",
     "untimed": "بدون زمان / تمام روز",
     "assignAction": "اختصاص دادن کار",
     "selectAction": "کار را انتخاب کن…",

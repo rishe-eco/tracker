@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Progress } from "~/components/ui/progress";
 import { Badge } from "~/components/ui/badge";
-import { format, isBefore, isAfter } from "date-fns";
+import { isBefore, isAfter } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Button } from "~/components/ui/button";
 import ActionPreview from "../actions/ActionPreview";
 import AddActionWidget from "../actions/AddActionWidget";
@@ -96,6 +97,7 @@ type DeleteChoice = "delete-actions" | "move-to-project" | "to-backlog";
 
 export default function ProjectPreview(props: ProjectPreviewProps) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const {
     title,
@@ -227,9 +229,9 @@ export default function ProjectPreview(props: ProjectPreviewProps) {
 
   const dateLabel =
     status === "TBD" && startDate
-      ? format(startDate, "MMM d, yyyy")
+      ? fmt(startDate, "dayMonthYear")
       : status === "In Progress" && endDate
-        ? format(endDate, "MMM d, yyyy")
+        ? fmt(endDate, "dayMonthYear")
         : null;
 
   const MAX_ESTIMATED_MIN = 24 * 60;
@@ -503,7 +505,7 @@ export default function ProjectPreview(props: ProjectPreviewProps) {
                     {projectActions.length === 1 ? t("projects.actionCountOne") : t("projects.actionCountOther", { count: projectActions.length })}
                     {startDate && endDate && (
                       <span className="ml-2">
-                        · {format(startDate, "MMM d")} – {format(endDate, "MMM d")}
+                        · {fmt(startDate, "dayMonth")} – {fmt(endDate, "dayMonth")}
                       </span>
                     )}
                   </div>

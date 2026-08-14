@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Button } from "~/components/ui/button";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { LoadingBlock } from "~/components/ui/spinner";
@@ -35,7 +36,8 @@ type Sitting = { id: string; completedAt: string | null; entries: Entry[] };
 type Palette = { id: string; label: string };
 
 export default function FeelingsNeedsHistoryPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const { leadsTo } = useArrows();
   const { call } = useApi();
 
@@ -97,7 +99,7 @@ export default function FeelingsNeedsHistoryPage() {
 
   // Grouped here rather than on the server: a day is a local-timezone concept,
   // and the server has no idea what the person's offset is.
-  const days = groupByDay(sittings, i18n.language);
+  const days = groupByDay(sittings, (d) => fmt(d, "weekdayDayMonth"));
   const labelOf = (pool: Palette[], id: string | null) =>
     (id && pool.find((p) => p.id === id)?.label) || id || "";
 
@@ -114,7 +116,7 @@ export default function FeelingsNeedsHistoryPage() {
               {ofDay.map((s) => (
                 <div key={s.id} className="rounded-lg border bg-card p-4">
                   <p className="mb-2 text-xs text-muted-foreground">
-                    {formatTime(s.completedAt, i18n.language)}
+                    {formatTime(s.completedAt, (d) => fmt(d, "time"))}
                   </p>
                   <div className="space-y-2">
                     {s.entries.map((e) => (
@@ -158,8 +160,16 @@ export default function FeelingsNeedsHistoryPage() {
   );
 }
 
-/** Newest day first, and newest sitting first within a day. */
-function groupByDay(sittings: Sitting[], locale: string) {
+/**
+ * Newest day first, and newest sitting first within a day.
+ *
+ * Takes a formatter rather than a locale tag. It used to call
+ * `toLocaleDateString(i18n.language, …)`, which for `"fa"` makes `Intl` pick
+ * both the Jalali calendar *and* Persian digits — the second breaks conventions
+ * §7d outright, and the first decided the calendar question by language behind
+ * everyone's back. Same for the clock below.
+ */
+function groupByDay(sittings: Sitting[], formatDay: (d: Date) => string) {
   const buckets = new Map<string, { dayLabel: string; sittings: Sitting[] }>();
 
   for (const s of sittings) {
@@ -170,11 +180,7 @@ function groupByDay(sittings: Sitting[], locale: string) {
     const dayKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
     if (!buckets.has(dayKey)) {
       buckets.set(dayKey, {
-        dayLabel: d.toLocaleDateString(locale, {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        }),
+        dayLabel: formatDay(d),
         sittings: [],
       });
     }
@@ -184,7 +190,7 @@ function groupByDay(sittings: Sitting[], locale: string) {
   return [...buckets.entries()].map(([dayKey, v]) => ({ dayKey, ...v }));
 }
 
-function formatTime(iso: string | null, locale: string) {
+function formatTime(iso: string | null, formatClock: (d: Date) => string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+  return formatClock(new Date(iso));
 }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAppDate } from "~/i18n/useAppDate";
 import { CalendarPlus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { useApi } from "~/api/useApi";
 import {
   CLEAR_SKILL_SCHEDULE,
@@ -40,6 +42,7 @@ export default function SkillPlanPanel({
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const { call } = useApi();
 
   const [open, setOpen] = useState(false);
@@ -100,7 +103,7 @@ export default function SkillPlanPanel({
           {upcoming.length > 0
             ? t("skills.plan.scheduledSummary", {
                 count: upcoming.length,
-                date: next ? new Date(next.tbd).toLocaleDateString() : "",
+                date: next ? fmt(new Date(next.tbd), "dayMonthYear") : "",
               })
             : t("skills.plan.nothingUpcoming")}
         </p>
@@ -113,7 +116,7 @@ export default function SkillPlanPanel({
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">{t("skills.plan.startDate")}</span>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DateField value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">{t("skills.plan.sessionsPerWeek")}</span>
@@ -158,7 +161,7 @@ export default function SkillPlanPanel({
             <ul className="space-y-1 border-t pt-3 text-xs text-muted-foreground">
               {upcoming.slice(0, 6).map((s) => (
                 <li key={s.actionId}>
-                  {new Date(s.tbd).toLocaleDateString()} · {s.title}
+                  {fmt(new Date(s.tbd), "dayMonthYear")} · {s.title}
                 </li>
               ))}
             </ul>

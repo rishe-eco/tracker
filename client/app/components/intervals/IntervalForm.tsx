@@ -17,6 +17,7 @@ import { ChevronDown, ChevronRight, GripVertical, Pencil, Plus, Trash2 } from "l
 import HintPopover from "~/components/ui/HintPopover";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateTimeField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -104,7 +105,11 @@ function StepRow({
   onTitleChange: (value: string) => void;
   onRemove: () => void;
   onAddNext?: () => void;
-  inputRef?: React.RefObject<HTMLInputElement | null>;
+  // `Ref`, not `RefObject<T | null>`: the latter is the React 19 shape, and
+  // this project runs React 18. It typechecked only because
+  // `@types/react-big-calendar` was dragging in `@types/react@19` transitively —
+  // `@types/react` was never a direct dependency. It is one now, at 18.x.
+  inputRef?: React.Ref<HTMLInputElement>;
 }) {
   const { t } = useTranslation();
   const id = `step-${index}`;
@@ -742,9 +747,8 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
           <Label htmlFor="endTime" className="flex items-center gap-2">
             {t("intervals.endDateOptional")} <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
           </Label>
-          <Input
+          <DateTimeField
             id="endTime"
-            type="datetime-local"
             min={minDateTimeLocal}
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
@@ -1006,9 +1010,8 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
               {customRepeatDates.map((iso, i) => (
                 <div key={i} className="flex gap-2 items-center">
                   <Label htmlFor={`customRepeatDate-${i}`} className="sr-only">{t("intervals.dateLabel", { n: i + 1 })}</Label>
-                  <Input
+                  <DateTimeField
                     id={`customRepeatDate-${i}`}
-                    type="datetime-local"
                     min={minDateTimeLocal}
                     value={iso ? toDateTimeLocal(iso) : ""}
                     onChange={(e) => setCustomDateAt(i, e.target.value)}

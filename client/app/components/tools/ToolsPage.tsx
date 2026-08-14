@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate } from "react-router";
+// `format` is Gregorian-only here by design — it builds `yyyy-MM-dd` day keys
+// and input `min` attributes. Display goes through `fmt`.
 import { addDays, format, parseISO } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { useApi } from "~/api/useApi";
 import {
   GET_ACTIONS,
@@ -13,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { Badge } from "~/components/ui/badge";
 import { LoadingBlock, Spinner } from "~/components/ui/spinner";
@@ -69,6 +73,7 @@ function dateRangeDays(startDate: string, dayCount: number): string[] {
 
 export default function ToolsPage() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const { call } = useApi();
   const [step, setStep] = useState<ToolStep>(1);
@@ -369,8 +374,8 @@ export default function ToolsPage() {
         <div className="flex flex-col items-start justify-between gap-2">
           <p className="text-sm font-medium">
             {compact
-              ? format(parseISO(`${day}T00:00:00`), "EEE, MMM d")
-              : format(parseISO(`${day}T00:00:00`), "EEE, MMM d, yyyy")}
+              ? fmt(parseISO(`${day}T00:00:00`), "weekdayShortDayMonth")
+              : fmt(parseISO(`${day}T00:00:00`), "weekdayShortDayMonthYear")}
           </p>
           <Badge variant="secondary">{t("calendar.plannedCount", { count: assigned.length })}</Badge>
         </div>
@@ -549,9 +554,8 @@ export default function ToolsPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="period-start">{t("tools.startDate")}</Label>
-                      <Input
+                      <DateField
                         id="period-start"
-                        type="date"
                         min={minStartDate}
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
@@ -573,7 +577,7 @@ export default function ToolsPage() {
                     {t("tools.endDate")}:{" "}
                     <span className="font-medium text-foreground">
                       {computedEndDate
-                        ? format(parseISO(`${computedEndDate}T00:00:00`), "EEE, MMM d, yyyy")
+                        ? fmt(parseISO(`${computedEndDate}T00:00:00`), "weekdayShortDayMonthYear")
                         : t("tools.selectStart")}
                     </span>
                   </p>

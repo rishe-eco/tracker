@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
-import { format } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Pencil, Trash2, StickyNote } from "lucide-react";
 import { useApi } from "~/api/useApi";
 import { DELETE_INTERVAL } from "~/api/queries";
@@ -45,10 +45,13 @@ function formatRepeats(props: {
   return "—";
 }
 
+// Returns the instant, not a string. Rendering it needs the active calendar and
+// the active language — both hooks — and the `at` between date and time is a
+// translated word rather than the format-string literal it used to be.
 function getNextEvent(props: {
   customRepeatDates: string[];
   endTime?: string | null;
-}): string | null {
+}): Date | null {
   const { customRepeatDates, endTime } = props;
   if (!customRepeatDates?.length) return null;
   const now = Date.now();
@@ -58,11 +61,12 @@ function getNextEvent(props: {
     .filter((t) => t >= now && (end == null || t <= end))
     .sort((a, b) => a - b);
   if (future.length === 0) return null;
-  return format(new Date(future[0]), "MMM d, yyyy 'at' HH:mm");
+  return new Date(future[0]);
 }
 
 export default function IntervalPreview(props: IntervalPreviewProps) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const {
     id,
@@ -121,7 +125,15 @@ export default function IntervalPreview(props: IntervalPreviewProps) {
         <div className="text-xs text-muted-foreground space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0">
             <span>{t("intervals.repeatsLabel")} {repeatsLabel}</span>
-            {nextEvent && <span>{t("intervals.nextLabel")} {nextEvent}</span>}
+            {nextEvent && (
+              <span>
+                {t("intervals.nextLabel")}{" "}
+                {t("dateTime.dateAtTime", {
+                  date: fmt(nextEvent, "dayMonthYear"),
+                  time: fmt(nextEvent, "time"),
+                })}
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0">
             <span>{stepCount === 1 ? t("intervals.stepCountOne") : t("intervals.stepCountOther", { count: stepCount })}</span>

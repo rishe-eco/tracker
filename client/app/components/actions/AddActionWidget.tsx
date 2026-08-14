@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { Pencil, Plus, X } from "lucide-react";
 
@@ -88,9 +89,8 @@ export default function AddActionWidget({
         <Label htmlFor="add-action-date" className="text-xs text-muted-foreground flex items-center gap-2">
           {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
         </Label>
-        <Input
+        <DateField
           id="add-action-date"
-          type="date"
           min={todayKey}
           value={date}
           onChange={(e) => onDateChange(e.target.value)}

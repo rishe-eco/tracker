@@ -1,3 +1,12 @@
+// Pinned to Gregorian on purpose, and this import must stay that way.
+//
+// Everything in this file produces a *wire* value — a GraphQL argument, a map
+// key, an `<input min>` attribute — and those are Gregorian by definition. The
+// calendar setting only ever changes what a person reads; see
+// `~/lib/dateSystem` for the rendering side. Swapping this import for the
+// calendar-aware one would make `toLocalDateString` return "1405-05-24" for a
+// Jalali user, which the API accepts without complaint and stores as a date in
+// the fifteenth millennium.
 import { format, addDays } from "date-fns";
 
 /**

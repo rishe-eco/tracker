@@ -5,19 +5,21 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Calendar } from "~/components/ui/calendar";
+import { DatePickerGrid } from "~/components/ui/date-picker-grid";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { useApi } from "~/api/useApi";
 import { ADD_MILESTONE, DELETE_MILESTONE, GET_GOAL, UPDATE_MILESTONE } from "~/api/queries";
 import { Pencil, Trash2 } from "lucide-react";
 import HintPopover from "~/components/ui/HintPopover";
-import { format, isValid } from "date-fns";
+import { isValid } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { parseDateOnly, toLocalDateString } from "~/utils/dateUtils";
 import { useSubmitGuard } from "~/utils/useSubmitGuard";
 
 export default function MilestoneForm() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const { goalId, milestoneId } = useParams<{ goalId: string; milestoneId?: string }>();
   const navigate = useNavigate();
   const { call } = useApi();
@@ -216,7 +218,7 @@ export default function MilestoneForm() {
           {showPredictionReadOnly && predictionDate && isValid(predictionDate) ? (
             <div className="flex items-center gap-3 py-2">
               <p className="text-sm text-muted-foreground">
-                {format(predictionDate, "MMM d, yyyy")}
+                {fmt(predictionDate, "dayMonthYear")}
               </p>
               <Button
                 type="button"
@@ -228,11 +230,10 @@ export default function MilestoneForm() {
               </Button>
             </div>
           ) : canSetPrediction ? (
-            <Calendar
-              mode="single"
-              selected={predictionDate}
+            <DatePickerGrid
+              selected={predictionDate ?? null}
               onSelect={handlePredictionSelect}
-              disabled={{ before: startOfToday }}
+              min={startOfToday}
               className="border rounded-md w-fit"
             />
           ) : null}

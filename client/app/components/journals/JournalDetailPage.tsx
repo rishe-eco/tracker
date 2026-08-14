@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { useTranslation } from "react-i18next";
+import { useAppDate } from "~/i18n/useAppDate";
 import {
   Archive,
   ChevronDown,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Textarea } from "~/components/ui/textarea";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { useApi } from "~/api/useApi";
@@ -58,21 +60,32 @@ type JournalEntry = {
   timestampOverridden: boolean;
 };
 
-function formatEntryDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+/**
+ * Was `toLocaleString(undefined, …)`, the one violation conventions §7d named.
+ *
+ * Passing `undefined` reads the browser or OS locale, so this was the only
+ * string in the app sourced from somewhere other than i18next — a
+ * Persian-configured machine rendered Persian digits, and a Jalali calendar,
+ * for an account set to English. It now goes through the same two settings as
+ * every other date.
+ */
+function useEntryDateFormatter() {
+  const { t } = useTranslation();
+  const { fmt } = useAppDate();
+  return (iso: string) => {
+    const d = new Date(iso);
+    return t("dateTime.dateAtTime", {
+      date: fmt(d, "dayMonthYear"),
+      time: fmt(d, "time"),
+    });
+  };
 }
 
 export default function JournalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const { call, getLastError } = useApi();
+  const formatEntryDate = useEntryDateFormatter();
 
   const [journal, setJournal] = useState<JournalDetail | null>(null);
   const [entries, setEntries] = useState<JournalEntry[] | null>(null);
@@ -364,16 +377,14 @@ export default function JournalDetailPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 text-sm max-w-xs"
           />
-          <Input
-            type="date"
+          <DateField
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className="h-8 text-sm w-36"
             title={t("journals.dateFrom")}
           />
           <span className="text-muted-foreground text-xs">–</span>
-          <Input
-            type="date"
+          <DateField
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className="h-8 text-sm w-36"

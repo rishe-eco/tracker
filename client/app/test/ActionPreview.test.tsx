@@ -11,8 +11,12 @@ vi.mock("~/api/useApi", () => ({
   useApi: () => ({ call: mockCall }),
 }));
 
+// `initReactI18next` is needed even though the test never calls it: the
+// component now reaches `~/i18n/config` through `useAppDate`, and that module
+// runs `i18n.use(initReactI18next)` at import time.
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en", dir: () => "ltr" } }),
+  initReactI18next: { type: "3rdParty", init: () => {} },
 }));
 
 vi.mock("react-router", () => ({

@@ -1,12 +1,16 @@
 import { Checkbox } from "~/components/ui/checkbox";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { Pencil, Settings, Trash2, MoreVertical, Info, StickyNote, CalendarClock } from "lucide-react";
 import type { Action } from "./ActionsListPage";
+// `format` here only ever builds the Gregorian `min` attribute for a date
+// input; everything a person reads goes through `fmt` from `useAppDate`.
 import { isToday, isBefore, isAfter, format, isValid } from "date-fns";
 import { parseDateOnly } from "~/utils/dateUtils";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Badge } from "../ui/badge";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -71,6 +75,7 @@ export default function ActionPreview({
   returnTo,
 }: ActionPreviewProps) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const [checked, setChecked] = useState(action.done ?? false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -121,7 +126,7 @@ export default function ActionPreview({
   function formatTbd(value: Action["tbd"] | any): string {
     if (value == null || value === "") return "No Date";
     const d = parseDateOnly(value);
-    return isValid(d) ? format(d, "MMM d, yyyy") : "No Date";
+    return isValid(d) ? fmt(d, "dayMonthYear") : "No Date";
   }
 
   useEffect(() => {
@@ -308,9 +313,8 @@ export default function ActionPreview({
           {t("wizard.postponeToDate")} <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
         </Label>
         <div className="flex gap-2">
-          <Input
+          <DateField
             id="action-preview-postpone-date"
-            type="date"
             min={minDate}
             value={postponeDate}
             onChange={(e) => setPostponeDate(e.target.value)}
@@ -492,9 +496,8 @@ export default function ActionPreview({
                   <Label htmlFor="action-preview-outsource-do-date" className="text-xs flex items-center gap-2">
                     {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </Label>
-                  <Input
+                  <DateField
                     id="action-preview-outsource-do-date"
-                    type="date"
                     min={minDate}
                     value={outsourceForm.doDate}
                     onChange={(e) =>
@@ -519,9 +522,8 @@ export default function ActionPreview({
                   <Label htmlFor="action-preview-outsource-ensure-date" className="text-xs flex items-center gap-2">
                     {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </Label>
-                  <Input
+                  <DateField
                     id="action-preview-outsource-ensure-date"
-                    type="date"
                     min={minDate}
                     value={outsourceForm.ensureDate}
                     onChange={(e) =>

@@ -1,6 +1,7 @@
 import { Skeleton } from "~/components/ui/skeleton";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import ActionPreview from "~/components/actions/ActionPreview";
 import AfterDayWizard from "./AfterDayWizard";
 import PreDayWizard from "./PreDayWizard";
@@ -214,9 +215,8 @@ export default function TodayPage() {
                     <label htmlFor="today-add-date" className="text-xs font-medium text-muted-foreground flex items-center gap-2">
                       {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     </label>
-                    <Input
+                    <DateField
                       id="today-add-date"
-                      type="date"
                       min={todayKey}
                       value={addDate}
                       onChange={(e) => setAddDate(e.target.value)}

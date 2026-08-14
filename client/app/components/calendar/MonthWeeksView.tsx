@@ -1,10 +1,12 @@
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addWeeks, isSameMonth } from "date-fns";
 import { useState } from "react";
 import type { CalendarItem } from "./calendarTypes";
 import CalendarEvent from "./CalendarEvent";
 import { Button } from "~/components/ui/button";
-import type { AppLanguage } from "~/i18n/config";
-import { getDateFnsLocale, getWeekStartsOn } from "~/i18n/dateLocale";
+import { useAppDate } from "~/i18n/useAppDate";
+import type { DateFns } from "~/lib/dateSystem";
+// Day keys stay Gregorian: they are compared against each other and sent to the
+// server as `dateKey`s, so they must not move when the calendar setting does.
+import { toLocalDateString } from "~/utils/dateUtils";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from "~/components/ui/spinner";
@@ -12,7 +14,6 @@ import { Spinner } from "~/components/ui/spinner";
 interface MonthWeeksViewProps {
   currentDate: Date;
   items: CalendarItem[];
-  language: AppLanguage;
   onNavigate: (date: Date) => void;
   manageMode?: boolean;
   managedActionOptions?: { id: string; title: string }[];
@@ -21,24 +22,24 @@ interface MonthWeeksViewProps {
   assigningActionIds?: Set<string>;
 }
 
-/** Get week blocks that touch the given month (weeks start Sunday). */
-function getWeekBlocksInMonth(month: Date, language: AppLanguage): { start: Date; end: Date }[] {
-  const monthStart = startOfMonth(month);
-  const monthEnd = endOfMonth(month);
+/** Week blocks touching the given month, in whichever calendar is active. */
+function getWeekBlocksInMonth(
+  dfns: DateFns,
+  month: Date,
+  weekStartsOn: 0 | 6
+): { start: Date; end: Date }[] {
+  const monthStart = dfns.startOfMonth(month);
+  const monthEnd = dfns.endOfMonth(month);
   const blocks: { start: Date; end: Date }[] = [];
-  const weekStartsOn = getWeekStartsOn(language);
-  let weekStart = startOfWeek(monthStart, { weekStartsOn });
+  let weekStart = dfns.startOfWeek(monthStart, { weekStartsOn });
   while (weekStart.getTime() <= monthEnd.getTime()) {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn });
-    blocks.push({ start: weekStart, end: weekEnd });
-    weekStart = addWeeks(weekStart, 1);
+    blocks.push({ start: weekStart, end: dfns.endOfWeek(weekStart, { weekStartsOn }) });
+    weekStart = dfns.addWeeks(weekStart, 1);
   }
   return blocks;
 }
 
-function toDateKey(d: Date): string {
-  return format(d, "yyyy-MM-dd");
-}
+const toDateKey = toLocalDateString;
 
 function eventsOnDay(items: CalendarItem[], day: Date): CalendarItem[] {
   const key = toDateKey(day);
@@ -52,7 +53,6 @@ function eventsOnDay(items: CalendarItem[], day: Date): CalendarItem[] {
 export default function MonthWeeksView({
   currentDate,
   items,
-  language,
   onNavigate,
   manageMode = false,
   managedActionOptions = [],
@@ -61,22 +61,14 @@ export default function MonthWeeksView({
   assigningActionIds,
 }: MonthWeeksViewProps) {
   const { t } = useTranslation();
-  const dateLocale = getDateFnsLocale(language);
+  const { dfns, locale, weekStartsOn, fmt } = useAppDate();
   const [dayPickerValue, setDayPickerValue] = useState<Record<string, string>>({});
-  const monthStart = startOfMonth(currentDate);
-  const weekBlocks = getWeekBlocksInMonth(currentDate, language);
+  const monthStart = dfns.startOfMonth(currentDate);
+  const weekBlocks = getWeekBlocksInMonth(dfns, currentDate, weekStartsOn);
   const todayKey = toDateKey(new Date());
 
-  const handlePrev = () => {
-    const d = new Date(currentDate);
-    d.setMonth(d.getMonth() - 1);
-    onNavigate(d);
-  };
-  const handleNext = () => {
-    const d = new Date(currentDate);
-    d.setMonth(d.getMonth() + 1);
-    onNavigate(d);
-  };
+  const handlePrev = () => onNavigate(dfns.addMonths(currentDate, -1));
+  const handleNext = () => onNavigate(dfns.addMonths(currentDate, 1));
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -87,7 +79,7 @@ export default function MonthWeeksView({
             {t("calendar.previous")}
           </Button>
           <span className="font-semibold text-lg">
-            {format(monthStart, "MMMM yyyy", { locale: dateLocale })}
+            {fmt(monthStart, "monthYear")}
           </span>
           <Button variant="outline" size="sm" onClick={handleNext}>
             {t("calendar.next")}
@@ -97,14 +89,8 @@ export default function MonthWeeksView({
       </div>
       <div className="space-y-6 overflow-auto flex-1">
         {weekBlocks.map((block, bi) => {
-          const days = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(block.start);
-            d.setDate(d.getDate() + i);
-            return d;
-          });
-          const weekLabel = t("calendar.weekOf", {
-            date: format(block.start, "MMM d", { locale: dateLocale }),
-          });
+          const days = Array.from({ length: 7 }, (_, i) => dfns.addDays(block.start, i));
+          const weekLabel = t("calendar.weekOf", { date: fmt(block.start, "dayMonth") });
           return (
             <div key={bi} className="border rounded-lg overflow-hidden bg-card">
               <div className="bg-muted/60 px-3 py-2 text-sm font-medium">
@@ -113,7 +99,7 @@ export default function MonthWeeksView({
               <div className="grid grid-cols-7 min-w-0">
                 {days.map((day) => {
                   const dayEvents = eventsOnDay(items, day);
-                  const inMonth = isSameMonth(day, currentDate);
+                  const inMonth = dfns.isSameMonth(day, currentDate);
                   const dayKey = toDateKey(day);
                   const canAssign = dayKey >= todayKey;
                   return (
@@ -124,7 +110,7 @@ export default function MonthWeeksView({
                       }`}
                     >
                       <div className="text-xs font-medium text-muted-foreground mb-1">
-                        {format(day, "EEE d", { locale: dateLocale })}
+                        {dfns.format(day, "EEE d", { locale })}
                       </div>
                       <ul className="space-y-1 overflow-auto min-h-0">
                         {dayEvents.slice(0, 6).map((ev) => (

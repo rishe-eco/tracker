@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { useApi } from "~/api/useApi";
 import {
@@ -178,9 +179,8 @@ export default function TodayActionRow({ action, onRefetch }: Props) {
             <Label htmlFor="today-row-postpone-date" className="sr-only flex items-center gap-2">
               {t("wizard.postponeToDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
             </Label>
-            <Input
+            <DateField
               id="today-row-postpone-date"
-              type="date"
               min={todayMinDate()}
               value={postponeDate}
               onChange={(e) => setPostponeDate(e.target.value)}
@@ -221,9 +221,8 @@ export default function TodayActionRow({ action, onRefetch }: Props) {
                   <Label htmlFor="today-row-outsource-do-date" className="text-xs flex items-center gap-2">
                     {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </Label>
-                  <Input
+                  <DateField
                     id="today-row-outsource-do-date"
-                    type="date"
                     min={todayMinDate()}
                     value={outsourceForm.doDate}
                     onChange={(e) =>
@@ -248,9 +247,8 @@ export default function TodayActionRow({ action, onRefetch }: Props) {
                   <Label htmlFor="today-row-outsource-ensure-date" className="text-xs flex items-center gap-2">
                     {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </Label>
-                  <Input
+                  <DateField
                     id="today-row-outsource-ensure-date"
-                    type="date"
                     min={todayMinDate()}
                     value={outsourceForm.ensureDate}
                     onChange={(e) =>

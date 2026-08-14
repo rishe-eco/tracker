@@ -3,8 +3,9 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
-import { format, isToday, isBefore, isAfter } from "date-fns";
-import { Calendar } from "~/components/ui/calendar";
+import { isToday, isBefore, isAfter } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
+import { DatePickerGrid } from "~/components/ui/date-picker-grid";
 import { Badge } from "~/components/ui/badge";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { ADD_ACTION, UPDATE_ACTION, GET_ACTION, DELETE_ACTION, GET_PROJECTS } from "~/api/queries";
@@ -55,6 +56,7 @@ function getActionFormBackLabel(state: unknown, t: (k: string) => string): strin
 
 export default function ActionForm() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const { id } = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -298,16 +300,15 @@ export default function ActionForm() {
           <div className="space-y-1">
             {editingTbd ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <Calendar
-                  mode="single"
-                  selected={tempTbd}
+                <DatePickerGrid
+                  selected={tempTbd ?? null}
                   onSelect={(d) => {
                     setTempTbd(d);
                     setTbd(d);
                     setEditingTbd(false);
-                    updateActionField("tbd", d ? toLocalDateString(d) : null);
+                    updateActionField("tbd", toLocalDateString(d));
                   }}
-                  disabled={{ before: startOfToday }}
+                  min={startOfToday}
                   className="border rounded-md"
                 />
                 <Button
@@ -332,7 +333,7 @@ export default function ActionForm() {
                 }}
               >
                 <span>
-                  {tbd ? format(tbd, "MMM d, yyyy") : t("actions.clickToSetTbdDate")}
+                  {tbd ? fmt(tbd, "dayMonthYear") : t("actions.clickToSetTbdDate")}
                 </span>
                 {tbd && (
                   <span className="text-xs text-muted-foreground/80 underline underline-offset-2">
@@ -473,11 +474,10 @@ export default function ActionForm() {
 
         <div className="space-y-2">
           <Label>{t("actions.tbdDate")}</Label>
-          <Calendar
-            mode="single"
-            selected={tbd}
+          <DatePickerGrid
+            selected={tbd ?? null}
             onSelect={setTbd}
-            disabled={{ before: startOfToday }}
+            min={startOfToday}
             className="border rounded-md w-fit min-w-fit"
           />
         </div>
@@ -561,7 +561,7 @@ export default function ActionForm() {
         <div className="space-y-1">
           <Label>{t("actions.status")}</Label>
           <div className="text-sm text-muted-foreground flex items-center gap-2">
-            {tbd ? format(tbd, "MMM d, yyyy") : t("actions.statusNoDate")}
+            {tbd ? fmt(tbd, "dayMonthYear") : t("actions.statusNoDate")}
             <Badge className={statusColor}>{status}</Badge>
           </div>
         </div>

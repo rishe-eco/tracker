@@ -1,17 +1,16 @@
-import { format, startOfWeek, addDays, setHours, setMinutes } from "date-fns";
+import { setHours, setMinutes } from "date-fns";
 import { useState } from "react";
 import type { CalendarItem } from "./calendarTypes";
 import CalendarEvent from "./CalendarEvent";
 import { useTranslation } from "react-i18next";
-import type { AppLanguage } from "~/i18n/config";
-import { getDateFnsLocale, getWeekStartsOn } from "~/i18n/dateLocale";
+import { useAppDate } from "~/i18n/useAppDate";
+// Gregorian day keys: compared against each other and sent as `dateKey`s.
+import { toLocalDateString } from "~/utils/dateUtils";
 import { Spinner } from "~/components/ui/spinner";
 
 const PERIOD_MINUTES = 90; /* 1.5 hours for day view */
 
-function toDateKey(d: Date): string {
-  return format(d, "yyyy-MM-dd");
-}
+const toDateKey = toLocalDateString;
 
 function eventsOnDay(items: CalendarItem[], day: Date): CalendarItem[] {
   const key = toDateKey(day);
@@ -45,7 +44,6 @@ function eventsInPeriod(events: CalendarItem[], day: Date, periodStart: Date, pe
 interface WeekDayListViewProps {
   currentDate: Date;
   items: CalendarItem[];
-  language: AppLanguage;
   isDayView: boolean;
   manageMode?: boolean;
   managedActionOptions?: { id: string; title: string }[];
@@ -57,7 +55,6 @@ interface WeekDayListViewProps {
 export default function WeekDayListView({
   currentDate,
   items,
-  language,
   isDayView,
   manageMode = false,
   managedActionOptions = [],
@@ -66,13 +63,13 @@ export default function WeekDayListView({
   assigningActionIds,
 }: WeekDayListViewProps) {
   const { t } = useTranslation();
-  const dateLocale = getDateFnsLocale(language);
+  const { dfns, locale, weekStartsOn, fmt } = useAppDate();
   const [dayPickerValue, setDayPickerValue] = useState<Record<string, string>>({});
   const todayKey = toDateKey(new Date());
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: getWeekStartsOn(language) });
+  const weekStart = dfns.startOfWeek(currentDate, { weekStartsOn });
   const days = isDayView
     ? [currentDate]
-    : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    : Array.from({ length: 7 }, (_, i) => dfns.addDays(weekStart, i));
 
   /* Day view: 16 × 1.5 hour periods (00:00–01:30, 01:30–03:00, …) */
   if (isDayView) {
@@ -85,7 +82,7 @@ export default function WeekDayListView({
       const endMin = startMin + PERIOD_MINUTES;
       const start = setMinutes(setHours(new Date(currentDate), Math.floor(startMin / 60)), startMin % 60);
       const end = setMinutes(setHours(new Date(currentDate), Math.floor(endMin / 60)), endMin % 60);
-      return { start, end, label: `${format(start, "HH:mm", { locale: dateLocale })} – ${format(end, "HH:mm", { locale: dateLocale })}` };
+      return { start, end, label: `${fmt(start, "time")} – ${fmt(end, "time")}` };
     });
 
     return (
@@ -110,7 +107,7 @@ export default function WeekDayListView({
                               <CalendarEvent event={ev} className="!text-xs" />
                             ) : (
                               <>
-                                <span className="text-xs text-muted-foreground mr-1">{format(ev.start, "HH:mm", { locale: dateLocale })}</span>
+                                <span className="text-xs text-muted-foreground mr-1">{fmt(ev.start, "time")}</span>
                                 <CalendarEvent event={ev} className="!text-xs inline-block" />
                               </>
                             )}
@@ -130,7 +127,7 @@ export default function WeekDayListView({
                             <CalendarEvent event={ev} className="!text-xs" />
                           ) : (
                             <>
-                              <span className="text-xs text-muted-foreground mr-1">{format(ev.start, "HH:mm", { locale: dateLocale })}</span>
+                              <span className="text-xs text-muted-foreground mr-1">{fmt(ev.start, "time")}</span>
                               <CalendarEvent event={ev} className="!text-xs inline-block" />
                             </>
                           )
@@ -228,7 +225,7 @@ export default function WeekDayListView({
         return (
           <div key={dayKey} className="border rounded-lg overflow-hidden bg-card flex flex-col min-w-0">
             <div className="bg-muted/60 px-3 py-2 text-sm font-medium shrink-0">
-              {format(day, "EEE, MMM d", { locale: dateLocale })}
+              {fmt(day, "weekdayShortDayMonth")}
             </div>
             <div className="p-2 space-y-2 overflow-auto flex-1 min-h-0">
               {timed.length > 0 && (
@@ -238,7 +235,7 @@ export default function WeekDayListView({
                       {manageMode && ev.type === "action" && ev.entityId ? (
                         <div className="inline-flex items-center gap-1">
                           <span className="text-xs text-muted-foreground mr-1">
-                            {format(ev.start, "HH:mm", { locale: dateLocale })}
+                            {fmt(ev.start, "time")}
                           </span>
                           <CalendarEvent event={ev} className="!text-xs inline-block" />
                           <button
@@ -255,7 +252,7 @@ export default function WeekDayListView({
                       ) : (
                         <>
                           <span className="text-xs text-muted-foreground mr-1">
-                            {format(ev.start, "HH:mm", { locale: dateLocale })}
+                            {fmt(ev.start, "time")}
                           </span>
                           <CalendarEvent event={ev} className="!text-xs inline-block" />
                         </>

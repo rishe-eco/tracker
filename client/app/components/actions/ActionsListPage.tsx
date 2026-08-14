@@ -9,7 +9,8 @@ import ActionPreview from "./ActionPreview";
 import { useApi } from "~/api/useApi";
 import { GET_ACTIONS, DELETE_ACTION } from "~/api/queries";
 import { parseDateOnly } from "~/utils/dateUtils";
-import { format, isAfter, isBefore, isToday, isValid } from "date-fns";
+import { isAfter, isBefore, isToday, isValid } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import ListFilters from "~/components/ui/list-filters";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useSubmitGuard } from "~/utils/useSubmitGuard";
@@ -29,6 +30,7 @@ export interface Action {
 
 export default function ActionsListPage() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const [actions, setActions] = useState<Action[] | null>(null);
   const [showLinksFilters, setShowLinksFilters] = useState(false);
   const [showStatusFilters, setShowStatusFilters] = useState(false);
@@ -373,7 +375,7 @@ export default function ActionsListPage() {
                   <div className="font-medium text-sm line-clamp-1">{action.title}</div>
                   <div className="text-xs text-muted-foreground">
                     {action.tbd
-                      ? format(parseDateOnly(action.tbd), "MMM d, yyyy")
+                      ? fmt(parseDateOnly(action.tbd), "dayMonthYear")
                       : t("actions.statusNoDate")}
                   </div>
                 </div>

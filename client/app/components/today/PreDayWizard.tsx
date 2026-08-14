@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { useApi } from "~/api/useApi";
 import {
@@ -523,9 +524,8 @@ export default function PreDayWizard({
                         <Label htmlFor={`preday-postpone-${a.id}`} className="flex items-center gap-2 shrink-0">
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                         </Label>
-                        <Input
+                        <DateField
                           id={`preday-postpone-${a.id}`}
-                          type="date"
                           min={minDate}
                           value={postponeDate[a.id] ?? ""}
                           onChange={(e) =>
@@ -562,9 +562,8 @@ export default function PreDayWizard({
                           <Label htmlFor={`preday-outsource-do-date-${a.id}`} className="text-xs flex items-center gap-2">
                             {t("wizard.doDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </Label>
-                          <Input
+                          <DateField
                             id={`preday-outsource-do-date-${a.id}`}
-                            type="date"
                             min={minDate}
                             placeholder={t("wizard.doDatePlaceholder")}
                             value={outsourceForm.doDate}
@@ -590,9 +589,8 @@ export default function PreDayWizard({
                           <Label htmlFor={`preday-outsource-ensure-date-${a.id}`} className="text-xs flex items-center gap-2">
                             {t("wizard.ensureDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </Label>
-                          <Input
+                          <DateField
                             id={`preday-outsource-ensure-date-${a.id}`}
-                            type="date"
                             min={minDate}
                             placeholder={t("wizard.ensureDatePlaceholder")}
                             value={outsourceForm.ensureDate}

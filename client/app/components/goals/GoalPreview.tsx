@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Badge } from "~/components/ui/badge";
-import { isBefore, isAfter, format } from "date-fns";
+import { isBefore, isAfter } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Settings, StickyNote } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import NotesModal from "~/components/notes/NotesModal";
@@ -86,6 +87,7 @@ function getCurrentProject(
 
 export default function GoalPreview(props: GoalPreviewProps) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const {
     title,
@@ -136,7 +138,7 @@ export default function GoalPreview(props: GoalPreviewProps) {
             {!isGoalGroup && <Badge className={statusColor}>{status}</Badge>}
             {!isGoalGroup && props.startDate && props.endDate && (
               <span className="shrink-0">
-                {format(props.startDate, "MMM d")} – {format(props.endDate, "MMM d, yyyy")}
+                {fmt(props.startDate, "dayMonth")} – {fmt(props.endDate, "dayMonthYear")}
               </span>
             )}
             {dodClarityStatus === "green" && (

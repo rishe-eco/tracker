@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { DateField } from "~/components/ui/date-field";
 import { Label } from "~/components/ui/label";
 import { useApi } from "~/api/useApi";
 import {
@@ -18,7 +19,10 @@ import {
   DELETE_ACTION,
 } from "~/api/queries";
 import { toLocalDateString, addDaysToDateKey } from "~/utils/dateUtils";
+// Gregorian `format` stays for the `min` attribute on date inputs; anything
+// read by a person goes through `fmt`.
 import { format } from "date-fns";
+import { useAppDate } from "~/i18n/useAppDate";
 import { Moon, Pencil, Sun, ChevronRight, CheckCircle2 } from "lucide-react";
 import HintPopover from "~/components/ui/HintPopover";
 import { LoadingBlock } from "~/components/ui/spinner";
@@ -73,6 +77,7 @@ type AfterDayWizardProps = {
 
 export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: AfterDayWizardProps) {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const afterDaySteps = [
     { title: t("onboarding.modules.after-day.step1Title"), body: t("onboarding.modules.after-day.step1Body") },
     { title: t("onboarding.modules.after-day.step2Title"), body: t("onboarding.modules.after-day.step2Body") },
@@ -337,7 +342,7 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
             </button>
           )}
           <span className="text-muted-foreground">
-            {t("wizard.closing", { date: format(new Date(dateKeyToClose + "T12:00:00"), "EEEE, MMM d") })}
+            {t("wizard.closing", { date: fmt(new Date(dateKeyToClose + "T12:00:00"), "weekdayDayMonth") })}
           </span>
         </div>
       </div>
@@ -433,9 +438,8 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
                       <Label htmlFor={`after-postpone-${action.id}`} className="sr-only flex items-center gap-2">
                         {t("wizard.newDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       </Label>
-                      <Input
+                      <DateField
                         id={`after-postpone-${action.id}`}
-                        type="date"
                         min={minDate}
                         value={postponeDate[action.id] ?? ""}
                         onChange={(e) =>
@@ -474,9 +478,8 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
                           <Label htmlFor={`after-outsource-do-date-${action.id}`} className="flex items-center gap-2">
                             {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </Label>
-                          <Input
+                          <DateField
                             id={`after-outsource-do-date-${action.id}`}
-                            type="date"
                             min={minDate}
                             value={outsourceForm.doDate}
                             onChange={(e) =>
@@ -501,9 +504,8 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
                           <Label htmlFor={`after-outsource-ensure-date-${action.id}`} className="flex items-center gap-2">
                             {t("today.date")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           </Label>
-                          <Input
+                          <DateField
                             id={`after-outsource-ensure-date-${action.id}`}
-                            type="date"
                             min={minDate}
                             value={outsourceForm.ensureDate}
                             onChange={(e) =>
@@ -566,7 +568,7 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
           {standaloneList.length > 0 && (
             <div>
               <h2 className="mb-3 text-lg font-semibold">
-                {format(new Date(dateKeyToClose + "T12:00:00"), "EEEE, MMM d")} {t("wizard.standalone")}
+                {fmt(new Date(dateKeyToClose + "T12:00:00"), "weekdayDayMonth")} {t("wizard.standalone")}
               </h2>
               <ul className="space-y-3">
                 {standaloneList.map((action) => (
@@ -587,7 +589,7 @@ export default function AfterDayWizard({ dateKeyToClose, onClose, onComplete }: 
           {dayBeforeStandalone.length > 0 && (
             <div>
               <h2 className="mb-3 text-lg font-semibold">
-                {format(new Date(dayBeforeKey + "T12:00:00"), "EEEE, MMM d")} {t("wizard.standaloneIfAny")}
+                {fmt(new Date(dayBeforeKey + "T12:00:00"), "weekdayDayMonth")} {t("wizard.standaloneIfAny")}
               </h2>
               <ul className="space-y-3">
                 {dayBeforeStandalone.map((action) => (
@@ -763,9 +765,8 @@ function StandaloneRow({
           <Label htmlFor="after-wizard-postpone-date" className="flex items-center gap-2 shrink-0">
             <Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
           </Label>
-          <Input
+          <DateField
             id="after-wizard-postpone-date"
-            type="date"
             min={minDate}
             value={postponeDate}
             onChange={(e) => setPostponeDate(e.target.value)}
@@ -803,9 +804,8 @@ function StandaloneRow({
             <Label htmlFor="after-wizard-do-date" className="text-xs flex items-center gap-2">
               {t("wizard.doDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
             </Label>
-            <Input
+            <DateField
               id="after-wizard-do-date"
-              type="date"
               min={minDate}
               placeholder={t("wizard.doDatePlaceholder")}
               value={outsourceForm.doDate}
@@ -827,9 +827,8 @@ function StandaloneRow({
             <Label htmlFor="after-wizard-ensure-date" className="text-xs flex items-center gap-2">
               {t("wizard.ensureDate")} <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
             </Label>
-            <Input
+            <DateField
               id="after-wizard-ensure-date"
-              type="date"
               min={minDate}
               placeholder={t("wizard.ensureDatePlaceholder")}
               value={outsourceForm.ensureDate}

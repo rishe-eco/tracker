@@ -1,19 +1,13 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
-import { Calendar, Views, type Components } from "react-big-calendar";
-import { format, startOfYear, endOfYear, addYears, addDays, addWeeks, startOfMonth, endOfMonth, startOfWeek } from "date-fns";
-import { getCalendarLocalizer } from "~/lib/calendarLocalizer";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import "./calendar-overrides.css";
+import { useMemo, useState, useEffect } from "react";
 import { useCalendarItems } from "./useCalendarItems";
-import type { CalendarFilters, CalendarItem } from "./calendarTypes";
-import CalendarEvent from "./CalendarEvent";
+import type { CalendarFilters } from "./calendarTypes";
 import CalendarToolbar from "./CalendarToolbar";
+import MonthGridView from "./MonthGridView";
 import MonthWeeksView from "./MonthWeeksView";
 import WeekDayListView from "./WeekDayListView";
 import { Button } from "~/components/ui/button";
 import { useTranslation } from "react-i18next";
-import type { AppLanguage } from "~/i18n/config";
-import { getDateFnsLocale, getWeekStartsOn } from "~/i18n/dateLocale";
+import { useAppDate } from "~/i18n/useAppDate";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type ViewType = "year" | "month" | "month_weeks" | "week" | "day";
@@ -47,10 +41,8 @@ export default function TrackerCalendar({
   assigningActionIds,
   refreshKey,
 }: TrackerCalendarProps) {
-  const { t, i18n } = useTranslation();
-  const language = (i18n.language === "fa" ? "fa" : "en") as AppLanguage;
-  const dateLocale = useMemo(() => getDateFnsLocale(language), [language]);
-  const localizer = useMemo(() => getCalendarLocalizer(language), [language]);
+  const { t } = useTranslation();
+  const { dfns, weekStartsOn, fmt } = useAppDate();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [view, setView] = useState<ViewType>(() =>
     typeof window !== "undefined" && window.innerWidth < SMALL_SCREEN_BREAKPOINT ? "day" : "month"
@@ -68,66 +60,46 @@ export default function TrackerCalendar({
     setView(activeViewOptions[0] ?? "month");
   }, [activeViewOptions, view]);
 
+  // The month view fetches the whole visible grid, not just the month: a week
+  // row that spills into the next month would otherwise render empty. Previously
+  // react-big-calendar fetched the month and quietly showed nothing in the
+  // overhang.
   const range = useMemo(() => {
     if (view === "year") {
-      return { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+      return { start: dfns.startOfYear(currentDate), end: dfns.endOfYear(currentDate) };
     }
-    if (view === "month_weeks") {
-      const start = startOfMonth(currentDate);
-      const end = endOfMonth(currentDate);
-      return { start, end };
+    if (view === "month") {
+      return {
+        start: dfns.startOfWeek(dfns.startOfMonth(currentDate), { weekStartsOn }),
+        end: dfns.endOfWeek(dfns.endOfMonth(currentDate), { weekStartsOn }),
+      };
     }
-    if (view === "week" || view === "day") {
-      const start = startOfMonth(currentDate);
-      const end = endOfMonth(currentDate);
-      return { start, end };
-    }
-    return null;
-  }, [view, currentDate]);
+    return { start: dfns.startOfMonth(currentDate), end: dfns.endOfMonth(currentDate) };
+  }, [view, currentDate, dfns, weekStartsOn]);
 
   const { items } = useCalendarItems(range, filters, refreshKey);
 
-  const events = useMemo(
-    () =>
-      items.map((it) => ({
-        ...it,
-        title: it.title,
-      })),
-    [items]
-  );
-
-  const defaultDate = useMemo(() => currentDate, [currentDate]);
-  const onNavigate = useCallback((d: Date) => setCurrentDate(d), []);
-
-  const components = useMemo(
-    () =>
-      ({
-        toolbar: CalendarToolbar,
-        event: CalendarEvent,
-      }) as Components<CalendarItem, object>,
-    []
-  );
-
   const handleNavigateYear = (dir: -1 | 1) => {
-    setCurrentDate((d) => addYears(d, dir));
+    setCurrentDate((d) => dfns.addYears(d, dir));
   };
 
   if (view === "year") {
-    const year = currentDate.getFullYear();
+    const yearStart = dfns.startOfYear(currentDate);
+    const year = fmt(yearStart, "year");
     const months = Array.from({ length: 12 }, (_, i) => {
-      const start = startOfMonth(new Date(year, i, 1));
-      const end = endOfMonth(start);
+      const start = dfns.startOfMonth(dfns.addMonths(yearStart, i));
+      const end = dfns.endOfMonth(start);
       const monthEvents = items.filter(
         (e) => e.start.getTime() <= end.getTime() && e.end.getTime() >= start.getTime()
       );
-      return { start, end, name: format(start, "MMMM", { locale: dateLocale }), events: monthEvents };
+      return { start, end, name: fmt(start, "month"), events: monthEvents };
     });
 
     return (
       <div className="flex flex-col flex-1 min-h-0 p-4">
-        <div className="rbc-toolbar flex flex-nowrap items-center justify-between gap-2 mb-4">
-          <span className="rbc-toolbar-label font-semibold text-lg shrink-0">{year}</span>
-          <span className="rbc-btn-group flex flex-nowrap items-center gap-1 shrink-0">
+        <div className="flex flex-nowrap items-center justify-between gap-2 mb-4">
+          <span className="font-semibold text-lg shrink-0">{year}</span>
+          <span className="flex flex-nowrap items-center gap-1 shrink-0">
             <Button variant="outline" size="sm" className="shrink-0" onClick={() => setCurrentDate(new Date())}>
               {t("calendar.today")}
             </Button>
@@ -191,7 +163,6 @@ export default function TrackerCalendar({
           <MonthWeeksView
             currentDate={currentDate}
             items={items}
-            language={language}
             onNavigate={setCurrentDate}
             manageMode={mode === "manage"}
             managedActionOptions={managedActionOptions}
@@ -219,18 +190,18 @@ export default function TrackerCalendar({
 
   /* Week / Day: list view, no time column, untimed at end with separator */
   if (view === "week" || view === "day") {
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: getWeekStartsOn(language) });
+    const weekStart = dfns.startOfWeek(currentDate, { weekStartsOn });
     const weekLabel = view === "day"
-      ? format(currentDate, "EEEE, MMM d, yyyy", { locale: dateLocale })
-      : `${format(weekStart, "MMM d", { locale: dateLocale })} – ${format(addDays(weekStart, 6), "MMM d, yyyy", { locale: dateLocale })}`;
+      ? fmt(currentDate, "weekdayDayMonthYear")
+      : `${fmt(weekStart, "dayMonth")} – ${fmt(dfns.addDays(weekStart, 6), "dayMonthYear")}`;
     return (
       <div className="flex flex-col flex-1 min-h-0 p-4">
         <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
           <CalendarToolbar
             label={weekLabel}
             onNavigate={(action) => {
-              if (action === "PREV") setCurrentDate((d) => view === "day" ? addDays(d, -1) : addWeeks(d, -1));
-              else if (action === "NEXT") setCurrentDate((d) => view === "day" ? addDays(d, 1) : addWeeks(d, 1));
+              if (action === "PREV") setCurrentDate((d) => view === "day" ? dfns.addDays(d, -1) : dfns.addWeeks(d, -1));
+              else if (action === "NEXT") setCurrentDate((d) => view === "day" ? dfns.addDays(d, 1) : dfns.addWeeks(d, 1));
               else if (action === "TODAY") setCurrentDate(new Date());
             }}
           />
@@ -239,7 +210,6 @@ export default function TrackerCalendar({
           <WeekDayListView
             currentDate={currentDate}
             items={items}
-            language={language}
             isDayView={view === "day"}
             manageMode={mode === "manage"}
             managedActionOptions={managedActionOptions}
@@ -269,20 +239,8 @@ export default function TrackerCalendar({
   if (mode === "view") {
     return (
       <div className="flex flex-col flex-1 min-h-0 p-4">
-        <div className="flex-1 min-h-[400px]">
-          <Calendar
-            localizer={localizer}
-            culture={language}
-            view={Views.MONTH}
-            views={[Views.MONTH]}
-            events={events}
-            date={defaultDate}
-            onNavigate={onNavigate}
-            onView={() => {}}
-            style={{ height: "100%", minHeight: 360 }}
-            components={components}
-            popup
-          />
+        <div className="flex flex-1 min-h-[400px] flex-col">
+          <MonthGridView currentDate={currentDate} items={items} onNavigate={setCurrentDate} />
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 pb-12 border-t border-border/60 shrink-0">
           <span className="text-sm font-medium text-muted-foreground">{t("calendar.view")}:</span>
@@ -308,7 +266,6 @@ export default function TrackerCalendar({
         <MonthWeeksView
           currentDate={currentDate}
           items={items}
-          language={language}
           onNavigate={setCurrentDate}
           manageMode
           managedActionOptions={managedActionOptions}

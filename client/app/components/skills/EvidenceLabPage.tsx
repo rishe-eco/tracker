@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import { useAppDate } from "~/i18n/useAppDate";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -56,6 +57,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 export default function EvidenceLabPage() {
   const { t } = useTranslation();
+  const { fmt } = useAppDate();
   const navigate = useNavigate();
   const { call } = useApi();
 
@@ -225,7 +227,7 @@ export default function EvidenceLabPage() {
                     {t(`skills.state.${m.state}`)}
                     {m.nextReviewAt &&
                       ` · ${t("skills.evidence.dueOn", {
-                        date: new Date(m.nextReviewAt).toLocaleDateString(),
+                        date: fmt(new Date(m.nextReviewAt), "dayMonthYear"),
                       })}`}
                   </span>
                 </button>
