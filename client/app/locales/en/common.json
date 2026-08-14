@@ -983,7 +983,7 @@
   "skills": {
     "evidence": {
       "title": "Evidence Lab",
-      "subtitle": "Training one reflex: leave a confident answer and check it against something independent. The aim is discrimination, not suspicion.",
+      "subtitle": "Training one reflex: leave a confident answer and check it against something independent. The aim is telling them apart, not suspecting everything.",
       "startDrill": "Start a drill",
       "startFirstDrill": "Start your first drill",
       "drillLength": "One item takes about a minute.",
@@ -1022,25 +1022,26 @@
       "readTitle": "Read the question, then the answer",
       "readBody": "They're shown in two separate boxes. The top one is what was asked; the one below it is what the AI replied. Only the reply is being judged.",
       "checkTitle": "Check it against something independent",
-      "checkBody": "Open the sideways panel, run a search — it opens in a new tab — and paste back the link and the line that settles it. Forty seconds is the target, not five minutes.",
+      "checkBody": "Use \"Check another source\", run a search — it opens in a new tab — and paste back the link and the line that settles it. Forty seconds is the target, not five minutes.",
       "commitTitle": "Commit a verdict",
       "commitBody": "Choose a verdict, say which part fails if any does, and set how confident you are. This locks the item.",
       "revealTitle": "Find out",
       "revealBody": "You see the correct verdict, an explanation of what a fast correct check would have looked like, and how your attempt scored.",
       "catchTitle": "The one thing worth knowing before you start",
-      "catchBody": "Checking means finding out, not finding fault. Flagging a correct answer counts against you exactly as much as missing a faulty one — and the headline score, discrimination, is precisely the gap between the two.",
+      "catchBody": "Checking means finding out, not finding fault. Flagging a correct answer counts against you exactly as much as missing a faulty one — and the headline score, telling true from false, is precisely the gap between the two.",
       "privacy": "Searches open in your own browser tab: Evidence Lab records that you searched and when, never what you searched or what you read. No AI service is involved anywhere — every item is scored against an answer key written in advance."
     },
     "banners": {
       "draftLocale": "This language's items are machine-drafted and awaiting review by a native speaker. Practice works normally; wording may change.",
-      "probeBlocked": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} item(s) still need a human to verify their answer key. Nothing for you to do about it.",
       "noBaseline": "You haven't taken the baseline yet. Without it, later scores have nothing to be compared against.",
-      "baselineSkipped": "You skipped the baseline, so later scores aren't comparable to a starting point. Practice still counts."
+      "baselineSkipped": "You skipped the baseline, so later scores aren't comparable to a starting point. Practice still counts.",
+      "probeBlocked_one": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} item still needs a human to verify its answer key. Nothing for you to do about it.",
+      "probeBlocked_other": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} items still need a human to verify their answer keys. Nothing for you to do about it."
     },
     "metrics": {
       "strictComposite": "Checked and correct",
-      "discrimination": "Discrimination",
-      "discriminationHint": "Faulty items caught, minus true items wrongly flagged. This is the number that separates skill from suspicion.",
+      "discrimination": "Telling true from false",
+      "discriminationHint": "Faulty items caught, minus true items wrongly flagged — the measure sometimes called discrimination. This is the number that separates skill from suspicion.",
       "reflexSpeed": "Median time to check",
       "overTrust": "Over-trust",
       "hitRate": "Faulty caught",
@@ -1140,10 +1141,11 @@
       "schedule": "Add to calendar",
       "reschedule": "Reschedule",
       "clear": "Remove from calendar",
-      "scheduledSummary": "{{count}} sitting(s) scheduled. Next: {{date}}.",
       "nothingUpcoming": "Nothing upcoming — reschedule to add more.",
       "twoSittingsNote": "Each module is scheduled twice on different days. That isn't padding: mastery needs correct, checked attempts on two separate days, so a single-sitting plan would look complete and never get there.",
-      "rerunNote": "Rescheduling replaces upcoming sittings. Ones you've already done, and any in the past, are left alone."
+      "rerunNote": "Rescheduling replaces upcoming sittings. Ones you've already done, and any in the past, are left alone.",
+      "scheduledSummary_one": "{{count}} sitting scheduled. Next: {{date}}.",
+      "scheduledSummary_other": "{{count}} sittings scheduled. Next: {{date}}."
     },
     "mastery": {
       "attempts": "{{done}} of {{required}} practice items done",
@@ -1243,7 +1245,7 @@
       "lockBody": "A diagnosis entered after you've seen the scores isn't a diagnosis, it's a recollection. Same for predicting what a reader will do. Both get committed first and can't be edited afterwards — that's the only way to find out what you'd actually have concluded."
     },
     "banners": {
-      "noReader": "Diagnose-and-rewrite items and quick fixes work fully, and they are most of the lab. What is missing here is the AI scorer. Without one, three of the six criteria — deliverable, context and success criteria — are left unscored rather than guessed at, write-from-scratch items aren’t offered, and a module can’t be marked finished. That is a limit of this installation, not something you did.",
+      "noReader": "Diagnose-and-rewrite items and quick fixes work fully, and they are most of the lab. What is missing here is the AI scorer. Without one, {{count}} of the six criteria — {{criteria}} — are left unscored rather than guessed at, write-from-scratch items aren’t offered, and a module can’t be marked finished. That is a limit of this installation, not something you did.",
       "uncalibrated": "The AI scorer hasn’t been calibrated against human scoring yet. Its levels are shown as feedback, and are deliberately kept out of any before/after measurement until that’s done.",
       "noBaseline": "You haven't taken the baseline yet. Without one, later scores have nothing to be compared against."
     },
@@ -1309,12 +1311,15 @@
     },
     "mastery": {
       "attempts": "{{done}} of {{required}} first drafts written — rewrites don’t count toward finishing",
-      "rubricIncomplete": "the full rubric hasn’t been scored: three criteria need the AI scorer, which isn’t set up here",
+      "rubricIncomplete": "{{done}} of six criteria still need the AI scorer, which isn’t set up here",
       "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module’s own criterion at level 2",
       "days": "practised on {{done}} of the {{required}} separate days required"
     },
     "explanationOfOriginal": "What was going on in the text above",
     "diagnosisUnverifiable": "Not scored",
-    "diagnosisUnverifiableHint": "Nothing assessed those criteria here, so flagging them is neither right nor wrong. They need the AI scorer."
+    "diagnosisUnverifiableHint": "Nothing assessed those criteria here, so flagging them is neither right nor wrong. They need the AI scorer.",
+    "nothingScored": "Nothing here could be assessed, so there is no score — not a score of zero. Setting up an AI scorer is what unlocks it.",
+    "listLocale": "en",
+    "listSeparator": ", "
   }
 }

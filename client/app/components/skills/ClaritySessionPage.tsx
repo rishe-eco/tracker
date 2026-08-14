@@ -537,13 +537,18 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
         {/* The number, last and small. `7/10, 5 of 6 criteria` — never a
             silently weakened 7/12. */}
         <div className="grid grid-cols-2 gap-3 border-t pt-4">
+          {/* With no reader and no detectors for this language, nothing at all
+              was assessed. "0 / 0" reads as a score of zero; it is the absence
+              of one. */}
           <div className="rounded-md border bg-background/60 p-3">
             <Label text={t("clarity.total")} />
             <p className="text-2xl font-semibold tabular-nums">
-              {score.total} / {score.maxPossible}
+              {score.scoredCount === 0 ? "—" : `${score.total} / ${score.maxPossible}`}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {t("clarity.ofCriteria", { scored: score.scoredCount, total: 6 })}
+              {score.scoredCount === 0
+                ? t("clarity.nothingScored")
+                : t("clarity.ofCriteria", { scored: score.scoredCount, total: 6 })}
             </p>
           </div>
           <div className="rounded-md border bg-background/60 p-3">

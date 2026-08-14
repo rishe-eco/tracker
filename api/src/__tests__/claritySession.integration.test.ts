@@ -351,11 +351,23 @@ describe("locale", () => {
     );
     expect(isPersian(result.reveal)).toBe(true);
 
-    // Persian routes R4 and R6 to the judge rather than the English detectors,
-    // so with no reader only R1 can carry a level.
+    // The detectors tokenise through an [a-z] class, so Persian reduced to
+    // nothing and R1 came back 0/2 "No identifiable request" — in English, on a
+    // sentence that opens with an explicit imperative. Every criterion now
+    // routes to the judge, and with no reader the honest report is that nothing
+    // was assessed rather than that everything failed.
     const progress = await queryResolvers.clarityProgress(null, {}, fa);
     expect(progress.locale).toBe("fa");
-    expect(progress.detectorCriteria).toEqual(["R1"]);
+    expect(progress.detectorCriteria).toEqual([]);
+
+    expect(result.score.scoredCount).toBe(0);
+    expect(result.score.criteria.every((c: any) => c.level === null)).toBe(true);
+
+    // Nothing English may reach a Persian learner through a score. Detector
+    // findings are composed in English in the service, so a detector that runs
+    // where it should not shows up here.
+    const findings = result.score.criteria.flatMap((c: any) => c.findings);
+    expect(findings).toEqual([]);
   });
 
   it("keeps English English", async () => {

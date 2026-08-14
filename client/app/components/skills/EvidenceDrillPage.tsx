@@ -383,11 +383,19 @@ export default function EvidenceDrillPage() {
                   </Button>
                 </div>
 
+                {/* Both fields come back, not just the link. The line that
+                    settles it is the harder half of the exercise, and typing it
+                    into a box that never shows it again reads as discarded. */}
                 {sources.length > 0 && (
-                  <ul className="space-y-1 border-t pt-3 text-xs text-muted-foreground">
+                  <ul className="space-y-2 border-t pt-3 text-xs">
                     {sources.map((s, i) => (
-                      <li key={`${s.url}-${i}`} className="truncate">
-                        {s.url}
+                      <li key={`${s.url}-${i}`}>
+                        <span className="block truncate text-muted-foreground">{s.url}</span>
+                        {s.snippet && (
+                          <span className="mt-0.5 block border-s-2 border-sky-500/60 ps-2 leading-relaxed">
+                            {s.snippet}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

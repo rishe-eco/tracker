@@ -176,11 +176,13 @@ export function evaluateClarityMastery(attempts: ScoredClarityAttempt[]): Clarit
     unmet.push({ code: "attempts", count: window.length, required: CLARITY_MASTERY_CONSECUTIVE });
   }
 
-  // Without a judge, R2/R3/R5 are unscored — half the rubric, and the half that
-  // covers context and success criteria. Mastery deliberately stays out of
-  // reach rather than being redefined downwards to whatever can be measured.
-  if (window.some((a) => !a.score.isComplete)) {
-    unmet.push({ code: "rubricIncomplete" });
+  // Without a judge some criteria have no honest level, and how many depends on
+  // the locale's detector coverage — three in English, all six in Persian. The
+  // count travels with the gap rather than being written into the copy, which
+  // said "three" to a Persian learner looking at five unscored rows.
+  const incomplete = window.find((a) => !a.score.isComplete);
+  if (incomplete) {
+    unmet.push({ code: "rubricIncomplete", count: incomplete.score.unscored.length });
   }
 
   const atBar = window.filter((a) => atCriterion(a.score, a.moduleKey));
@@ -211,6 +213,10 @@ export function evaluateClarityMastery(attempts: ScoredClarityAttempt[]): Clarit
 export function revisionDelta(draft: ClarityScore, revision: ClarityScore): number | null {
   if (draft.isVoid || revision.isVoid) return null;
   if (draft.maxPossible !== revision.maxPossible) return null; // not comparable
+  // Nothing was assessed on either side, so the difference between them is not
+  // zero improvement — it is no measurement. Reporting +0 would say the rewrite
+  // changed nothing, which is a claim this install cannot make.
+  if (draft.maxPossible === 0) return null;
   return revision.total - draft.total;
 }
 

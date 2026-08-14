@@ -15,9 +15,19 @@
  *    it. Necessary, never sufficient — which is also what stops learners
  *    scoring well by writing to the detector.
  *
- * English only. The Persian equivalents are not ports: pro-drop, ezāfe chains
- * and اسم‌مصدر nominalisation make R4 and R6 different questions, so `fa` routes
- * those two to the judge instead (rubric.ts → DETECTOR_CRITERIA_BY_LOCALE).
+ * **English only, and only English.** Every routine here tokenises through an
+ * `[a-z]` class, which does not degrade on another script — it erases it. So
+ * these are not "detectors that work best in English"; they are detectors that
+ * silently return a confident zero on anything else. `fa` therefore routes all
+ * six criteria to the judge (rubric.ts → DETECTOR_CRITERIA_BY_LOCALE), and
+ * `runDetectors` refuses input it cannot tokenise rather than scoring it.
+ *
+ * A Persian set is authored work, not a port: pro-drop, ezāfe chains and
+ * اسم‌مصدر nominalisation make R4 and R6 different questions, and R1 needs the
+ * بـ-prefix and compound-verb imperative forms that have no English analogue.
+ * It needs a Persian speaker, and until it has one the honest answer is that
+ * these criteria are unscored — the same answer the rubric already gives for
+ * anything no reader has assessed.
  */
 
 import type { CriterionId, RubricLevel } from "../../../content/skills/clarity/types";
@@ -118,7 +128,17 @@ const CONSTRAINT_MARKERS = [
   "must", "should", "need", "needs", "required", "at most", "at least", "no more than",
   "under", "over", "within", "only", "don't", "do not", "avoid", "exclude", "ignore",
   "instead of", "rather than", "so that", "success", "done when", "fails if", "wrong if",
+  "before", "after", "until", "deadline", "no later than", "at the latest",
 ];
+
+/**
+ * A deadline, which is the most common real constraint in ordinary requests and
+ * the easiest to miss: it often carries no digit and no keyword, just a day.
+ * Without this, "Take a look at the lease before Friday" was reported as
+ * constraining nothing.
+ */
+const DEADLINE_PATTERN =
+  /\b(by|before|on|due)\s+(mon|tues|wednes|thurs|fri|satur|sun)day\b|\b(mon|tues|wednes|thurs|fri|satur|sun)day\b|\b(today|tomorrow|tonight|this week|next week|end of (the )?(day|week|month))\b/;
 
 const FORMAT_TOKENS = [
   "json", "csv", "yaml", "markdown", "md", "table", "bullet", "bullets", "list",
@@ -147,6 +167,16 @@ export function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Tokenise to lower-case ASCII words, dropping leading fillers.
+ *
+ * The `[^a-z']` class is why every function in this file is English-only, and
+ * why that is enforced rather than documented: on any non-Latin script it does
+ * not degrade, it erases. Persian input tokenised to `[]`, `looksImperative`
+ * bailed on the empty head, and R1 came back 0/2 "No identifiable request" for
+ * a text that opened with an explicit imperative. Nothing threw, and the score
+ * looked like a score.
+ */
 function contentWords(sentence: string): string[] {
   const tokens = sentence.toLowerCase().replace(/[^a-z'\s]/g, " ").trim().split(/\s+/).filter(Boolean);
   let i = 0;
@@ -166,6 +196,15 @@ const COPULA_OR_AUX = new Set([
 ]);
 
 /**
+ * Light-verb requests: "have a look at…", "take a quick look", "give it a go".
+ *
+ * The verb carries no meaning — the noun does — so these fail every test built
+ * around the verb. `have` in particular is an auxiliary everywhere else, which
+ * is why it cannot simply be added to the request list.
+ */
+const LIGHT_VERB_ASK = /^(have|take|give)\s+(?:it\s+|them\s+|us\s+|me\s+)?(?:a|an|another)\s+\w+/;
+
+/**
  * Does this sentence open like an instruction?
  *
  * English imperatives carry no morphology, so this is a shape test rather than a
@@ -180,6 +219,9 @@ function looksImperative(sentence: string): boolean {
   // A single bare word is an interjection or a fragment, not an ask.
   if (!head || !next) return false;
   if (PRIMARY_REQUEST_VERBS.has(head)) return true;
+  // Checked before the auxiliary rules below, which would otherwise reject the
+  // `have` in "Please have a look at the oven".
+  if (LIGHT_VERB_ASK.test(tokens.join(" "))) return true;
   if (NON_IMPERATIVE_OPENERS.has(head) || SUPPORTING_VERBS.has(head)) return false;
   // "Deadline is Friday" — the opener is the subject of a statement.
   if (COPULA_OR_AUX.has(next)) return false;
@@ -197,27 +239,39 @@ const contains = (haystack: string, needles: string[]) =>
 
 // ─── R1 · Ask placement and singularity ─────────────────────────────────────
 
+/**
+ * Is this sentence asking for something?
+ *
+ * Shared by R1 and R6 on purpose. R6 needs to know which sentences are asks so
+ * it does not bill them as padding, and when the two tests disagreed the errors
+ * compounded: a request R1 failed to recognise was then reported by R6 as a
+ * sentence that "adds no constraint, input, or criterion" — the learner's actual
+ * request, quoted back to them as filler.
+ */
+function isAskSentence(sentence: string): boolean {
+  const lower = sentence.toLowerCase();
+  const head = firstWord(sentence);
+
+  const isInterrogative = sentence.trim().endsWith("?");
+  const isModalRequest =
+    /\b(can|could|would|will)\s+you\b/.test(lower) ||
+    /\bi(?:'d| would)?\s+(?:need|want|like)\s+you\s+to\b/.test(lower) ||
+    /\bi\s+need\s+(?:a|an|the)\b/.test(lower);
+
+  // A supporting verb heading a sentence is a constraint on the ask, not a
+  // second ask.
+  if (SUPPORTING_VERBS.has(head) && !isInterrogative && !isModalRequest) return false;
+
+  return isInterrogative || looksImperative(sentence) || isModalRequest;
+}
+
 export function detectR1(text: string): DetectorResult {
   const sentences = splitSentences(text);
   const findings: string[] = [];
   const askIndices: number[] = [];
 
   sentences.forEach((sentence, i) => {
-    const lower = sentence.toLowerCase();
-    const head = firstWord(sentence);
-
-    const isInterrogative = sentence.trim().endsWith("?");
-    const isImperative = looksImperative(sentence);
-    const isModalRequest =
-      /\b(can|could|would|will)\s+you\b/.test(lower) ||
-      /\bi(?:'d| would)?\s+(?:need|want|like)\s+you\s+to\b/.test(lower) ||
-      /\bi\s+need\s+(?:a|an|the)\b/.test(lower);
-
-    // A supporting verb heading a sentence is a constraint on the ask, not a
-    // second ask.
-    if (SUPPORTING_VERBS.has(head) && !isInterrogative && !isModalRequest) return;
-
-    if (isInterrogative || isImperative || isModalRequest) askIndices.push(i);
+    if (isAskSentence(sentence)) askIndices.push(i);
   });
 
   if (askIndices.length === 0) {
@@ -293,18 +347,48 @@ export function detectR4(text: string): DetectorResult {
 
 // ─── R6 · Economy and order ─────────────────────────────────────────────────
 
+/** Long enough that where the constraint sits is a real reading cost. */
+const LATE_CONSTRAINT_MIN_CHARS = 90;
+/** How far in the first constraint must be before its position is a fault. */
+const LATE_CONSTRAINT_RATIO = 0.6;
+
+/**
+ * Where the first constraint appears as a fraction of the whole text, when that
+ * is late enough to be the fault.
+ *
+ * The sentence-level check above cannot see this: a single sentence made of four
+ * clauses is one sentence, so "order is the fault" items scored as if ordered
+ * fine. They only ever failed R6 because the deadline in them went unrecognised
+ * as a constraint at all — the right level for the wrong reason, which stopped
+ * being true the moment deadlines were recognised.
+ */
+function lateConstraintOffset(text: string): number | null {
+  if (text.length < LATE_CONSTRAINT_MIN_CHARS) return null;
+  const lower = text.toLowerCase();
+
+  const offsets = [
+    ...CONSTRAINT_MARKERS.map((m) => lower.indexOf(m)),
+    lower.search(/\d/),
+    lower.search(DEADLINE_PATTERN),
+  ].filter((i) => i >= 0);
+
+  if (offsets.length === 0) return null;
+  const first = Math.min(...offsets);
+  return first / text.length >= LATE_CONSTRAINT_RATIO ? first : null;
+}
+
 export function detectR6(text: string): DetectorResult {
   const sentences = splitSentences(text);
   if (sentences.length === 0) return { criterion: "R6", level: 0, findings: ["Empty."] };
 
   const findings: string[] = [];
+  // Unconditional, and by the same test R1 uses. Gating this on "R1 found an
+  // ask" meant one R1 miss cost the learner twice: no ask recognised, and then
+  // every ask sentence counted as padding.
   const askIndices = new Set<number>();
-  const r1 = detectR1(text);
-  if (r1.level > 0) {
-    sentences.forEach((s, i) => {
-      if (looksImperative(s) || s.trim().endsWith("?")) askIndices.add(i);
-    });
-  }
+  sentences.forEach((s, i) => {
+    if (isAskSentence(s)) askIndices.add(i);
+  });
 
   const constrains = sentences.map((sentence) => {
     const lower = sentence.toLowerCase();
@@ -312,6 +396,7 @@ export function detectR6(text: string): DetectorResult {
       /\d/.test(sentence) ||
       /`[^`]+`/.test(sentence) ||
       contains(lower, CONSTRAINT_MARKERS).length > 0 ||
+      DEADLINE_PATTERN.test(lower) ||
       FORMAT_TOKENS.some((f) => new RegExp(`\\b${f}\\b`).test(lower))
     );
   });
@@ -341,6 +426,13 @@ export function detectR6(text: string): DetectorResult {
   } else if (firstConstraint >= firstThird) {
     findings.push(
       `The first real constraint appears in sentence ${firstConstraint + 1} of ${sentences.length} — front-load it.`
+    );
+  } else if (lateConstraintOffset(text) !== null) {
+    // Order is a fault inside a sentence too. A chain of clauses that ends
+    // "…and make sure it's all done before Wednesday" front-loads the tasks and
+    // buries the one fact that decides whether any of them succeeded.
+    findings.push(
+      "The constraint that decides the answer arrives in the last clause — a reader who skims has already started."
     );
   }
 
@@ -377,7 +469,21 @@ export function isVoid(text: string, scenario?: string): boolean {
   return normalise(trimmed).length > 0 && normalise(scenario).includes(normalise(trimmed));
 }
 
+/**
+ * Enough Latin script for the tokenizer to have something to work with.
+ *
+ * The guard, rather than trusting the locale routing, because the failure it
+ * prevents is invisible: a detector handed Persian returns level 0 with an
+ * English finding attached, and nothing distinguishes that from a genuine zero.
+ * Returning no result instead lands the criterion in `unscored`, which is the
+ * rubric's existing, honest word for "nobody assessed this".
+ */
+function isTokenisable(text: string): boolean {
+  return /[a-z]{2}/i.test(text);
+}
+
 export function runDetectors(text: string, criteria: CriterionId[]): DetectorResult[] {
+  if (!isTokenisable(text)) return [];
   return criteria
     .map((id) => DETECTORS[id]?.(text))
     .filter((r): r is DetectorResult => r !== undefined);

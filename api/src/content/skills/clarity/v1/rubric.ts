@@ -131,9 +131,21 @@ export const JUDGE_ONLY_CRITERIA: CriterionId[] = RUBRIC.filter((c) => c.scoredB
  * The cost is recorded per attempt in `scoredBy`, so an `en` detector-scored
  * criterion and a `fa` judge-scored one are never silently pooled.
  */
+/**
+ * Which criteria a locale can score without a reader.
+ *
+ * `fa` is empty, and that is a statement about the detectors rather than about
+ * Persian. They tokenise through an `[a-z]` class, so Persian text reduces to
+ * nothing and R1 returned a confident 0/2 — "No identifiable request", in
+ * English, on a sentence opening with an explicit imperative. R1 was listed here
+ * because the *criterion* ports; the implementation does not.
+ *
+ * Restoring it means authoring Persian detectors (see the note in
+ * `services/skills/clarity/detectors.ts`), not re-adding the entry.
+ */
 export const DETECTOR_CRITERIA_BY_LOCALE: Record<string, CriterionId[]> = {
   en: ["R1", "R4", "R6"],
-  fa: ["R1"],
+  fa: [],
 };
 
 export function detectorCriteriaFor(locale: string): CriterionId[] {

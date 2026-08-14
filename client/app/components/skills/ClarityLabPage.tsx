@@ -9,7 +9,7 @@ import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_CLARITY_MODULES, GET_CLARITY_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
-import RubricRail from "./RubricRail";
+import RubricRail, { CRITERIA } from "./RubricRail";
 
 type ClarityModule = {
   moduleKey: string;
@@ -118,7 +118,10 @@ export default function ClarityLabPage() {
             — that is a real limit on what the tool can tell you, so it is on the
             page rather than buried in a tooltip. */}
         {!progress.readerAvailable && (
-          <Banner tone="warn" text={t("clarity.banners.noReader")} />
+          <Banner
+            tone="warn"
+            text={t("clarity.banners.noReader", unscoredCriteriaCopy(t, progress.detectorCriteria))}
+          />
         )}
         {progress.readerAvailable && !progress.anyCriterionCalibrated && (
           <Banner tone="info" text={t("clarity.banners.uncalibrated")} />
@@ -306,6 +309,33 @@ function HowASittingWorks({ defaultOpen }: { defaultOpen: boolean }) {
       </div>
     </details>
   );
+}
+
+/**
+ * Which criteria this install cannot score, named rather than assumed.
+ *
+ * The copy used to say "three of the six criteria — deliverable, context and
+ * success criteria". Both halves were locale-specific and neither was derived:
+ * Persian has no working detectors at all, so five rows read as unscored while
+ * the sentence named three, and the two it left out were unscored too.
+ */
+function unscoredCriteriaCopy(
+  t: (k: string, o?: any) => string,
+  detectorCriteria: string[]
+): { count: number; criteria: string } {
+  const unscored = CRITERIA.filter((c) => !detectorCriteria.includes(c));
+  const labels = unscored.map((c) => t(`clarity.rubric.${c}.label`));
+  return { count: unscored.length, criteria: joinList(labels, t) };
+}
+
+/** Intl handles the "a, b and c" shape per language; the fallback is for old runtimes. */
+function joinList(items: string[], t: (k: string, o?: any) => string): string {
+  const locale = t("clarity.listLocale", { defaultValue: "en" });
+  try {
+    return new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(items);
+  } catch {
+    return items.join(t("clarity.listSeparator", { defaultValue: ", " }));
+  }
 }
 
 function StateIcon({ state }: { state: string }) {

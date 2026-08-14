@@ -7,7 +7,7 @@ import {
   runDetectors,
   splitSentences,
 } from "../services/skills/clarity/detectors";
-import { ITEM_SPEC_BY_ID } from "../content/skills/clarity/v1";
+import { ITEM_SPEC_BY_ID, detectorCriteriaFor } from "../content/skills/clarity/v1";
 import { buildClarityPack } from "../content/skills/clarity/v1/index";
 
 const surfaceOf = (itemId: string) =>
@@ -71,6 +71,14 @@ describe("R1 · ask placement and singularity", () => {
     }
   });
 
+  it("recognises light-verb requests", () => {
+    // The verb carries no meaning here, the noun does — and `have` is an
+    // auxiliary everywhere else, so it cannot just be added to the verb list.
+    const r = detectR1("Please have a look at our gas oven next time you're round.");
+    expect(r.level).toBe(2);
+    expect(r.findings).toEqual([]);
+  });
+
   it("does not read a plain statement as a command", () => {
     // The permissive imperative test earns its keep only if it still knows a
     // subject when it sees one.
@@ -82,6 +90,29 @@ describe("R1 · ask placement and singularity", () => {
     ]) {
       expect(detectR1(text).level, text).toBe(0);
     }
+  });
+});
+
+describe("script coverage", () => {
+  it("scores nothing rather than scoring zero on a script it cannot tokenise", () => {
+    // Every routine here tokenises through an [a-z] class, so Persian reduced to
+    // an empty token list and R1 returned a confident 0/2 — "No identifiable
+    // request", in English, on a sentence opening with an explicit imperative.
+    // The only criterion Persian was routed to always returned zero.
+    const persian = "لطفاً فر گازی آشپزخانه را بررسی کن و تا پنج‌شنبه نتیجه را بفرست.";
+    expect(runDetectors(persian, ["R1", "R4", "R6"])).toEqual([]);
+  });
+
+  it("routes every Persian criterion to the judge", () => {
+    // Listing a criterion here is a claim that a detector can score it in that
+    // language. Nothing can, yet — so the honest list is empty.
+    expect(detectorCriteriaFor("fa")).toEqual([]);
+    expect(detectorCriteriaFor("en")).toEqual(["R1", "R4", "R6"]);
+  });
+
+  it("still scores text that merely contains some non-Latin characters", () => {
+    const mixed = 'Rewrite the résumé summary in 80 words — drop the "naïve" phrasing.';
+    expect(runDetectors(mixed, ["R1"]).length).toBe(1);
   });
 });
 
@@ -123,6 +154,40 @@ describe("R4 · referent resolution", () => {
 });
 
 describe("R6 · economy and order", () => {
+  it("catches a constraint buried at the end of a clause chain", () => {
+    // Order is a fault inside a sentence too, and the sentence-level check
+    // cannot see it — four clauses are still one sentence. Items built to teach
+    // this used to fail R6 only because their deadline went unrecognised as a
+    // constraint at all: the right level for the wrong reason.
+    const late = detectR6(surfaceOf("cl-p19").weakText!);
+    expect(late.level).toBeLessThan(2);
+    expect(late.findings.join(" ")).toMatch(/last clause/);
+
+    // …and the authored fix clears it, which is what makes the drill winnable.
+    expect(detectR6(surfaceOf("cl-p19").exemplarFix!).level).toBe(2);
+  });
+
+  it("counts a deadline as a constraint", () => {
+    // The commonest real constraint in an ordinary request, and the one most
+    // likely to carry no digit and no keyword — just a day.
+    for (const text of [
+      "Take a look at the lease before Friday.",
+      "Send the draft by Thursday.",
+      "Pick a venue by the end of the week.",
+    ]) {
+      expect(detectR6(text).findings.join(" "), text).not.toMatch(/constrains the answer/);
+    }
+  });
+
+  it("never bills the request itself as padding", () => {
+    // R6 used to compute its asks only when R1 had already found one, and with a
+    // different test. So a request R1 missed was quoted back by R6 as a sentence
+    // that "adds no constraint, input, or criterion" — the learner penalised
+    // twice for the one thing they got right.
+    const r = detectR6("Please have a look at our gas oven next time you're round.");
+    expect(r.findings.join(" ")).not.toMatch(/have a look/);
+  });
+
   it("awards level 2 to a request where every sentence carries weight", () => {
     const r = detectR6(
       "Optimise the dashboard query so p95 is under 1 second on staging. Don't touch the shared cache."
