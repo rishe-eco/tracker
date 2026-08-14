@@ -22,6 +22,7 @@
 
 import type { CriterionId, RubricLevel } from "../../../content/skills/clarity/types";
 import { CRITERION_BY_ID, RUBRIC, RUBRIC_MAX_TOTAL } from "../../../content/skills/clarity/v1/rubric";
+import type { MasteryGap } from "../mastery";
 import type { DetectorResult } from "./detectors";
 
 export type ScoreSource = "detector" | "judge" | "detector+judge" | "unscored";
@@ -160,37 +161,41 @@ export type ScoredClarityAttempt = {
 
 export type ClarityMasteryVerdict = {
   mastered: boolean;
-  unmetCriteria: string[];
+  unmetCriteria: MasteryGap[];
 };
 
 export const CLARITY_MASTERY_CONSECUTIVE = 2;
+const CLARITY_MASTERY_MIN_DISTINCT_DAYS = 2;
 
 export function evaluateClarityMastery(attempts: ScoredClarityAttempt[]): ClarityMasteryVerdict {
   const unscaffolded = attempts.filter((a) => a.unscaffolded && !a.score.isVoid);
   const window = unscaffolded.slice(-CLARITY_MASTERY_CONSECUTIVE);
-  const unmet: string[] = [];
+  const unmet: MasteryGap[] = [];
 
   if (window.length < CLARITY_MASTERY_CONSECUTIVE) {
-    unmet.push(`needs ${CLARITY_MASTERY_CONSECUTIVE} unscaffolded attempts`);
+    unmet.push({ code: "attempts", count: window.length, required: CLARITY_MASTERY_CONSECUTIVE });
   }
 
   // Without a judge, R2/R3/R5 are unscored — half the rubric, and the half that
   // covers context and success criteria. Mastery deliberately stays out of
   // reach rather than being redefined downwards to whatever can be measured.
   if (window.some((a) => !a.score.isComplete)) {
-    unmet.push("the full rubric has not been scored (three criteria need a reader)");
+    unmet.push({ code: "rubricIncomplete" });
   }
 
   const atBar = window.filter((a) => atCriterion(a.score, a.moduleKey));
   if (atBar.length < CLARITY_MASTERY_CONSECUTIVE) {
-    unmet.push(
-      `${atBar.length}/${CLARITY_MASTERY_CONSECUTIVE} attempts at ${CLARITY_MASTERY_MIN_TOTAL}+/12 with this module's own criterion at level 2`
-    );
+    unmet.push({
+      code: "atCriterion",
+      count: atBar.length,
+      required: CLARITY_MASTERY_CONSECUTIVE,
+      minTotal: CLARITY_MASTERY_MIN_TOTAL,
+    });
   }
 
   const distinctDays = new Set(window.map((a) => a.dayKey)).size;
-  if (window.length >= CLARITY_MASTERY_CONSECUTIVE && distinctDays < 2) {
-    unmet.push("practice spread over 1 of 2 required days");
+  if (window.length >= CLARITY_MASTERY_CONSECUTIVE && distinctDays < CLARITY_MASTERY_MIN_DISTINCT_DAYS) {
+    unmet.push({ code: "days", count: distinctDays, required: CLARITY_MASTERY_MIN_DISTINCT_DAYS });
   }
 
   return { mastered: unmet.length === 0, unmetCriteria: unmet };
@@ -209,18 +214,58 @@ export function revisionDelta(draft: ClarityScore, revision: ClarityScore): numb
   return revision.total - draft.total;
 }
 
-/** Which criteria the learner named as failing, versus which actually did. */
-export function diagnosisAccuracy(
-  tagged: CriterionId[],
-  score: ClarityScore
-): { correct: CriterionId[]; missed: CriterionId[]; spurious: CriterionId[] } {
-  const actuallyFailed = new Set(
-    score.criteria.filter((c) => c.level !== null && c.level < 2).map((c) => c.criterion)
-  );
-  const taggedSet = new Set(tagged);
+/**
+ * The answer key a diagnosis is marked against.
+ *
+ * `unscored` is carried separately rather than folded into "did not fail",
+ * because those are different claims: "this criterion held up" and "nobody
+ * looked at this criterion" cannot both make a learner's tag wrong.
+ */
+export type DiagnosisKey = { failed: CriterionId[]; unscored: CriterionId[] };
+
+export type DiagnosisAccuracy = {
+  correct: CriterionId[];
+  missed: CriterionId[];
+  spurious: CriterionId[];
+  /** Tagged, but nothing assessed it — neither credited nor counted against. */
+  unverifiable: CriterionId[];
+};
+
+/** The key implied by a scored artifact: what that text itself fell short on. */
+export function keyFromScore(score: ClarityScore): DiagnosisKey {
   return {
-    correct: [...taggedSet].filter((c) => actuallyFailed.has(c)),
-    missed: [...actuallyFailed].filter((c) => !taggedSet.has(c)),
-    spurious: [...taggedSet].filter((c) => !actuallyFailed.has(c) && CRITERION_BY_ID.has(c)),
+    failed: score.criteria.filter((c) => c.level !== null && c.level < 2).map((c) => c.criterion),
+    unscored: score.criteria.filter((c) => c.level === null).map((c) => c.criterion),
+  };
+}
+
+/** The key an item authors for the weak text it ships. Complete by construction. */
+export function keyFromSeededFaults(seeded: readonly CriterionId[]): DiagnosisKey {
+  return { failed: [...seeded], unscored: [] };
+}
+
+/**
+ * Which criteria the learner named as failing, versus which actually did.
+ *
+ * Which key applies depends on what the diagnose step was *about*. A revision
+ * item asks the learner to read someone else's text, so the key is that item's
+ * authored `seededFaults`. An elicitation item asks them to read their own after
+ * seeing what a reader did with it, so the key is that text's own score.
+ *
+ * Getting this wrong is not a rounding error: marking a diagnosis of the weak
+ * text against the score of the rewrite that replaced it inverts the result —
+ * the better the rewrite, the more of a correct diagnosis comes back "flagged
+ * but fine".
+ */
+export function diagnosisAccuracy(tagged: CriterionId[], key: DiagnosisKey): DiagnosisAccuracy {
+  const failed = new Set(key.failed);
+  const unscored = new Set(key.unscored);
+  const taggedSet = new Set(tagged.filter((c) => CRITERION_BY_ID.has(c)));
+
+  return {
+    correct: [...taggedSet].filter((c) => failed.has(c)),
+    missed: [...failed].filter((c) => !taggedSet.has(c)),
+    spurious: [...taggedSet].filter((c) => !failed.has(c) && !unscored.has(c)),
+    unverifiable: [...taggedSet].filter((c) => !failed.has(c) && unscored.has(c)),
   };
 }

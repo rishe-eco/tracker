@@ -218,7 +218,7 @@ describe("evaluateMastery", () => {
     const sameDay = acrossTwoDays().map((a) => ({ ...a, dayKey: "2026-07-26" }));
     const verdict = evaluateMastery(sameDay);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toContain("required days");
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("days");
   });
 
   it("refuses mastery when a true claim was flagged", () => {
@@ -226,7 +226,7 @@ describe("evaluateMastery", () => {
     withFalseAlarm[5] = attempt({ dayKey: "2026-07-27", isControlItem: true, falseAlarm: true, strict: 1 });
     const verdict = evaluateMastery(withFalseAlarm);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toContain("flagged as faulty");
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("falseAlarms");
   });
 
   it("refuses mastery when checking is accurate but slow", () => {
@@ -236,7 +236,7 @@ describe("evaluateMastery", () => {
     }));
     const verdict = evaluateMastery(slow);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toContain("median time to first check");
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("speed");
   });
 
   it("reports every unmet clause rather than only the first", () => {

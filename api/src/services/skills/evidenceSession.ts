@@ -12,6 +12,11 @@
  * 2. **Nothing that could reveal the answer leaves this file** — key, fault
  *    target, non-independent hosts and reveal text are all withheld until the
  *    verdict is committed.
+ *
+ * 3. **The locale is the request's, not the profile's.** Every entry point takes
+ *    it from the caller (`ctx.locale`, off `Accept-Language`); see
+ *    `graphql/requestLocale.ts` for why the header is the authority and a stored
+ *    column is not.
  */
 
 import type { PrismaClient } from "@prisma/client";
@@ -30,7 +35,7 @@ import {
   type Verdict,
 } from "../../content/skills/types";
 import { scoreEvidenceItem, scoreSession, type CheckEventInput } from "./scoring";
-import { evaluateMastery, type ScoredAttempt } from "./mastery";
+import { evaluateMastery, type MasteryGap, type ScoredAttempt } from "./mastery";
 import { nextReviewAt, onReviewFailed, onReviewPassed, toDayKey } from "./scheduler";
 import { ensureProfile } from "./profile";
 import { scheduleReviewAction } from "./planning";
@@ -82,10 +87,11 @@ export async function serveItem(
   prisma: PrismaClient,
   userId: string,
   mode: SkillMode,
-  moduleKey?: EvidenceModuleKey | null
+  moduleKey: EvidenceModuleKey | null,
+  locale: Locale
 ): Promise<ServedItem | null> {
-  const profile = await ensureProfile(prisma, userId);
-  const pack = getEvidencePack(profile.contentVersion, profile.locale as Locale);
+  const profile = await ensureProfile(prisma, userId, locale);
+  const pack = getEvidencePack(profile.contentVersion, locale);
 
   if (mode === "assessment") {
     const readiness = probeReadiness();
@@ -199,14 +205,15 @@ export type SubmitResult = {
   correctVerdict: Verdict;
   reveal: string;
   moduleState: string;
-  masteryUnmet: string[];
+  masteryUnmet: MasteryGap[];
 };
 
 export async function submitAttempt(
   prisma: PrismaClient,
   userId: string,
   attemptId: string,
-  input: SubmitInput
+  input: SubmitInput,
+  locale: Locale
 ): Promise<SubmitResult> {
   const attempt = await prisma.skillAttempt.findUnique({
     where: { id: attemptId },
@@ -217,8 +224,7 @@ export async function submitAttempt(
   const existing = JSON.parse(attempt.scores || "{}");
   if (existing.strict !== undefined) throw new Error("This attempt is already submitted.");
 
-  const profile = await ensureProfile(prisma, userId);
-  const pack = getEvidencePack(attempt.contentVersion, profile.locale as Locale);
+  const pack = getEvidencePack(attempt.contentVersion, locale);
   const spec = pack.items.find((i) => i.itemId === attempt.itemId);
   if (!spec) throw new Error(`Item "${attempt.itemId}" is not in content version ${attempt.contentVersion}.`);
 
@@ -249,7 +255,8 @@ export async function submitAttempt(
     prisma,
     userId,
     attempt.moduleKey as EvidenceModuleKey,
-    input.timeZoneOffsetMinutes ?? 0
+    input.timeZoneOffsetMinutes ?? 0,
+    locale
   );
 
   return {
@@ -267,7 +274,8 @@ async function updateModuleProgress(
   prisma: PrismaClient,
   userId: string,
   moduleKey: EvidenceModuleKey,
-  tzOffsetMinutes: number
+  tzOffsetMinutes: number,
+  locale: Locale
 ) {
   const attempts = await prisma.skillAttempt.findMany({
     where: {
@@ -317,15 +325,15 @@ async function updateModuleProgress(
   // queue is the part most likely to be quietly ignored otherwise. No-ops when
   // planning is off, and idempotent per module per day.
   if (verdict.mastered && data.nextReviewAt) {
-    await scheduleReviewAction(prisma, userId, SKILL, moduleKey, data.nextReviewAt);
+    await scheduleReviewAction(prisma, userId, SKILL, moduleKey, data.nextReviewAt, locale);
   }
 
   return { state, unmetCriteria: verdict.unmetCriteria };
 }
 
-export async function getModules(prisma: PrismaClient, userId: string) {
-  const profile = await ensureProfile(prisma, userId);
-  const pack = getEvidencePack(profile.contentVersion, profile.locale as Locale);
+export async function getModules(prisma: PrismaClient, userId: string, locale: Locale) {
+  const profile = await ensureProfile(prisma, userId, locale);
+  const pack = getEvidencePack(profile.contentVersion, locale);
   const progress = await prisma.skillModuleProgress.findMany({
     where: { userId, skillKey: SKILL },
   });
@@ -348,8 +356,8 @@ export async function getModules(prisma: PrismaClient, userId: string) {
   });
 }
 
-export async function getProgress(prisma: PrismaClient, userId: string) {
-  const profile = await ensureProfile(prisma, userId);
+export async function getProgress(prisma: PrismaClient, userId: string, locale: Locale) {
+  const profile = await ensureProfile(prisma, userId, locale);
   const attempts = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL },
     orderBy: { createdAt: "asc" },
@@ -365,8 +373,8 @@ export async function getProgress(prisma: PrismaClient, userId: string) {
   return {
     skillKey: SKILL,
     contentVersion: profile.contentVersion,
-    locale: profile.locale,
-    reviewStatus: getEvidencePack(profile.contentVersion, profile.locale as Locale).reviewStatus,
+    locale,
+    reviewStatus: getEvidencePack(profile.contentVersion, locale).reviewStatus,
     hasBaseline: profile.assessmentCompletedAt != null,
     assessmentSkipped: profile.assessmentSkipped,
     probeReady: readiness.ready,

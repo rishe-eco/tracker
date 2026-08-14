@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, FileText, Lock, PenLine, Quote, XCircle } from "lucide-react";
+import { CheckCircle2, CircleSlash, FileText, Lock, PenLine, Quote, XCircle } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import InternalPageLayout from "~/layout/InternalPageLayout";
@@ -16,6 +16,7 @@ import {
   SUBMIT_CLARITY_ATTEMPT,
 } from "~/api/queries";
 import RichText from "./RichText";
+import MasteryGapList, { type MasteryGap } from "./MasteryGapList";
 import RubricRail, { CRITERIA, type CriterionScore } from "./RubricRail";
 
 type ClarityItem = {
@@ -48,14 +49,23 @@ type Result = {
     isVoid: boolean;
     isComplete: boolean;
   };
-  diagnosis: { correct: string[]; missed: string[]; spurious: string[] } | null;
+  diagnosis: Diagnosis | null;
   repairPassed: boolean | null;
   delta: number | null;
   reveal: string;
+  revealIsAboutItemText: boolean;
   moduleState: string;
-  masteryUnmet: string[];
+  masteryUnmet: MasteryGap[];
   atCriterion: boolean;
   feedbackOnly: string[];
+};
+
+type Diagnosis = {
+  correct: string[];
+  missed: string[];
+  spurious: string[];
+  /** Tagged, but nothing scored it — neither credited nor held against you. */
+  unverifiable?: string[];
 };
 
 /**
@@ -509,8 +519,18 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
           ))}
         </div>
 
+        {/* Authored commentary, and on every item but write-from-scratch it is
+            about the text the item shipped rather than about what the learner
+            wrote. Rendered flush under their own per-criterion scores, using the
+            same R-codes, an unlabelled version reads as being about their text. */}
         <div className="space-y-1.5">
-          <Label text={t("clarity.explanation")} />
+          <Label
+            text={
+              result.revealIsAboutItemText
+                ? t("clarity.explanationOfOriginal")
+                : t("clarity.explanation")
+            }
+          />
           <RichText text={result.reveal} className="text-sm leading-relaxed" />
         </div>
 
@@ -538,11 +558,7 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
         {result.masteryUnmet.length > 0 && (
           <div className="space-y-1 border-t pt-3">
             <Label text={t("clarity.masteryRemaining")} />
-            <ul className="list-disc space-y-0.5 ps-5 text-xs text-muted-foreground">
-              {result.masteryUnmet.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
+            <MasteryGapList gaps={result.masteryUnmet} ns="clarity" />
           </div>
         )}
 
@@ -608,16 +624,38 @@ function CriterionRow({ score, feedbackOnly }: { score: CriterionScore; feedback
 }
 
 /** Tagged versus what actually failed. The miss is the interesting cell. */
-function DiagnosisRow({ diagnosis }: { diagnosis: { correct: string[]; missed: string[]; spurious: string[] } }) {
+function DiagnosisRow({ diagnosis }: { diagnosis: Diagnosis }) {
   const { t } = useTranslation();
+  // The fourth cell only appears when it has something in it — usually because
+  // no AI scorer is configured, so R2/R3/R5 carry no level. Filing those under
+  // "flagged but fine" would be the app asserting a verdict it doesn't have.
+  // Defaulted, not asserted: the same rule as the guarded `scrollIntoView`
+  // above — a missing field must not take the whole result panel down and lose
+  // the learner their scores.
+  const unverifiable = diagnosis.unverifiable ?? [];
+  const hasUnverifiable = unverifiable.length > 0;
+
   return (
     <div className="rounded-md border bg-background/60 p-3">
       <Label text={t("clarity.yourDiagnosis")} />
-      <div className="grid grid-cols-3 gap-3 text-xs">
+      <div className={`grid gap-3 text-xs ${hasUnverifiable ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
         <Cell icon={CheckCircle2} tone="good" label={t("clarity.spotted")} items={diagnosis.correct} />
         <Cell icon={XCircle} tone="warn" label={t("clarity.missed")} items={diagnosis.missed} />
         <Cell icon={XCircle} tone="muted" label={t("clarity.spurious")} items={diagnosis.spurious} />
+        {hasUnverifiable && (
+          <Cell
+            icon={CircleSlash}
+            tone="muted"
+            label={t("clarity.diagnosisUnverifiable")}
+            items={unverifiable}
+          />
+        )}
       </div>
+      {hasUnverifiable && (
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          {t("clarity.diagnosisUnverifiableHint")}
+        </p>
+      )}
     </div>
   );
 }

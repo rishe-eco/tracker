@@ -1282,7 +1282,12 @@ export const SUBMIT_SKILL_ATTEMPT = `
       correctVerdict
       reveal
       moduleState
-      masteryUnmet
+      masteryUnmet {
+        code
+        count
+        required
+        seconds
+      }
     }
   }
 `;
@@ -1447,12 +1452,19 @@ export const SUBMIT_CLARITY_ATTEMPT = `
         correct
         missed
         spurious
+        unverifiable
       }
       repairPassed
       delta
       reveal
+      revealIsAboutItemText
       moduleState
-      masteryUnmet
+      masteryUnmet {
+        code
+        count
+        required
+        minTotal
+      }
       atCriterion
       feedbackOnly
     }

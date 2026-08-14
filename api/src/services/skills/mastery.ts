@@ -26,10 +26,31 @@ export type ScoredAttempt = EvidenceItemScore & {
   dayKey: string;
 };
 
+/**
+ * One unmet requirement, as a code and its numbers rather than a sentence.
+ *
+ * This panel is the only place that says how to finish a module, so it is the
+ * last place that should be English-only. Sentences assembled here would be:
+ * the server has no view of the reader's language beyond the request, and the
+ * words belong with the rest of the UI copy. So the rule stays here and the
+ * wording lives in the client bundle, keyed by `code`.
+ */
+export type MasteryGap = {
+  code: string;
+  /** Where the learner is now, when the requirement is a count. */
+  count?: number;
+  /** What the requirement asks for. */
+  required?: number;
+  /** Whole seconds, for the time-based gate. Absent when not yet established. */
+  seconds?: number;
+  /** Clarity's score bar, where the requirement is "N attempts at M+/12". */
+  minTotal?: number;
+};
+
 export type MasteryVerdict = {
   mastered: boolean;
   /** Why not — shown to the learner, so the bar is never mysterious. */
-  unmetCriteria: string[];
+  unmetCriteria: MasteryGap[];
   strictCount: number;
   distinctDays: number;
   medianTimeToFirstCheckMs: number | null;
@@ -55,7 +76,7 @@ function median(values: number[]): number | null {
  */
 export function evaluateMastery(attempts: ScoredAttempt[]): MasteryVerdict {
   const window = attempts.slice(-MASTERY_WINDOW);
-  const unmet: string[] = [];
+  const unmet: MasteryGap[] = [];
 
   const strictCount = window.filter((a) => a.strict === 1).length;
   const distinctDays = new Set(window.map((a) => a.dayKey)).size;
@@ -67,22 +88,23 @@ export function evaluateMastery(attempts: ScoredAttempt[]): MasteryVerdict {
   );
 
   if (window.length < MASTERY_REQUIRED_STRICT) {
-    unmet.push(`needs at least ${MASTERY_REQUIRED_STRICT} unscaffolded attempts`);
+    unmet.push({ code: "attempts", count: window.length, required: MASTERY_REQUIRED_STRICT });
   }
   if (strictCount < MASTERY_REQUIRED_STRICT) {
-    unmet.push(`${strictCount}/${MASTERY_REQUIRED_STRICT} items checked and answered correctly`);
+    unmet.push({ code: "strict", count: strictCount, required: MASTERY_REQUIRED_STRICT });
   }
   if (distinctDays < MASTERY_MIN_DISTINCT_DAYS) {
-    unmet.push(`practice spread over ${distinctDays} of ${MASTERY_MIN_DISTINCT_DAYS} required days`);
+    unmet.push({ code: "days", count: distinctDays, required: MASTERY_MIN_DISTINCT_DAYS });
   }
   if (controlFalseAlarms > 0) {
-    unmet.push(`${controlFalseAlarms} true claim(s) flagged as faulty`);
+    unmet.push({ code: "falseAlarms", count: controlFalseAlarms });
   }
   if (ttfc === null || ttfc >= MASTERY_MAX_MEDIAN_TTFC_MS) {
-    unmet.push(
-      `median time to first check ${ttfc === null ? "not established" : `${Math.round(ttfc / 1000)}s`} ` +
-        `(target under ${MASTERY_MAX_MEDIAN_TTFC_MS / 1000}s)`
-    );
+    unmet.push({
+      code: "speed",
+      ...(ttfc !== null && { seconds: Math.round(ttfc / 1000) }),
+      required: MASTERY_MAX_MEDIAN_TTFC_MS / 1000,
+    });
   }
 
   return {

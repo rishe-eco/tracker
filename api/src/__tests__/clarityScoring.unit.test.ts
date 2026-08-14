@@ -7,6 +7,8 @@ import {
   diagnosisAccuracy,
   evaluateClarityMastery,
   isFullRubric,
+  keyFromScore,
+  keyFromSeededFaults,
   revisionDelta,
   type JudgeCriterionResult,
   type ScoredClarityAttempt,
@@ -135,7 +137,7 @@ describe("evaluateClarityMastery", () => {
   it("refuses mastery earned in a single sitting", () => {
     const verdict = evaluateClarityMastery([attempt(), attempt()]);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toMatch(/required days/);
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("days");
   });
 
   it("ignores scaffolded work", () => {
@@ -144,7 +146,7 @@ describe("evaluateClarityMastery", () => {
       attempt({ unscaffolded: false }),
     ]);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toMatch(/unscaffolded attempts/);
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("attempts");
   });
 
   it("keeps mastery out of reach without the full rubric rather than lowering the bar", () => {
@@ -157,7 +159,7 @@ describe("evaluateClarityMastery", () => {
       attempt({ score: partial, dayKey: "2026-07-28" }),
     ]);
     expect(verdict.mastered).toBe(false);
-    expect(verdict.unmetCriteria.join(" ")).toMatch(/need a reader/);
+    expect(verdict.unmetCriteria.map((g) => g.code)).toContain("rubricIncomplete");
   });
 });
 
@@ -187,9 +189,35 @@ describe("diagnosisAccuracy", () => {
       [det("R1", 1), det("R4", 2), det("R6", 0)],
       [judged("R1", 1), judged("R2", 2), judged("R3", 2), judged("R4", 2), judged("R5", 2), judged("R6", 0)]
     );
-    const result = diagnosisAccuracy(["R1", "R3"], score);
+    const result = diagnosisAccuracy(["R1", "R3"], keyFromScore(score));
     expect(result.correct).toEqual(["R1"]);
     expect(result.missed).toEqual(["R6"]);
     expect(result.spurious).toEqual(["R3"]);
+    expect(result.unverifiable).toEqual([]);
+  });
+
+  it("does not call a tag wrong when nothing scored that criterion", () => {
+    // The no-reader default. R2/R3/R5 have no level, so flagging one is neither
+    // right nor wrong — calling it a false alarm would be the app inventing a
+    // verdict it does not have.
+    const score = assembleClarityScore([det("R1", 2), det("R4", 2), det("R6", 0)], []);
+    const result = diagnosisAccuracy(["R5", "R6"], keyFromScore(score));
+    expect(result.correct).toEqual(["R6"]);
+    expect(result.spurious).toEqual([]);
+    expect(result.unverifiable).toEqual(["R5"]);
+  });
+
+  it("marks a revision diagnosis against the item's authored faults", () => {
+    // The learner diagnosed the weak text the item shipped, not the rewrite that
+    // replaced it. Marking against the rewrite inverts the result: the better
+    // the rewrite, the more of a correct diagnosis comes back as spurious.
+    const rewrite = perfect();
+    const key = keyFromSeededFaults(["R1", "R6"]);
+    const result = diagnosisAccuracy(["R1", "R2"], key);
+    expect(result.correct).toEqual(["R1"]);
+    expect(result.missed).toEqual(["R6"]);
+    expect(result.spurious).toEqual(["R2"]);
+    // Same tags against the rewrite's own score would have credited nothing.
+    expect(diagnosisAccuracy(["R1", "R6"], keyFromScore(rewrite)).correct).toEqual([]);
   });
 });

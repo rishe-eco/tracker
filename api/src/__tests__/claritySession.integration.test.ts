@@ -241,6 +241,39 @@ describe("the revision chain", () => {
     expect(result.delta).toBeGreaterThan(0);
   });
 
+  it("scores the rewrite of a diagnose-and-rewrite item", async () => {
+    // The locks were satisfied on the draft and `startClarityRevision` stamps no
+    // new ones, so gating the revision on them made step 5 of the five-step flow
+    // unreachable for every item that has a diagnose step — which is all of them
+    // except repair drills. The regression is silent: the UI just says "could
+    // not score that", and retrying can never succeed.
+    const ctx = makeCtx(await createTestUser());
+    const served = await readyToSubmit(ctx, "c1-ask");
+    expect(served.needsDiagnosis).toBe(true);
+
+    await mutationResolvers.submitClarityAttempt(
+      null,
+      { attemptId: served.attemptId, text: "I hope this makes sense, just wondering about the venue." },
+      ctx
+    );
+
+    const revision = await mutationResolvers.startClarityRevision(
+      null,
+      { attemptId: served.attemptId },
+      ctx
+    );
+    const result = await mutationResolvers.submitClarityAttempt(
+      null,
+      {
+        attemptId: revision.attemptId,
+        text: "Book Riverside for the 14th and send me the confirmation by Thursday 5pm.",
+      },
+      ctx
+    );
+    expect(result.score.criteria).toHaveLength(6);
+    expect(result.delta).not.toBeNull();
+  });
+
   it("refuses to revise an unscored draft, or to revise twice", async () => {
     const ctx = makeCtx(await createTestUser());
     const served = await readyToSubmit(ctx, "c6-economy");
@@ -281,6 +314,54 @@ describe("the revision chain", () => {
       ctx
     );
     expect(result.moduleState).not.toBe("mastered");
+  });
+});
+
+describe("locale", () => {
+  // The bug this guards: every session function read `SkillProfile.locale`, no
+  // caller ever wrote anything but "en" to it, and there was no mutation that
+  // could change it. A complete Persian pack shipped and could not be reached —
+  // a Persian speaker got Persian chrome around English exercises, including
+  // the English text they were asked to diagnose and rewrite.
+  const isPersian = (s: string) => /[؀-ۿ]/.test(s);
+
+  it("serves item and module text in the language the request arrived in", async () => {
+    const user = await createTestUser();
+    const fa = makeCtx(user, "fa");
+
+    const modules = await queryResolvers.clarityModules(null, {}, fa);
+    expect(modules).toHaveLength(6);
+    for (const mod of modules) {
+      expect(isPersian(mod.title), `module ${mod.moduleKey} title`).toBe(true);
+      expect(isPersian(mod.concept), `module ${mod.moduleKey} concept`).toBe(true);
+    }
+
+    const served = await serve(fa, "c1-ask");
+    expect(isPersian(served!.item.scenario)).toBe(true);
+    expect(isPersian(served!.item.weakText ?? "")).toBe(true);
+  });
+
+  it("scores and reveals in that language too, not only the chrome", async () => {
+    const fa = makeCtx(await createTestUser(), "fa");
+    const served = await readyToSubmit(fa, "c1-ask");
+    const result = await mutationResolvers.submitClarityAttempt(
+      null,
+      { attemptId: served.attemptId, text: "تا پنجشنبه یک سالن انتخاب کن و فهرست را برایم بفرست." },
+      fa
+    );
+    expect(isPersian(result.reveal)).toBe(true);
+
+    // Persian routes R4 and R6 to the judge rather than the English detectors,
+    // so with no reader only R1 can carry a level.
+    const progress = await queryResolvers.clarityProgress(null, {}, fa);
+    expect(progress.locale).toBe("fa");
+    expect(progress.detectorCriteria).toEqual(["R1"]);
+  });
+
+  it("keeps English English", async () => {
+    const en = makeCtx(await createTestUser());
+    const modules = await queryResolvers.clarityModules(null, {}, en);
+    expect(modules.every((m: any) => !isPersian(m.title))).toBe(true);
   });
 });
 

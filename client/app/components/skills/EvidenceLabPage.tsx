@@ -125,6 +125,17 @@ export default function EvidenceLabPage() {
 
         <HowItWorks defaultOpen={!started} />
 
+        {/* The way in comes before the caveats. What follows are notices about
+            an optional baseline and about content review — true, worth saying,
+            and not what someone opening the page is here for. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => navigate("/tools/skills/evidence/drill")}>
+            <Play className="mr-2 h-4 w-4" aria-hidden />
+            {started ? t("skills.evidence.startDrill") : t("skills.evidence.startFirstDrill")}
+          </Button>
+          <span className="text-xs text-muted-foreground">{t("skills.evidence.drillLength")}</span>
+        </div>
+
         {progress.reviewStatus === "draft" && (
           <Banner tone="info" text={t("skills.banners.draftLocale")} />
         )}
@@ -189,14 +200,6 @@ export default function EvidenceLabPage() {
             </section>
           </>
         )}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => navigate("/tools/skills/evidence/drill")}>
-            <Play className="mr-2 h-4 w-4" aria-hidden />
-            {started ? t("skills.evidence.startDrill") : t("skills.evidence.startFirstDrill")}
-          </Button>
-          <span className="text-xs text-muted-foreground">{t("skills.evidence.drillLength")}</span>
-        </div>
 
         <SkillPlanPanel enabled={progress.calendarPlanningEnabled} onChanged={() => void load()} />
 

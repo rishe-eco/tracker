@@ -31,7 +31,19 @@ export type DetectorResult = {
 
 // ─── Lexicons ───────────────────────────────────────────────────────────────
 
-/** Verbs that carry a primary request. */
+/**
+ * Verbs that carry a primary request.
+ *
+ * A list like this can only ever be wrong in one direction, and it is worth
+ * being clear about which. A verb that is here and shouldn't be costs a false
+ * *pass* on one sentence; a verb that is missing tells someone their perfectly
+ * ordinary request contains no request — the tool contradicting the thing it is
+ * teaching, on the screen where they are most likely to believe it. So it is
+ * generous by design, and `looksImperative` below catches what it still misses.
+ *
+ * The list is only consulted for sentence-initial verbs, which is what keeps it
+ * from mistaking "I read the contract" for an ask.
+ */
 const PRIMARY_REQUEST_VERBS = new Set([
   "write", "create", "draft", "build", "make", "generate", "produce",
   "review", "check", "audit", "assess", "evaluate", "compare", "analyse", "analyze",
@@ -40,6 +52,42 @@ const PRIMARY_REQUEST_VERBS = new Set([
   "find", "identify", "investigate", "diagnose", "figure", "work",
   "add", "remove", "update", "change", "implement", "design", "plan",
   "translate", "convert", "migrate", "extract", "tell", "give", "show", "help",
+  // Everyday asks, which the first version of this list quietly refused:
+  "read", "answer", "reply", "respond", "confirm", "send", "share", "forward",
+  "sort", "tidy", "clear", "clean", "cancel", "book", "schedule", "arrange",
+  "order", "buy", "pay", "call", "email", "ask", "let", "put", "move", "pick",
+  "choose", "decide", "approve", "sign", "file", "log", "record", "collect",
+  "gather", "prepare", "set", "turn", "walk", "take", "bring", "get", "run",
+  "look", "watch", "listen", "count", "measure", "print", "copy", "paste",
+  "upload", "download", "install", "deploy", "test", "verify", "double-check",
+  "rank", "prioritise", "shortlist", "recommend", "suggest", "propose",
+]);
+
+/**
+ * Sentence-initial verb that isn't in any list — treated as an ask.
+ *
+ * English imperatives have no morphology to key off, so this is a shape test:
+ * a sentence that opens with a bare word (no subject, no auxiliary, not a
+ * question) and continues is almost always an instruction. It exists so that a
+ * request phrased with a verb nobody thought of still counts as a request.
+ * Deliberately permissive — see the note on the list above for why the errors
+ * are worth making in this direction.
+ */
+const NON_IMPERATIVE_OPENERS = new Set([
+  "i", "we", "you", "he", "she", "it", "they", "there", "this", "that", "these",
+  "those", "my", "our", "your", "his", "her", "its", "their", "the", "a", "an",
+  "is", "are", "was", "were", "am", "be", "been", "being", "has", "have", "had",
+  "will", "would", "can", "could", "should", "shall", "may", "might", "must",
+  "do", "does", "did", "if", "when", "while", "because", "since", "although",
+  "though", "after", "before", "as", "at", "in", "on", "for", "from", "with",
+  "by", "about", "into", "over", "under", "here", "no", "not", "yes", "last",
+  "next", "first", "one", "two", "three", "everyone", "someone", "nobody",
+  "attached", "attaching", "following", "regarding", "re",
+  // Greetings and interjections, which open a sentence exactly where a command
+  // would: "Hey — hope the sprint's going okay."
+  "hey", "hi", "hello", "morning", "afternoon", "evening", "thanks", "thank",
+  "sorry", "apologies", "ok", "okay", "well", "yeah", "cheers", "anyway",
+  "hope", "hoping", "wondering", "quick", "context", "background", "fyi",
 ]);
 
 /**
@@ -99,11 +147,49 @@ export function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
-function firstWord(sentence: string): string {
-  const tokens = sentence.toLowerCase().replace(/[^a-z'\s]/g, " ").trim().split(/\s+/);
+function contentWords(sentence: string): string[] {
+  const tokens = sentence.toLowerCase().replace(/[^a-z'\s]/g, " ").trim().split(/\s+/).filter(Boolean);
   let i = 0;
   while (i < tokens.length && LEADING_FILLERS.has(tokens[i])) i++;
-  return tokens[i] ?? "";
+  return tokens.slice(i);
+}
+
+function firstWord(sentence: string): string {
+  return contentWords(sentence)[0] ?? "";
+}
+
+/** Words that make the sentence-opening token a subject rather than a command. */
+const COPULA_OR_AUX = new Set([
+  "is", "are", "was", "were", "be", "been", "has", "have", "had", "will", "would",
+  "can", "could", "should", "shall", "may", "might", "must", "does", "did",
+  "seems", "looks", "feels", "needs", "means", "matters", "arrived", "went",
+]);
+
+/**
+ * Does this sentence open like an instruction?
+ *
+ * English imperatives carry no morphology, so this is a shape test rather than a
+ * lookup: a sentence that starts with a bare word — no subject, no auxiliary,
+ * not a question — and keeps going is almost always a command. It is the
+ * backstop for `PRIMARY_REQUEST_VERBS`, so that a request phrased with a verb
+ * nobody happened to list still registers as a request.
+ */
+function looksImperative(sentence: string): boolean {
+  const tokens = contentWords(sentence);
+  const [head, next] = tokens;
+  // A single bare word is an interjection or a fragment, not an ask.
+  if (!head || !next) return false;
+  if (PRIMARY_REQUEST_VERBS.has(head)) return true;
+  if (NON_IMPERATIVE_OPENERS.has(head) || SUPPORTING_VERBS.has(head)) return false;
+  // "Deadline is Friday" — the opener is the subject of a statement.
+  if (COPULA_OR_AUX.has(next)) return false;
+  // Participles open descriptions ("Attached is…", "Hoping you can…").
+  if (/(ing|ed)$/.test(head)) return false;
+  // An imperative is the bare stem, so a trailing -s marks a plural subject or a
+  // third-person verb: "Exports over 10k rows time out." The doubled and Latin
+  // endings are stems in their own right — address, process, discuss, focus.
+  if (/s$/.test(head) && !/(ss|us|is|as|os)$/.test(head)) return false;
+  return true;
 }
 
 const contains = (haystack: string, needles: string[]) =>
@@ -121,7 +207,7 @@ export function detectR1(text: string): DetectorResult {
     const head = firstWord(sentence);
 
     const isInterrogative = sentence.trim().endsWith("?");
-    const isImperative = PRIMARY_REQUEST_VERBS.has(head);
+    const isImperative = looksImperative(sentence);
     const isModalRequest =
       /\b(can|could|would|will)\s+you\b/.test(lower) ||
       /\bi(?:'d| would)?\s+(?:need|want|like)\s+you\s+to\b/.test(lower) ||
@@ -216,8 +302,7 @@ export function detectR6(text: string): DetectorResult {
   const r1 = detectR1(text);
   if (r1.level > 0) {
     sentences.forEach((s, i) => {
-      const head = firstWord(s);
-      if (PRIMARY_REQUEST_VERBS.has(head) || s.trim().endsWith("?")) askIndices.add(i);
+      if (looksImperative(s) || s.trim().endsWith("?")) askIndices.add(i);
     });
   }
 

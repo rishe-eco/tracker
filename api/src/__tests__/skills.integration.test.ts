@@ -48,6 +48,47 @@ describe("first visit", () => {
   });
 });
 
+describe("locale", () => {
+  // Same bug as Clarity's: the pack was resolved from `SkillProfile.locale`,
+  // which nothing ever set to anything but "en", so the Persian pack shipped
+  // and could not be reached.
+  const isPersian = (s: string) => /[؀-ۿ]/.test(s);
+
+  it("serves the pack in the language the request arrived in", async () => {
+    const fa = makeCtx(await createTestUser(), "fa");
+    const modules = await queryResolvers.skillModules(null, { skillKey: "evidence" }, fa);
+    expect(modules).toHaveLength(6);
+    expect(modules.every((m: any) => isPersian(m.title))).toBe(true);
+
+    const served = await serve(fa);
+    expect(isPersian(served!.item.prompt)).toBe(true);
+    expect(isPersian(served!.item.answer)).toBe(true);
+  });
+
+  it("reveals in that language too", async () => {
+    const fa = makeCtx(await createTestUser(), "fa");
+    const served = await serve(fa);
+    const result = await mutationResolvers.submitSkillAttempt(
+      null,
+      {
+        attemptId: served!.attemptId,
+        verdict: "supported",
+        confidence: 50,
+        faultTag: "none",
+        sources: [],
+      },
+      fa
+    );
+    expect(isPersian(result.reveal)).toBe(true);
+  });
+
+  it("keeps English English", async () => {
+    const en = makeCtx(await createTestUser());
+    const modules = await queryResolvers.skillModules(null, { skillKey: "evidence" }, en);
+    expect(modules.every((m: any) => !isPersian(m.title))).toBe(true);
+  });
+});
+
 describe("startSkillItem", () => {
   it("serves an item without leaking anything that answers it", async () => {
     const ctx = makeCtx(await createTestUser());

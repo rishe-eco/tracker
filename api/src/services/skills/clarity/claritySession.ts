@@ -25,6 +25,14 @@
  *    credential the server serves the offline types and says so, rather than
  *    serving an elicitation item that cannot be completed.
  *
+ * 5. **The locale is the request's, not the profile's.** Every entry point takes
+ *    it from the caller (`ctx.locale`, off `Accept-Language`) rather than reading
+ *    `SkillProfile.locale`, for the reason `graphql/requestLocale.ts` sets out:
+ *    the app someone is looking at is the authority on what language they want,
+ *    and a stored copy is free to disagree with it. It used to read the column,
+ *    which no path ever wrote to anything but `"en"` — so the Persian pack was
+ *    complete and unreachable.
+ *
  * Spec: 01-clarity-lab.md; build plan 01a §3.
  */
 
@@ -40,7 +48,12 @@ import {
   type Locale,
   type PublicClarityItem,
 } from "../../../content/skills/clarity/types";
-import { buildClarityPack, RUBRIC_CRITERIA_BY_MODULE, RUBRIC_VERSION } from "../../../content/skills/clarity/v1";
+import {
+  buildClarityPack,
+  ITEM_SPEC_BY_ID,
+  RUBRIC_CRITERIA_BY_MODULE,
+  RUBRIC_VERSION,
+} from "../../../content/skills/clarity/v1";
 import { detectorCriteriaFor } from "../../../content/skills/clarity/v1/rubric";
 import { isOfflineCapable } from "../../../content/skills/clarity/validate";
 import { ensureProfile } from "../profile";
@@ -48,13 +61,18 @@ import { toDayKey } from "../scheduler";
 import { isVoid, runDetectors } from "./detectors";
 import { createAnthropicJudge } from "./anthropicJudge";
 import { calibrationStatus, scoreCriteria } from "./judge";
+import type { MasteryGap } from "../mastery";
 import {
   assembleClarityScore,
   atCriterion,
   diagnosisAccuracy,
   evaluateClarityMastery,
+  keyFromScore,
+  keyFromSeededFaults,
   revisionDelta,
   type ClarityScore,
+  type DiagnosisAccuracy,
+  type DiagnosisKey,
   type JudgeCriterionResult,
   type ScoredClarityAttempt,
 } from "./scoring";
@@ -77,10 +95,21 @@ export class ClaritySequenceError extends Error {
 
 type PackItem = ClarityItemSpec & { surface: ClarityItemSurface };
 
-async function loadPack(prisma: PrismaClient, userId: string) {
-  const profile = await ensureProfile(prisma, userId, "en", SKILL);
-  const pack = buildClarityPack(profile.locale as Locale);
+async function loadPack(prisma: PrismaClient, userId: string, locale: Locale) {
+  const profile = await ensureProfile(prisma, userId, locale, SKILL);
+  const pack = buildClarityPack(locale);
   return { profile, pack };
+}
+
+/**
+ * The item's *spec* — type, seeded faults, required slots — which is the same in
+ * every language. Used where only the shape of the item matters, so a step that
+ * has nothing to say cannot fail on a missing translation.
+ */
+function specFor(itemId: string) {
+  const spec = ITEM_SPEC_BY_ID.get(itemId);
+  if (!spec) throw new Error(`Clarity item "${itemId}" is not in this content version.`);
+  return spec;
 }
 
 // ─── Serving ────────────────────────────────────────────────────────────────
@@ -98,9 +127,10 @@ export async function serveClarityItem(
   prisma: PrismaClient,
   userId: string,
   mode: ClarityMode,
-  moduleKey?: ClarityModuleKey | null
+  moduleKey: ClarityModuleKey | null,
+  locale: Locale
 ): Promise<ServedClarityItem | null> {
-  const { profile, pack } = await loadPack(prisma, userId);
+  const { profile, pack } = await loadPack(prisma, userId, locale);
 
   const seen = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL },
@@ -197,8 +227,7 @@ export async function lockClarityPrediction(
   prediction: string
 ) {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
-  const { pack } = await loadPack(prisma, userId);
-  const item = findItem(pack.items, attempt.itemId);
+  const item = specFor(attempt.itemId);
 
   if (item.type !== "elicitation") {
     throw new ClaritySequenceError(
@@ -227,8 +256,7 @@ export async function lockClarityDiagnosis(
   tagged: CriterionId[]
 ) {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
-  const { pack } = await loadPack(prisma, userId);
-  const item = findItem(pack.items, attempt.itemId);
+  const item = specFor(attempt.itemId);
 
   if (item.type === "repair") {
     throw new ClaritySequenceError(
@@ -251,14 +279,20 @@ export type ClaritySubmitResult = {
   attemptId: string;
   score: ClarityScore;
   /** Present on revision and elicitation items, once a diagnosis was locked. */
-  diagnosis: { correct: CriterionId[]; missed: CriterionId[]; spurious: CriterionId[] } | null;
+  diagnosis: DiagnosisAccuracy | null;
   /** Repair drills only: did the fix clear the bar the drill sets? */
   repairPassed: boolean | null;
   /** Set when this attempt revises another. */
   delta: number | null;
   reveal: string;
+  /**
+   * True when `reveal` is commentary on the text the *item* shipped rather than
+   * on what the learner wrote. Rendered under their own per-criterion scores it
+   * would otherwise read as being about their text.
+   */
+  revealIsAboutItemText: boolean;
   moduleState: string;
-  masteryUnmet: string[];
+  masteryUnmet: MasteryGap[];
   atCriterion: boolean;
   /** Criteria a judge produced but which cannot count yet — reported, not hidden. */
   feedbackOnly: CriterionId[];
@@ -268,26 +302,35 @@ export async function submitClarityAttempt(
   prisma: PrismaClient,
   userId: string,
   attemptId: string,
-  input: { text: string; timeZoneOffsetMinutes?: number }
+  input: { text: string; timeZoneOffsetMinutes?: number },
+  locale: Locale
 ): Promise<ClaritySubmitResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
-  const { profile, pack } = await loadPack(prisma, userId);
+  const { pack } = await loadPack(prisma, userId, locale);
   const item = findItem(pack.items, attempt.itemId);
+
+  // A revision is a second attempt on an item whose locks were satisfied on the
+  // draft, and `startClarityRevision` deliberately stamps no new ones — asking
+  // for the same diagnosis twice would be busywork. Gating it here anyway made
+  // every revision unscoreable, which took out step 5 of the five-step flow and
+  // the draft→revision delta with it.
+  const isRevision = attempt.revisionOfAttemptId != null;
 
   // The sequence gate. A score shown before the diagnosis was committed would
   // make the diagnosis a recollection rather than a prediction.
-  if (item.type !== "repair" && !hasEvent(attempt, "diagnosis_locked")) {
-    throw new ClaritySequenceError(
-      "Commit a diagnosis before asking for scores — tagging what failed after seeing the levels measures nothing."
-    );
-  }
-  if (item.type === "elicitation" && !hasEvent(attempt, "prediction_locked")) {
-    throw new ClaritySequenceError("Commit a prediction before asking for scores.");
+  if (!isRevision) {
+    if (item.type !== "repair" && !hasEvent(attempt, "diagnosis_locked")) {
+      throw new ClaritySequenceError(
+        "Commit a diagnosis before asking for scores — tagging what failed after seeing the levels measures nothing."
+      );
+    }
+    if (item.type === "elicitation" && !hasEvent(attempt, "prediction_locked")) {
+      throw new ClaritySequenceError("Commit a prediction before asking for scores.");
+    }
   }
 
   const text = input.text ?? "";
   const void_ = isVoid(text, item.surface.scenario);
-  const locale = profile.locale as Locale;
 
   const detectorResults = void_ ? [] : runDetectors(text, detectorCriteriaFor(locale));
   const { judgeResults, feedbackOnly, judgeModel } = void_
@@ -297,7 +340,7 @@ export async function submitClarityAttempt(
   const score = assembleClarityScore(detectorResults, judgeResults, { isVoid: void_ });
 
   const tagged = readTagged(attempt.checkEvents);
-  const diagnosis = tagged ? diagnosisAccuracy(tagged, score) : null;
+  const diagnosis = tagged ? diagnosisAccuracy(tagged, diagnosisKeyFor(item, score)) : null;
 
   const repairPassed =
     item.type === "repair" && item.repairCheck
@@ -337,6 +380,7 @@ export async function submitClarityAttempt(
     repairPassed,
     delta,
     reveal: item.surface.reveal,
+    revealIsAboutItemText: item.type !== "elicitation",
     moduleState: moduleUpdate.state,
     masteryUnmet: moduleUpdate.unmetCriteria,
     atCriterion: atCriterion(score, item.moduleKey),
@@ -352,7 +396,12 @@ export async function submitClarityAttempt(
  * the learner has just been told what failed — so they never count toward
  * mastery.
  */
-export async function startClarityRevision(prisma: PrismaClient, userId: string, attemptId: string) {
+export async function startClarityRevision(
+  prisma: PrismaClient,
+  userId: string,
+  attemptId: string,
+  locale: Locale
+) {
   const draft = await prisma.skillAttempt.findUnique({ where: { id: attemptId } });
   if (!draft || draft.userId !== userId || draft.skillKey !== SKILL) throw new Error("Not found");
 
@@ -363,7 +412,7 @@ export async function startClarityRevision(prisma: PrismaClient, userId: string,
   const existing = await prisma.skillAttempt.findFirst({ where: { revisionOfAttemptId: attemptId } });
   if (existing) throw new ClaritySequenceError("This attempt has already been revised.");
 
-  const { pack } = await loadPack(prisma, userId);
+  const { pack } = await loadPack(prisma, userId, locale);
   const item = findItem(pack.items, draft.itemId);
 
   const revision = await prisma.skillAttempt.create({
@@ -394,8 +443,8 @@ export async function startClarityRevision(prisma: PrismaClient, userId: string,
 
 // ─── Progress ───────────────────────────────────────────────────────────────
 
-export async function getClarityModules(prisma: PrismaClient, userId: string) {
-  const { pack } = await loadPack(prisma, userId);
+export async function getClarityModules(prisma: PrismaClient, userId: string, locale: Locale) {
+  const { pack } = await loadPack(prisma, userId, locale);
   const progress = await prisma.skillModuleProgress.findMany({ where: { userId, skillKey: SKILL } });
   const byKey = new Map(progress.map((p) => [p.moduleKey, p]));
   const now = Date.now();
@@ -417,8 +466,8 @@ export async function getClarityModules(prisma: PrismaClient, userId: string) {
   });
 }
 
-export async function getClarityProgress(prisma: PrismaClient, userId: string) {
-  const { profile, pack } = await loadPack(prisma, userId);
+export async function getClarityProgress(prisma: PrismaClient, userId: string, locale: Locale) {
+  const { profile, pack } = await loadPack(prisma, userId, locale);
   const attempts = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL },
     orderBy: { createdAt: "asc" },
@@ -456,7 +505,7 @@ export async function getClarityProgress(prisma: PrismaClient, userId: string) {
     skillKey: SKILL,
     contentVersion: profile.contentVersion,
     rubricVersion: RUBRIC_VERSION,
-    locale: profile.locale,
+    locale,
     reviewStatus: pack.reviewStatus,
     hasBaseline: profile.assessmentCompletedAt != null,
     assessmentSkipped: profile.assessmentSkipped,
@@ -464,7 +513,7 @@ export async function getClarityProgress(prisma: PrismaClient, userId: string) {
     readerAvailable: readerAvailable(),
     /** Nothing is calibrated yet, so no judge criterion enters a probe total. */
     anyCriterionCalibrated: calibration.anyCalibrated,
-    detectorCriteria: detectorCriteriaFor(profile.locale as Locale),
+    detectorCriteria: detectorCriteriaFor(locale),
     totalAttempts: scored.length,
     criterionMeans,
     revisionDeltas: deltas,
@@ -478,6 +527,17 @@ function findItem(items: PackItem[], itemId: string): PackItem {
   const item = items.find((i) => i.itemId === itemId);
   if (!item) throw new Error(`Clarity item "${itemId}" is not in this content version.`);
   return item;
+}
+
+/**
+ * Which answer key this item's diagnose step is marked against.
+ *
+ * A revision item asks the learner to read the weak text the item ships, whose
+ * faults are authored. An elicitation item asks them to read their own text
+ * after seeing what a reader did with it, so the key is that text's own score.
+ */
+function diagnosisKeyFor(item: PackItem, score: ClarityScore): DiagnosisKey {
+  return item.type === "revision" ? keyFromSeededFaults(item.seededFaults) : keyFromScore(score);
 }
 
 function readTagged(events: { kind: string; payload: string | null }[]): CriterionId[] | null {

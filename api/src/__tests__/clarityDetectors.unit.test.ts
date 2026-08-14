@@ -56,6 +56,33 @@ describe("R1 · ask placement and singularity", () => {
     const r = detectR1("The export has been slow since the migration. Support has had complaints.");
     expect(r.level).toBe(0);
   });
+
+  it("recognises everyday asks the verb list does not name", () => {
+    // The failure this guards against is specific and bad: an ordinary request
+    // scored 0 with "no identifiable request", on the screen teaching people how
+    // to make requests. It cannot depend on someone having thought of the verb.
+    for (const text of [
+      "Read clause 14 of the attached lease and tell me whether I am allowed to keep a cat.",
+      "Please tidy the garage this weekend so that the car fits inside.",
+      "Redeliver the parcel by Friday 5pm or refund the order.",
+      "Shortlist three venues under 4000 and send them to me by Thursday.",
+    ]) {
+      expect(detectR1(text).level, text).toBe(2);
+    }
+  });
+
+  it("does not read a plain statement as a command", () => {
+    // The permissive imperative test earns its keep only if it still knows a
+    // subject when it sees one.
+    for (const text of [
+      "Exports over 10k rows time out.",
+      "Deadline is Friday and the budget is fixed.",
+      "Hey — hope the sprint is going okay.",
+      "Attached is the report from last quarter.",
+    ]) {
+      expect(detectR1(text).level, text).toBe(0);
+    }
+  });
 });
 
 describe("R4 · referent resolution", () => {

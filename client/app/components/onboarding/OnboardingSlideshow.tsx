@@ -11,18 +11,45 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 const TOTAL_SLIDES = 7;
 
+/**
+ * "Close for now" has to survive a navigation, or it isn't a close — it is a
+ * pause until the next route change. Session-scoped rather than persisted: the
+ * tour is genuinely worth offering again on the next visit, just not three
+ * screens later.
+ */
+const CLOSED_FOR_NOW_KEY = "tracker.onboarding.closedForNow";
+
+function readClosedForNow(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(CLOSED_FOR_NOW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type OnboardingSlideshowProps = {
   /**
    * Replay mode: show the tour on demand (from Settings) regardless of stored
    * progress, and leave that progress untouched — it is a re-read, not a redo.
    */
   replay?: boolean;
+  /**
+   * Hold the tour back on routes it has no business covering.
+   *
+   * Suppressed rather than unmounted, so it still reports "hidden" to the
+   * sequencing context — a tour that simply isn't rendered leaves that context
+   * on "pending" forever, and every module intro waits behind a tour that is
+   * never coming.
+   */
+  suppressed?: boolean;
   /** Called when a replayed tour is closed or finished. */
   onClose?: () => void;
 };
 
 export default function OnboardingSlideshow({
   replay = false,
+  suppressed = false,
   onClose,
 }: OnboardingSlideshowProps = {}) {
   const { t, i18n } = useTranslation();
@@ -30,12 +57,13 @@ export default function OnboardingSlideshow({
   const { setStatus } = useOnboardingTour();
   const [loaded, setLoaded] = useState(replay);
   const [completed, setCompleted] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(readClosedForNow);
   const [current, setCurrent] = useState(0);
   const [pickingLanguage, setPickingLanguage] = useState(false);
   const [discoverableByEmail, setDiscoverableByEmail] = useState(false);
 
   useEffect(() => {
+    if (suppressed) return;
     if (!replay) {
       call({ query: GET_ONBOARDING_PROGRESS }).then((res: any) => {
         const progress = res?.onboardingProgress;
@@ -55,22 +83,22 @@ export default function OnboardingSlideshow({
     call({ query: GET_ME_DISCOVERABILITY }).then((res: any) => {
       setDiscoverableByEmail(res?.me?.discoverableByEmail ?? false);
     });
-  }, [replay]);
+  }, [replay, suppressed]);
 
   const handleDiscoverabilityChange = (val: boolean) => {
     setDiscoverableByEmail(val);
     call({ query: UPDATE_DISCOVERABILITY, variables: { discoverableByEmail: val } });
   };
 
-  const showing = loaded && !completed && !dismissed;
+  const showing = !suppressed && loaded && !completed && !dismissed;
 
   // Tell the module intros whether this tour owns the screen. A replay is
   // opened deliberately from Settings, so it doesn't drive the first-run
   // sequencing.
   useEffect(() => {
     if (replay) return;
-    setStatus(!loaded ? "pending" : showing ? "visible" : "hidden");
-  }, [replay, loaded, showing]);
+    setStatus(suppressed ? "hidden" : !loaded ? "pending" : showing ? "visible" : "hidden");
+  }, [replay, suppressed, loaded, showing]);
 
   if (!showing) return null;
 
@@ -103,12 +131,24 @@ export default function OnboardingSlideshow({
   const handlePrev = () => setCurrent((c) => Math.max(0, c - 1));
   const handleClose = () => {
     setDismissed(true);
+    if (!replay) {
+      try {
+        window.sessionStorage.setItem(CLOSED_FOR_NOW_KEY, "1");
+      } catch {
+        // Private-mode storage failures are not worth failing a dismissal over.
+      }
+    }
     onClose?.();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border bg-background shadow-2xl mx-4 overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-slide-title"
+        className="relative w-full max-w-lg rounded-2xl border bg-background shadow-2xl mx-4 overflow-hidden"
+      >
         {/* Close (session-only) */}
         <button
           type="button"
@@ -206,7 +246,7 @@ function LanguageStep({
 }) {
   return (
     <div className="px-6 pt-8 pb-6">
-      <h2 className="text-xl font-bold mb-2">{t("onboarding.language.title")}</h2>
+      <h2 id="onboarding-slide-title" className="text-xl font-bold mb-2">{t("onboarding.language.title")}</h2>
       <p className="text-sm text-muted-foreground leading-relaxed mb-5">
         {t("onboarding.language.body")}
       </p>
@@ -244,21 +284,21 @@ function SlideContent({
     case 0:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.0.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.0.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{t("onboarding.slides.0.body")}</p>
         </>
       );
     case 1:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.1.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.1.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{t("onboarding.slides.1.body")}</p>
         </>
       );
     case 2:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.2.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.2.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-3">{t("onboarding.slides.2.body")}</p>
           <pre className="font-mono text-xs bg-muted/40 rounded-md p-3 leading-relaxed select-none">
 {`Goal
@@ -271,14 +311,14 @@ function SlideContent({
     case 3:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.3.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.3.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{t("onboarding.slides.3.body")}</p>
         </>
       );
     case 4:
       return (
         <>
-          <h2 className="text-xl font-bold mb-2">{t("onboarding.slides.4.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-2">{t("onboarding.slides.4.title")}</h2>
           <p className="text-sm text-muted-foreground mb-3">{t("onboarding.slides.4.intro")}</p>
           <div className="space-y-2.5">
             {(["1", "2", "3"] as const).map((n) => (
@@ -293,7 +333,7 @@ function SlideContent({
     case 5:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.5.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.5.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">{t("onboarding.slides.5.body")}</p>
           <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-4 py-3">
             <Switch checked={discoverableByEmail} onCheckedChange={onDiscoverabilityChange} />
@@ -309,7 +349,7 @@ function SlideContent({
     case 6:
       return (
         <>
-          <h2 className="text-xl font-bold mb-3">{t("onboarding.slides.6.title")}</h2>
+          <h2 id="onboarding-slide-title" className="text-xl font-bold mb-3">{t("onboarding.slides.6.title")}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{t("onboarding.slides.6.body")}</p>
         </>
       );

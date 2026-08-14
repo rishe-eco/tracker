@@ -353,7 +353,9 @@
     "openClarityLab": "Open Clarity Lab",
     "learnTitle": "Feelings & Needs",
     "learnDescription": "A short daily practice: notice what you feel, find a word for it, and the need underneath.",
-    "openFeelingsNeeds": "Open Feelings & Needs"
+    "openFeelingsNeeds": "Open Feelings & Needs",
+    "evidenceLabTrains": "Checking what an AI tells you — working out whether a confident answer is actually right.",
+    "clarityLabTrains": "Saying precisely what you want — writing a request someone can act on."
   },
   "learn": {
     "feelingsNeeds": {
@@ -809,12 +811,12 @@
     },
     "slides": {
       "0": {
-        "title": "Welcome to Root",
-        "body": "Root is a structured productivity system built around one idea: the work you do each day should connect to something that matters. It ties your long-term goals to your daily actions through a clear hierarchy, daily rituals, and scheduled intervals — so nothing falls through the cracks."
+        "title": "Welcome to Tracker",
+        "body": "Tracker is a structured productivity system built around one idea: the work you do each day should connect to something that matters. It ties your long-term goals to your daily actions through a clear hierarchy, daily rituals, and scheduled intervals — so nothing falls through the cracks."
       },
       "1": {
         "title": "Three Ways to Capture Work",
-        "body": "Root organizes everything into three dimensions. Goals are your long-term ambitions — the things you're working toward over weeks or months. Intervals are recurring commitments — habits, routines, and time-blocked work that repeat on a schedule. Standalone actions are one-off tasks that don't belong to anything larger. All three feed into your day."
+        "body": "Tracker organizes everything into three dimensions. Goals are your long-term ambitions — the things you're working toward over weeks or months. Intervals are recurring commitments — habits, routines, and time-blocked work that repeat on a schedule. Standalone actions are one-off tasks that don't belong to anything larger. All three feed into your day."
       },
       "2": {
         "title": "How Goals Break Down",
@@ -822,7 +824,7 @@
       },
       "3": {
         "title": "Recurring Work",
-        "body": "Intervals are repeating commitments with a recurrence schedule — daily standups, weekly reviews, monthly check-ins. Routines are simpler: they repeat every day. At gathering time, Root creates actions from your active intervals and routines and places them in the right days automatically. You set the schedule once; Root handles the rest."
+        "body": "Intervals are repeating commitments with a recurrence schedule — daily standups, weekly reviews, monthly check-ins. Routines are simpler: they repeat every day. At gathering time, Tracker creates actions from your active intervals and routines and places them in the right days automatically. You set the schedule once; Tracker handles the rest."
       },
       "4": {
         "title": "Three Daily Rituals",
@@ -846,7 +848,7 @@
         "body": "That's all you need to know for now. The best place to begin is creating your first goal — the Goal Wizard will walk you through it step by step. Or if you want a deeper reference on any concept, the Guide page has it all.",
         "ctaGoal": "Create my first goal",
         "ctaGuide": "Open the Guide",
-        "ctaToday": "Go to Today"
+        "ctaToday": "Finish — I’ll explore on my own"
       }
     },
     "modules": {
@@ -864,19 +866,19 @@
         "step2Title": "Time Assignment",
         "step2Body": "Each action needs a start time before the day can begin. Untimed actions — those without an assigned time — block the ritual from completing. Work through them in order, or defer any you're not ready to schedule.",
         "step3Title": "Overlap Detection",
-        "step3Body": "If two actions are scheduled at the same time, Root flags the conflict. You'll see a warning on the overlapping action. Resolve it by adjusting the start time or estimated duration before proceeding."
+        "step3Body": "If two actions are scheduled at the same time, Tracker flags the conflict. You'll see a warning on the overlapping action. Resolve it by adjusting the start time or estimated duration before proceeding."
       },
       "after-day": {
         "step1Title": "Closing the Day",
-        "step1Body": "After-day is the reflection ritual. At the end of each day, you review every action that wasn't marked done and decide what happens to it. This is how Root stays clean — nothing carries forward silently.",
+        "step1Body": "After-day is the reflection ritual. At the end of each day, you review every action that wasn't marked done and decide what happens to it. This is how Tracker stays clean — nothing carries forward silently.",
         "step2Title": "Action Fates",
         "step2Body": "For each unfinished action you choose a fate: Done — it was completed after all. Postpone — reschedule it to a future date. Backlog — return it to the project backlog without a date. Outsource — it's someone else's now. Bucket list — a someday idea, not urgent. Archive — it's no longer relevant.",
         "step3Title": "What Happens Next",
-        "step3Body": "Once you close the day, Root runs gathering for the next two days — pulling in actions from your active intervals and routines. Your tomorrow is already partially populated before you sleep."
+        "step3Body": "Once you close the day, Tracker runs gathering for the next two days — pulling in actions from your active intervals and routines. Your tomorrow is already partially populated before you sleep."
       },
       "goals-list": {
         "step1Title": "Goals",
-        "step1Body": "A goal is the highest level of intent in Root — something you're working toward that takes sustained effort. Beneath each goal sits an ordered sequence of milestones, and beneath each milestone, projects and actions. The progress bar on each goal reflects how far through the milestone sequence you are.",
+        "step1Body": "A goal is the highest level of intent in Tracker — something you're working toward that takes sustained effort. Beneath each goal sits an ordered sequence of milestones, and beneath each milestone, projects and actions. The progress bar on each goal reflects how far through the milestone sequence you are.",
         "step2Title": "Groups vs Regular Goals",
         "step2Body": "Goals can be standalone or grouped. A goal group is a container that holds related goals together — useful when a large ambition breaks into several independent parallel tracks. Regular goals stand alone. Both types behave the same way internally; the group is just an organizational wrapper."
       },
@@ -898,7 +900,7 @@
         "step1Title": "Intervals and Routines",
         "step1Body": "Intervals are recurring commitments on a schedule — they can repeat daily, weekly, monthly, or on custom patterns. Routines are a simpler variant that repeat every day without configuration. Both generate actions automatically.",
         "step2Title": "How Recurrence Works",
-        "step2Body": "Each interval has a recurrence rule — which days of the week, which weeks of the month, or a custom pattern. At gathering time, Root evaluates which intervals are due and creates actions for those days. You set the rule once; Root creates the work.",
+        "step2Body": "Each interval has a recurrence rule — which days of the week, which weeks of the month, or a custom pattern. At gathering time, Tracker evaluates which intervals are due and creates actions for those days. You set the rule once; Tracker creates the work.",
         "step3Title": "Actions in Today",
         "step3Body": "Actions generated from intervals appear in the Linked section of Today automatically. You don't need to do anything — gathering runs in the background when you open Today, and again after After-day completes. If an interval is paused or inactive, its actions won't be generated."
       },
@@ -1031,7 +1033,7 @@
     },
     "banners": {
       "draftLocale": "This language's items are machine-drafted and awaiting review by a native speaker. Practice works normally; wording may change.",
-      "probeBlocked": "Scored assessment is not available yet: {{count}} item(s) still need a human to verify the answer key and freeze search results. Practice works today.",
+      "probeBlocked": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} item(s) still need a human to verify their answer key. Nothing for you to do about it.",
       "noBaseline": "You haven't taken the baseline yet. Without it, later scores have nothing to be compared against.",
       "baselineSkipped": "You skipped the baseline, so later scores aren't comparable to a starting point. Practice still counts."
     },
@@ -1048,7 +1050,9 @@
       "lateral": "Checked first",
       "independent": "Independent source",
       "accurate": "Right verdict",
-      "trace": "Fault located"
+      "trace": "Fault located",
+      "met": "met",
+      "notMet": "not met"
     },
     "state": {
       "not_started": "Not started",
@@ -1091,7 +1095,7 @@
       "how3": "Commit a verdict and a confidence. That locks the item.",
       "how4": "Then it's revealed — the correct verdict, and what a fast check would have looked like.",
       "sidewaysHint": "Read the answer, then check it before deciding. Fluency tells you nothing about accuracy.",
-      "checkSideways": "Check sideways",
+      "checkSideways": "Check another source",
       "frozenResults": "Results frozen with this item, so every attempt meets the same evidence.",
       "suggestedSearches": "Suggested searches — these open in a new tab.",
       "pasteBackHint": "Bring back what you found: the link, and the line that settles it.",
@@ -1140,6 +1144,14 @@
       "nothingUpcoming": "Nothing upcoming — reschedule to add more.",
       "twoSittingsNote": "Each module is scheduled twice on different days. That isn't padding: mastery needs correct, checked attempts on two separate days, so a single-sitting plan would look complete and never get there.",
       "rerunNote": "Rescheduling replaces upcoming sittings. Ones you've already done, and any in the past, are left alone."
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} practice items done",
+      "strict": "{{done}} of {{required}} items both checked and answered correctly",
+      "days": "practised on {{done}} of the {{required}} separate days required",
+      "falseAlarms": "{{done}} accurate answer(s) flagged as faulty — this one has to be zero",
+      "speed": "median time before your first check is {{seconds}}s; the target is under {{required}}s",
+      "speedUnknown": "no median time to first check yet; the target is under {{required}}s"
     }
   },
   "clarity": {
@@ -1157,7 +1169,7 @@
     "rubricHint": "Kept on screen on purpose, including while you write. It's the thing being taught, not a hidden grading scheme.",
     "unscored": "not scored",
     "unscoredHint": "Nothing assessed this, so it counts neither for nor against you. It is left out of the total rather than scored zero.",
-    "needsReaderShort": "needs a reader",
+    "needsReaderShort": "needs the AI scorer",
     "backToLab": "Back to Clarity Lab",
     "exhaustedTitle": "No items left here",
     "exhaustedBody": "Every item in this pool has been used. An item is spent once it's been revealed — running it again would measure memory rather than skill. More arrive with the next content pass.",
@@ -1175,8 +1187,8 @@
         "test": "Every fact the task needs, and not much else"
       },
       "R4": {
-        "label": "Referents",
-        "test": "Nothing dangling; quantities bounded"
+        "label": "Clear references",
+        "test": "Nothing left pointing at nothing; every quantity has a number"
       },
       "R5": {
         "label": "Success criteria",
@@ -1184,7 +1196,7 @@
       },
       "R6": {
         "label": "Economy & order",
-        "test": "Load-bearing constraint early; every sentence earns its place"
+        "test": "The constraint that matters comes first; every sentence does work"
       }
     },
     "moduleName": {
@@ -1231,8 +1243,8 @@
       "lockBody": "A diagnosis entered after you've seen the scores isn't a diagnosis, it's a recollection. Same for predicting what a reader will do. Both get committed first and can't be edited afterwards — that's the only way to find out what you'd actually have concluded."
     },
     "banners": {
-      "noReader": "No AI reader is configured, so three of the six criteria — deliverable, context and success criteria — can't be scored, and write-from-scratch items are unavailable. Diagnose-and-rewrite items and quick fixes work normally. Finishing a module needs all six criteria, so it stays out of reach until a reader is set up.",
-      "uncalibrated": "The AI reader hasn't been calibrated against human scoring yet. Its levels are shown as feedback, and are deliberately kept out of any before/after measurement until that's done.",
+      "noReader": "Diagnose-and-rewrite items and quick fixes work fully, and they are most of the lab. What is missing here is the AI scorer. Without one, three of the six criteria — deliverable, context and success criteria — are left unscored rather than guessed at, write-from-scratch items aren’t offered, and a module can’t be marked finished. That is a limit of this installation, not something you did.",
+      "uncalibrated": "The AI scorer hasn’t been calibrated against human scoring yet. Its levels are shown as feedback, and are deliberately kept out of any before/after measurement until that’s done.",
       "noBaseline": "You haven't taken the baseline yet. Without one, later scores have nothing to be compared against."
     },
     "metrics": {
@@ -1269,7 +1281,7 @@
     "whatYouWrote": "What you wrote",
     "whatYouPredicted": "What you predicted",
     "whatTheReaderProduced": "What the reader produced",
-    "readerPending": "No AI reader is configured, so there's nothing to compare against here. This item type needs one; diagnose-and-rewrite items don't.",
+    "readerPending": "No AI is configured to play the reader, so there’s nothing to compare against here. This item type needs one; diagnose-and-rewrite items don’t.",
     "resultLabel": "Result",
     "scored": "Here's how it scored",
     "repairPassed": "Fixed — that clears the bar",
@@ -1294,6 +1306,15 @@
       "couldNotStart": "Could not start an item. Try again.",
       "couldNotSubmit": "Could not score that. Your text is still here — try again.",
       "couldNotLock": "Could not save that. Try again."
-    }
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} first drafts written — rewrites don’t count toward finishing",
+      "rubricIncomplete": "the full rubric hasn’t been scored: three criteria need the AI scorer, which isn’t set up here",
+      "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module’s own criterion at level 2",
+      "days": "practised on {{done}} of the {{required}} separate days required"
+    },
+    "explanationOfOriginal": "What was going on in the text above",
+    "diagnosisUnverifiable": "Not scored",
+    "diagnosisUnverifiableHint": "Nothing assessed those criteria here, so flagging them is neither right nor wrong. They need the AI scorer."
   }
 }

@@ -40,12 +40,15 @@ const SCORED = {
     isVoid: false,
     isComplete: false,
   },
-  diagnosis: { correct: ["R1"], missed: ["R6"], spurious: [] },
+  // R5 was tagged but nothing scored it — with no reader it is neither right
+  // nor wrong, and must not be reported as a false alarm.
+  diagnosis: { correct: ["R1"], missed: ["R6"], spurious: [], unverifiable: ["R5"] },
   repairPassed: null,
   delta: null,
   reveal: "The ask is last, behind three sentences of hedging.",
+  revealIsAboutItemText: true,
   moduleState: "in_progress",
-  masteryUnmet: ["needs all six criteria scored"],
+  masteryUnmet: [{ code: "rubricIncomplete" }],
   atCriterion: false,
   feedbackOnly: [],
 };

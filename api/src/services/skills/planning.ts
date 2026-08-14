@@ -169,13 +169,16 @@ export async function applyPlan(
   prisma: PrismaClient,
   userId: string,
   skillKey: "evidence",
-  opts: PlanOptions
+  opts: PlanOptions,
+  locale: Locale
 ): Promise<ApplyPlanResult> {
-  const profile = await ensureProfile(prisma, userId);
-  const pack = getEvidencePack(profile.contentVersion, profile.locale as Locale);
+  const profile = await ensureProfile(prisma, userId, locale);
+  const pack = getEvidencePack(profile.contentVersion, locale);
 
   // Titles come from the content pack, so a Persian learner gets Persian
-  // calendar entries without a second translation path.
+  // calendar entries without a second translation path. Written once, at plan
+  // time, in whatever language the request arrived in — an action already on the
+  // calendar is a record, and records don't re-translate themselves.
   const titleByKey = new Map<string, string>(pack.modules.map((m) => [m.moduleKey, m.title]));
   const moduleKeys: string[] = pack.modules.map((m) => m.moduleKey);
 
@@ -233,7 +236,8 @@ export async function scheduleReviewAction(
   userId: string,
   skillKey: "evidence",
   moduleKey: string,
-  dueAt: Date
+  dueAt: Date,
+  locale: Locale
 ): Promise<boolean> {
   const profile = await prisma.skillProfile.findUnique({
     where: { userId_skillKey: { userId, skillKey } },
@@ -255,7 +259,7 @@ export async function scheduleReviewAction(
   });
   if (existing) return false;
 
-  const pack = getEvidencePack(profile.contentVersion, profile.locale as Locale);
+  const pack = getEvidencePack(profile.contentVersion, locale);
   const title = pack.modules.find((m) => m.moduleKey === moduleKey)?.title ?? moduleKey;
   const timeOfDay = profile.planTimeOfDay ?? DEFAULT_TIME_OF_DAY;
   const [hh, mm] = timeOfDay.split(":").map(Number);

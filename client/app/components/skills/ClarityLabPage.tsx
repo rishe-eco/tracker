@@ -98,6 +98,17 @@ export default function ClarityLabPage() {
 
         <HowASittingWorks defaultOpen={!started} />
 
+        {/* The way in comes before the caveats. Everything below is a notice
+            about what this installation cannot score — honest, and the wrong
+            first thing to meet on a page whose main path works. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => navigate("/tools/skills/clarity/session")}>
+            <PenLine className="mr-2 h-4 w-4" aria-hidden />
+            {started ? t("clarity.startSitting") : t("clarity.startFirstSitting")}
+          </Button>
+          <span className="text-xs text-muted-foreground">{t("clarity.sittingLength")}</span>
+        </div>
+
         {progress.reviewStatus === "draft" && (
           <Banner tone="info" text={t("skills.banners.draftLocale")} />
         )}
@@ -123,14 +134,6 @@ export default function ClarityLabPage() {
             }
           />
         )}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => navigate("/tools/skills/clarity/session")}>
-            <PenLine className="mr-2 h-4 w-4" aria-hidden />
-            {started ? t("clarity.startSitting") : t("clarity.startFirstSitting")}
-          </Button>
-          <span className="text-xs text-muted-foreground">{t("clarity.sittingLength")}</span>
-        </div>
 
         {started && (
           <section className="grid gap-4 md:grid-cols-2">

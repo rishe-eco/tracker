@@ -23,6 +23,7 @@ import {
   START_SKILL_ITEM,
   SUBMIT_SKILL_ATTEMPT,
 } from "~/api/queries";
+import MasteryGapList, { type MasteryGap } from "./MasteryGapList";
 import RichText from "./RichText";
 
 const VERDICTS = [
@@ -74,7 +75,7 @@ type AttemptResult = {
   correctVerdict: string;
   reveal: string;
   moduleState: string;
-  masteryUnmet: string[];
+  masteryUnmet: MasteryGap[];
 };
 
 export default function EvidenceDrillPage() {
@@ -547,11 +548,7 @@ export default function EvidenceDrillPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {t("skills.drill.masteryRemaining")}
                   </p>
-                  <ul className="list-disc space-y-0.5 ps-5 text-xs text-muted-foreground">
-                    {result.masteryUnmet.map((r) => (
-                      <li key={r}>{r}</li>
-                    ))}
-                  </ul>
+                  <MasteryGapList gaps={result.masteryUnmet} ns="skills" />
                 </div>
               )}
 
@@ -643,8 +640,17 @@ function Note({ text }: { text: string }) {
   );
 }
 
-/** Pass/fail carries in the icon and the colour, not in a bare ✓ glyph. */
+/**
+ * Pass/fail carries in the icon, the colour, *and* a word.
+ *
+ * A tick against a cross is the whole result for three of these four rows, and
+ * both glyphs were `aria-hidden` with no text alternative — so the row read as
+ * four bare labels to a screen reader, and as four labels plus two shapes to
+ * anyone who does not already know which shape means which.
+ */
 function Metric({ label, ok, value }: { label: string; ok: boolean; value?: string }) {
+  const { t } = useTranslation();
+  const state = ok ? t("skills.metrics.met") : t("skills.metrics.notMet");
   return (
     <div className="flex items-center gap-2 rounded-md border bg-background/60 px-3 py-2">
       {ok ? (
@@ -654,7 +660,9 @@ function Metric({ label, ok, value }: { label: string; ok: boolean; value?: stri
       )}
       <div className="min-w-0">
         <p className="truncate text-xs font-medium">{label}</p>
-        {value && <p className="text-[11px] text-muted-foreground">{value}</p>}
+        <p className={`text-[11px] ${ok ? "text-emerald-700 dark:text-emerald-500" : "text-muted-foreground"}`}>
+          {value ? `${value} · ${state}` : state}
+        </p>
       </div>
     </div>
   );

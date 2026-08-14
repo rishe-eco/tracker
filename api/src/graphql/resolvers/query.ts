@@ -274,16 +274,16 @@ export const queryResolvers = {
 
   skillModules: requireAuth(async (_, { skillKey }: any, ctx) => {
     assertEvidence(skillKey);
-    return getModules(ctx.prisma, ctx.user.id);
+    return getModules(ctx.prisma, ctx.user.id, ctx.locale);
   }),
 
   skillProgress: requireAuth(async (_, { skillKey }: any, ctx) => {
     assertEvidence(skillKey);
-    return getProgress(ctx.prisma, ctx.user.id);
+    return getProgress(ctx.prisma, ctx.user.id, ctx.locale);
   }),
 
   skillDueReviews: requireAuth(async (_, __, ctx) => {
-    const modules = await getModules(ctx.prisma, ctx.user.id);
+    const modules = await getModules(ctx.prisma, ctx.user.id, ctx.locale);
     return modules.filter((m: any) => m.state === "due_review");
   }),
 
@@ -292,9 +292,9 @@ export const queryResolvers = {
     return getPlan(ctx.prisma, ctx.user.id, "evidence");
   }),
 
-  clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id)),
+  clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id, ctx.locale)),
 
-  clarityProgress: requireAuth((_, __, ctx) => getClarityProgress(ctx.prisma, ctx.user.id)),
+  clarityProgress: requireAuth((_, __, ctx) => getClarityProgress(ctx.prisma, ctx.user.id, ctx.locale)),
 
   // `ctx.locale` is the language the request arrived in (Accept-Language), which
   // is what the authored content is served in. Not stored per user: see

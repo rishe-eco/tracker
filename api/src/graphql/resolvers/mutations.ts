@@ -1042,7 +1042,7 @@ function assertEvidenceSkill(skillKey: string) {
 
 mutations.startSkillItem = requireAuth(async (_, { skillKey, mode, moduleKey }: any, ctx) => {
   assertEvidenceSkill(skillKey);
-  return serveItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null);
+  return serveItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale);
 });
 
 mutations.logSkillCheckEvent = requireAuth(async (_, { attemptId, kind, payload }: any, ctx) =>
@@ -1061,13 +1061,13 @@ mutations.submitSkillAttempt = requireAuth(
       faultTag,
       sources: sources ?? [],
       timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? 0,
-    });
+    }, ctx.locale);
   }
 );
 
 mutations.skipSkillAssessment = requireAuth(async (_, { skillKey }: any, ctx) => {
   assertEvidenceSkill(skillKey);
-  await ensureProfile(ctx.prisma, ctx.user.id);
+  await ensureProfile(ctx.prisma, ctx.user.id, ctx.locale);
   await ctx.prisma.skillProfile.update({
     where: { userId_skillKey: { userId: ctx.user.id, skillKey: "evidence" } },
     data: { assessmentSkipped: true },
@@ -1083,7 +1083,7 @@ mutations.skipSkillAssessment = requireAuth(async (_, { skillKey }: any, ctx) =>
 // request.
 
 mutations.startClarityItem = requireAuth(async (_, { mode, moduleKey }: any, ctx) =>
-  serveClarityItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null)
+  serveClarityItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale)
 );
 
 mutations.lockClarityPrediction = requireAuth(async (_, { attemptId, prediction }: any, ctx) => {
@@ -1106,12 +1106,12 @@ mutations.submitClarityAttempt = requireAuth(
     return submitClarityAttempt(ctx.prisma, ctx.user.id, attemptId, {
       text,
       timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? 0,
-    });
+    }, ctx.locale);
   }
 );
 
 mutations.startClarityRevision = requireAuth(async (_, { attemptId }: any, ctx) =>
-  startClarityRevision(ctx.prisma, ctx.user.id, attemptId)
+  startClarityRevision(ctx.prisma, ctx.user.id, attemptId, ctx.locale)
 );
 
 mutations.planSkillSchedule = requireAuth(
@@ -1130,7 +1130,7 @@ mutations.planSkillSchedule = requireAuth(
       sessionsPerWeek: perWeek,
       timeOfDay: timeOfDay ?? DEFAULT_TIME_OF_DAY,
       sessionsPerModule: perModule,
-    });
+    }, ctx.locale);
   }
 );
 

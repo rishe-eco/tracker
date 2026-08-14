@@ -371,7 +371,7 @@ export const typeDefs = gql`
     correctVerdict: SkillVerdict!
     reveal: String!
     moduleState: String!
-    masteryUnmet: [String!]!
+    masteryUnmet: [MasteryGap!]!
   }
 
   """
@@ -461,10 +461,34 @@ export const typeDefs = gql`
     isComplete: Boolean!
   }
 
+  """
+  One unmet mastery requirement, as a code and its numbers rather than a
+  finished sentence. The panel that says how to finish a module is the last
+  place that should be English-only, and the wording belongs with the rest of
+  the UI copy — so the server states the rule and the client says it.
+  """
+  type MasteryGap {
+    "Which requirement is unmet. The client turns this into a sentence."
+    code: String!
+    "Where the learner is now, when the requirement is a count."
+    count: Int
+    "What the requirement asks for."
+    required: Int
+    "Whole seconds, for the time-based gate. Null when not yet established."
+    seconds: Int
+    "Clarity's score bar, where the requirement is N attempts at M+/12."
+    minTotal: Int
+  }
+
   type ClarityDiagnosis {
     correct: [String!]!
     missed: [String!]!
     spurious: [String!]!
+    """
+    Tagged, but nothing assessed that criterion — so the tag is neither credited
+    nor counted against. Non-empty mainly when no reader is configured.
+    """
+    unverifiable: [String!]!
   }
 
   type ClarityAttemptResult {
@@ -477,8 +501,14 @@ export const typeDefs = gql`
     "Revision total minus draft total. Null unless this attempt revises another."
     delta: Int
     reveal: String!
+    """
+    True when the reveal discusses the text the item shipped rather than what
+    the learner wrote — it renders directly under their own per-criterion
+    scores, where unlabelled it reads as being about their text.
+    """
+    revealIsAboutItemText: Boolean!
     moduleState: String!
-    masteryUnmet: [String!]!
+    masteryUnmet: [MasteryGap!]!
     atCriterion: Boolean!
     "Criteria a judge levelled but which cannot count until calibration passes."
     feedbackOnly: [String!]!

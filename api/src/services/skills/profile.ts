@@ -29,6 +29,13 @@ const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
  * it writes on this provider, so it narrows the window without closing it. The
  * unique constraint is the only thing that actually arbitrates, so the fix is to
  * let it, and treat losing as the ordinary outcome it is.
+ *
+ * **`locale` records the language of enrollment and nothing reads it back.**
+ * What language to *serve* comes from the request (`graphql/requestLocale.ts`),
+ * because the app someone is looking at is the authority on that and a stored
+ * copy is free to disagree with it. Every session function used to read this
+ * column, no caller ever set it to anything but `"en"`, and the consequence was
+ * a complete Persian content pack that could not be reached.
  */
 export async function ensureProfile(
   prisma: PrismaClient,

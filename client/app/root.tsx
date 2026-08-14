@@ -36,11 +36,16 @@ export function ProtectedAppLayout() {
   }
 
   const internal = isInternalPage(location.pathname);
+  // The first-run tour is about the productivity system — goals, intervals, the
+  // daily rituals. Over a tool it is an interruption, and over a timed drill it
+  // is an interruption with the clock already running behind it. Every tool has
+  // its own intro, so the tour waits until the learner is somewhere it applies.
+  const tourSuppressed = location.pathname.startsWith("/tools");
   return (
     // The provider spans both the tour and the <Outlet />, so the module intros
     // rendered by pages can wait for the tour to clear.
     <OnboardingTourProvider enabled={isAuthenticated}>
-    {isAuthenticated && <OnboardingSlideshow />}
+    {isAuthenticated && <OnboardingSlideshow suppressed={tourSuppressed} />}
     <div className="flex h-screen flex-col md:flex-row">
       <ResponsiveNavigation
         sidebarItems={getSidebarItems(t)}
