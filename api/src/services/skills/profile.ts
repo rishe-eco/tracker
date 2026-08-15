@@ -9,10 +9,12 @@ import type { PrismaClient } from "@prisma/client";
 import { CURRENT_VERSION, ENROLLABLE_EVIDENCE_VERSIONS } from "../../content/skills/versions";
 import { EVIDENCE_MODULE_KEYS, type Locale, type SkillKey } from "../../content/skills/types";
 import { CLARITY_MODULE_KEYS } from "../../content/skills/clarity/types";
+import { DECOMPOSITION_MODULE_KEYS } from "../../content/skills/decomposition/types";
 
 const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
   clarity: CLARITY_MODULE_KEYS,
+  decomposition: DECOMPOSITION_MODULE_KEYS,
 };
 
 /**

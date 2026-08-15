@@ -13,6 +13,8 @@
 
 import { buildEvidencePack as buildV1, ITEM_SPECS as SPECS_V1 } from "./evidence/v1";
 import { buildEvidencePack as buildV2, ITEM_SPECS as SPECS_V2 } from "./evidence/v2";
+import { buildDecompositionPack, ITEM_SPECS as DECOMPOSITION_SPECS_V1 } from "./decomposition/v1";
+import type { DecompositionItemSpec, DecompositionPack } from "./decomposition/types";
 import type { EvidenceItemSpec, EvidencePack, Locale, SkillKey } from "./types";
 
 /** The version a new learner is enrolled on. */
@@ -20,6 +22,7 @@ export const CURRENT_VERSION: Record<SkillKey, string> = {
   evidence: "evidence/v2",
   // Clarity Lab is P1 — see 06-specs/00-skills-engine.md §14.
   clarity: "clarity/v1",
+  decomposition: "decomposition/v1",
 };
 
 export type EvidenceVersion = {
@@ -38,3 +41,14 @@ export const EVIDENCE_VERSIONS: Record<string, EvidenceVersion> = {
  * enrolled on it again, but everyone already on it must still be served.
  */
 export const ENROLLABLE_EVIDENCE_VERSIONS = ["evidence/v2"];
+
+export type DecompositionVersion = {
+  build: (locale: Locale) => DecompositionPack;
+  specs: DecompositionItemSpec[];
+};
+
+export const DECOMPOSITION_VERSIONS: Record<string, DecompositionVersion> = {
+  "decomposition/v1": { build: buildDecompositionPack, specs: DECOMPOSITION_SPECS_V1 },
+};
+
+export const ENROLLABLE_DECOMPOSITION_VERSIONS = ["decomposition/v1"];
