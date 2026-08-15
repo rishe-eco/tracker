@@ -351,6 +351,7 @@ enum ApiTokenScope {
 enum SkillKey {
   clarity
   evidence
+  decomposition
 }
 
 enum SkillModuleState {
@@ -444,6 +445,11 @@ model SkillAttempt {
   mode                SkillMode
   probeId             String?
   responseText        String?
+  /// JSON: the decomposition artifact (whole statement + node tree), for
+  /// Decomposition Lab. A separate column from `responseText` on purpose — one
+  /// holds prose, one holds a structure, and a single field holding either
+  /// would make every later query ambiguous about which it got.
+  responseStructure   String?
   /// Draft → revision chain. The delta between the two is the learning signal
   /// for Clarity Lab.
   revisionOfAttemptId String?
