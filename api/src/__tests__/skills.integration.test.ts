@@ -475,3 +475,30 @@ describe("calendar planning", () => {
     expect(progress.calendarPlanningEnabled).toBe(true);
   });
 });
+
+describe("skillDueReviews unions across skill tools (Decomposition Lab build plan, Phase 1b)", () => {
+  // Before the fix this read Evidence Lab's modules only, so a mastered
+  // Clarity module due for review never surfaced anywhere.
+  it("returns due modules from both Clarity and Evidence", async () => {
+    const user = await createTestUser();
+    const past = new Date(Date.now() - 60_000);
+
+    await prisma.skillProfile.createMany({
+      data: [
+        { userId: user.id, skillKey: "clarity", contentVersion: "clarity/v1" },
+        { userId: user.id, skillKey: "evidence", contentVersion: "evidence/v2" },
+      ],
+    });
+    await prisma.skillModuleProgress.createMany({
+      data: [
+        { userId: user.id, skillKey: "clarity", moduleKey: "c6-economy", state: "mastered", nextReviewAt: past },
+        { userId: user.id, skillKey: "evidence", moduleKey: "e1-stop", state: "mastered", nextReviewAt: past },
+      ],
+    });
+
+    const due = await queryResolvers.skillDueReviews(null, {}, makeCtx(user));
+    const moduleKeys = due.map((m: any) => m.moduleKey);
+    expect(moduleKeys).toContain("c6-economy");
+    expect(moduleKeys).toContain("e1-stop");
+  });
+});

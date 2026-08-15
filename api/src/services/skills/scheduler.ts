@@ -64,6 +64,27 @@ export function onReviewFailed(_currentIndex: number, now: Date, seed: string): 
   return { intervalIndex: 0, nextReviewAt: nextReviewAt(0, now, seed), resumeAtStep: 5 };
 }
 
+export type MasterySchedule = { masteredAt: Date; nextReviewAt: Date };
+
+/**
+ * On first mastery, stamp `masteredAt` once and schedule the next spaced
+ * review — the step every skill tool must take so a mastered module actually
+ * enters the review queue instead of sitting there permanently "mastered" and
+ * never coming back. Shared here (rather than reimplemented per tool) because
+ * Clarity Lab shipped this step half-done — `masteredAt` only, no
+ * `nextReviewAt` — and a third tool is where that stops being tolerable.
+ */
+export function scheduleOnMastery(
+  existing: { masteredAt: Date | null; reviewIntervalIndex: number } | null | undefined,
+  now: Date,
+  seed: string
+): MasterySchedule {
+  return {
+    masteredAt: existing?.masteredAt ?? now,
+    nextReviewAt: nextReviewAt(existing?.reviewIntervalIndex ?? 0, now, seed),
+  };
+}
+
 /**
  * The delayed probe. Scheduled as a row rather than computed on read, because
  * "did the learner actually come back" is itself a reported outcome — and the

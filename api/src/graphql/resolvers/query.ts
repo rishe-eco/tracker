@@ -282,9 +282,16 @@ export const queryResolvers = {
     return getProgress(ctx.prisma, ctx.user.id, ctx.locale);
   }),
 
+  // Union across every skill tool the user has modules for — not just Evidence.
+  // `SkillModule`'s fields (moduleKey, title, state, ...) are the same shape
+  // Clarity's modules already carry, so this is a plain merge, not a cast.
+  // Decomposition Lab joins this list once it has its own module reader.
   skillDueReviews: requireAuth(async (_, __, ctx) => {
-    const modules = await getModules(ctx.prisma, ctx.user.id, ctx.locale);
-    return modules.filter((m: any) => m.state === "due_review");
+    const [evidenceModules, clarityModules] = await Promise.all([
+      getModules(ctx.prisma, ctx.user.id, ctx.locale),
+      getClarityModules(ctx.prisma, ctx.user.id, ctx.locale),
+    ]);
+    return [...evidenceModules, ...clarityModules].filter((m: any) => m.state === "due_review");
   }),
 
   skillPlan: requireAuth(async (_, { skillKey }: any, ctx) => {

@@ -57,7 +57,7 @@ import {
 import { detectorCriteriaFor } from "../../../content/skills/clarity/v1/rubric";
 import { isOfflineCapable } from "../../../content/skills/clarity/validate";
 import { ensureProfile } from "../profile";
-import { toDayKey } from "../scheduler";
+import { scheduleOnMastery, toDayKey } from "../scheduler";
 import { isVoid, runDetectors } from "./detectors";
 import { createAnthropicJudge } from "./anthropicJudge";
 import { calibrationStatus, scoreCriteria } from "./judge";
@@ -595,8 +595,13 @@ async function computeDelta(
   return revisionDelta(draftScore, revisionScore);
 }
 
-/** Recompute a module's state from its unscaffolded attempts. */
-async function updateClarityModuleProgress(
+/**
+ * Recompute a module's state from its unscaffolded attempts. Exported for the
+ * mastery→nextReviewAt regression test (Decomposition Lab build plan, Phase
+ * 1b) — driving mastery through `submitClarityAttempt` needs a live reader for
+ * R2/R3/R5, so the test seeds attempts directly and calls this.
+ */
+export async function updateClarityModuleProgress(
   prisma: PrismaClient,
   userId: string,
   moduleKey: ClarityModuleKey,
@@ -632,7 +637,7 @@ async function updateClarityModuleProgress(
   const data = {
     state: state as any,
     lastCriterionDay: scored.length ? scored[scored.length - 1].dayKey : null,
-    ...(verdict.mastered && { masteredAt: existing?.masteredAt ?? new Date() }),
+    ...(verdict.mastered && scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)),
   };
 
   await prisma.skillModuleProgress.upsert({

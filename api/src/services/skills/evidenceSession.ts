@@ -36,7 +36,7 @@ import {
 } from "../../content/skills/types";
 import { scoreEvidenceItem, scoreSession, type CheckEventInput } from "./scoring";
 import { evaluateMastery, type MasteryGap, type ScoredAttempt } from "./mastery";
-import { nextReviewAt, onReviewFailed, onReviewPassed, toDayKey } from "./scheduler";
+import { onReviewFailed, onReviewPassed, scheduleOnMastery, toDayKey } from "./scheduler";
 import { ensureProfile } from "./profile";
 import { scheduleReviewAction } from "./planning";
 
@@ -308,10 +308,7 @@ async function updateModuleProgress(
     state: state as any,
     consecutiveAtCriterion: verdict.strictCount,
     lastCriterionDay: scored.length ? scored[scored.length - 1].dayKey : null,
-    ...(verdict.mastered && {
-      masteredAt: existing?.masteredAt ?? now,
-      nextReviewAt: nextReviewAt(existing?.reviewIntervalIndex ?? 0, now, seed),
-    }),
+    ...(verdict.mastered && scheduleOnMastery(existing, now, seed)),
   };
 
   await prisma.skillModuleProgress.upsert({

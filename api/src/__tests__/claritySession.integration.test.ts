@@ -3,6 +3,9 @@ import { clearDb, createTestUser, makeCtx, prisma } from "../test/helpers";
 import { mutationResolvers } from "../graphql/resolvers/mutations";
 import { queryResolvers } from "../graphql/resolvers/query";
 import { ITEM_SPEC_BY_ID } from "../content/skills/clarity/v1";
+import { updateClarityModuleProgress } from "../services/skills/clarity/claritySession";
+import { assembleClarityScore, type JudgeCriterionResult } from "../services/skills/clarity/scoring";
+import type { CriterionId } from "../content/skills/clarity/types";
 
 beforeEach(async () => {
   await clearDb();
@@ -314,6 +317,55 @@ describe("the revision chain", () => {
       ctx
     );
     expect(result.moduleState).not.toBe("mastered");
+  });
+});
+
+describe("mastery schedules the next review (Decomposition Lab build plan, Phase 1b)", () => {
+  // Clarity Lab set `masteredAt` on mastery but never `nextReviewAt` or
+  // `reviewIntervalIndex`, so a mastered module never entered the review
+  // queue — the gap the shared `scheduleOnMastery` helper (scheduler.ts)
+  // exists to close. Driving mastery through `submitClarityAttempt` needs a
+  // live reader for R2/R3/R5, so this seeds two full-marks attempts directly
+  // and calls the recompute step Clarity's own submit path calls.
+  const perfectScore = () =>
+    assembleClarityScore(
+      [],
+      (["R1", "R2", "R3", "R4", "R5", "R6"] as CriterionId[]).map(
+        (criterion): JudgeCriterionResult => ({ criterion, level: 2, evidenceQuote: "…", rationale: "because" })
+      )
+    );
+
+  it("gives a newly mastered module a nextReviewAt", async () => {
+    const user = await createTestUser();
+    await prisma.skillProfile.create({
+      data: { userId: user.id, skillKey: "clarity", contentVersion: "clarity/v1" },
+    });
+
+    const score = JSON.stringify(perfectScore());
+    for (const dateKey of ["2026-07-27", "2026-07-28"]) {
+      await prisma.skillAttempt.create({
+        data: {
+          userId: user.id,
+          skillKey: "clarity",
+          moduleKey: "c6-economy",
+          itemId: "c6-economy-practice-1",
+          mode: "module",
+          scores: score,
+          contentVersion: "clarity/v1",
+          scoredBy: "judge",
+          createdAt: new Date(`${dateKey}T09:00:00.000Z`),
+        },
+      });
+    }
+
+    const result = await updateClarityModuleProgress(prisma, user.id, "c6-economy", 0);
+    expect(result.state).toBe("mastered");
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "clarity", moduleKey: "c6-economy" } },
+    });
+    expect(progress?.masteredAt).not.toBeNull();
+    expect(progress?.nextReviewAt).not.toBeNull();
   });
 });
 
