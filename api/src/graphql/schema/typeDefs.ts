@@ -269,6 +269,7 @@ export const typeDefs = gql`
   enum SkillKey {
     clarity
     evidence
+    decomposition
   }
 
   enum SkillModuleState {
@@ -566,6 +567,173 @@ export const typeDefs = gql`
     accuracyRate: Float!
   }
 
+  # ── Decomposition Lab ────────────────────────────────────────────────────
+  #
+  # Own set of types, per the Clarity precedent: the artifact is a tree, not
+  # prose, and widening either existing skill's types would force every field
+  # on three tools to be nullable. Note what never appears anywhere below: an
+  # answer key, a required-element set, an atomic marker, an overlap pair or a
+  # blocking edge, before the attempt is scored. DecompositionAttemptResult
+  # is the first place any of that appears, because it cannot exist before
+  # scoring already happened.
+
+  type DecompositionModule {
+    moduleKey: String!
+    title: String!
+    concept: String!
+    model: String!
+    "The rubric criterion this module trains. 1:1, so feedback and score share a vocabulary."
+    criterion: String!
+    state: String!
+    currentStep: Int!
+    masteredAt: String
+    nextReviewAt: String
+  }
+
+  type DecompositionPalettePiece {
+    id: String!
+    label: String!
+  }
+
+  "Repair items only: the faulty tree the learner reads, diagnoses, and fixes."
+  type DecompositionSuppliedNode {
+    id: String!
+    parentId: String
+    depth: Int!
+    label: String!
+    dependsOn: [String!]!
+  }
+
+  type DecompositionSuppliedWhole {
+    statement: String!
+    doneWhen: String!
+  }
+
+  "What the learner may see before submission. No key, no decoy/atomic/intendedDepth flags, no seeded fault."
+  type DecompositionItem {
+    itemId: String!
+    moduleKey: String!
+    "arrangement | breakdown | repair | control"
+    type: String!
+    difficulty: Int!
+    scenario: String!
+    "Arrangement only: the candidate pieces."
+    palette: [DecompositionPalettePiece!]
+    "Repair only: the faulty tree to diagnose and fix."
+    suppliedTree: [DecompositionSuppliedNode!]
+    suppliedWhole: DecompositionSuppliedWhole
+  }
+
+  type DecompositionServedItem {
+    attemptId: ID!
+    item: DecompositionItem!
+    "Repair items only: name the fault before fixing it."
+    needsDiagnosis: Boolean!
+    "Set when this attempt revises another; the draft structure is shown alongside, as JSON."
+    draftStructure: String
+  }
+
+  input DecompositionWholeInput {
+    statement: String!
+    doneWhen: String!
+  }
+
+  input DecompositionNodeInput {
+    id: String!
+    parentId: String
+    label: String!
+    doneWhen: String!
+    order: Int!
+    dependsOn: [String!]!
+  }
+
+  input DecompositionStructureInput {
+    whole: DecompositionWholeInput!
+    nodes: [DecompositionNodeInput!]!
+  }
+
+  type DecompositionCriterionScore {
+    "D1-D6"
+    id: String!
+    "0-2, or null when nothing scored it. Null is not zero."
+    level: Int
+    "detector | instrumentation | key | unscored"
+    scoredBy: String!
+    evidence: String!
+  }
+
+  type DecompositionCoverage {
+    found: Int!
+    required: Int!
+  }
+
+  type DecompositionScore {
+    criteria: [DecompositionCriterionScore!]!
+    "Sum over scored criteria only."
+    total: Int!
+    scoredCount: Int!
+    coverage: DecompositionCoverage
+    "Breadth-first index — null when fewer than two top-level pieces exist."
+    bfi: Float
+    "Control items only: more than one node when the correct response was to leave it whole."
+    overDecomposed: Boolean!
+    isVoid: Boolean!
+    isComplete: Boolean!
+  }
+
+  type DecompositionRevealPiece {
+    id: String!
+    label: String!
+    required: Boolean!
+    atomic: Boolean!
+  }
+
+  type DecompositionPairing {
+    a: String!
+    b: String!
+  }
+
+  "The correct structure, revealed only after the attempt is scored — for self-diagnosis on whatever D3/D5/D6 came back unscored."
+  type DecompositionReveal {
+    pieces: [DecompositionRevealPiece!]!
+    overlapPairs: [DecompositionPairing!]!
+    blockingEdges: [DecompositionPairing!]!
+    independentPairs: [DecompositionPairing!]!
+  }
+
+  type DecompositionAttemptResult {
+    attemptId: ID!
+    score: DecompositionScore!
+    "Repair items only: did the named fault match the seeded one?"
+    diagnosisCorrect: Boolean
+    "Revision total minus draft total. Null unless this attempt revises another."
+    delta: Int
+    moduleState: String!
+    masteryUnmet: [MasteryGap!]!
+    atCriterion: Boolean!
+    reveal: DecompositionReveal!
+  }
+
+  type DecompositionCriterionMean {
+    criterion: String!
+    mean: Float
+    count: Int!
+  }
+
+  type DecompositionProgress {
+    contentVersion: String!
+    rubricVersion: String!
+    locale: String!
+    reviewStatus: String!
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    totalAttempts: Int!
+    criterionMeans: [DecompositionCriterionMean!]!
+    breadthFirstIndexTrend: [Float!]!
+    "(D4 level-2 rate on decomposable items) minus (over-decomposition rate on control items). Null with no comparison yet."
+    granularityDiscrimination: Float
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -837,6 +1005,11 @@ export const typeDefs = gql`
     "Clarity Lab: per-criterion trend, revision deltas, and what is scoreable in this install."
     clarityProgress: ClarityProgress!
 
+    "Decomposition Lab: the six modules, each with the rubric criterion it trains."
+    decompositionModules: [DecompositionModule!]!
+    "Decomposition Lab: per-criterion trend, breadth-first index trend, granularity discrimination."
+    decompositionProgress: DecompositionProgress!
+
     "Feelings & Needs: the tool home's state — enough to route into the frame or the loop."
     feelingsNeedsState: FeelingsNeedsState!
     "Feelings & Needs: the authored content pack plus the palette selection to show now."
@@ -1078,6 +1251,35 @@ export const typeDefs = gql`
     never count toward mastery — the learner has just been told what failed.
     """
     startClarityRevision(attemptId: ID!): ClarityServedItem!
+
+    """
+    Decomposition Lab: open an attempt and serve the next item. Every item
+    type completes with no credential configured — unlike Clarity's
+    elicitation items, nothing here is withheld for running offline. Returns
+    null when the pool is spent.
+    """
+    startDecompositionItem(mode: SkillMode!, moduleKey: String): DecompositionServedItem
+
+    """
+    Commit the whole, before any piece exists. Rejected if a piece already
+    does — D1 is unscoreable if pieces can precede it, and that order is what
+    D1 measures, so it is server-stamped and cannot be reconstructed after
+    the fact.
+    """
+    lockDecompositionWhole(attemptId: ID!, statement: String!, doneWhen: String!): Boolean!
+
+    "Repair items only: name the fault before fixing it. Rejected on any other item type."
+    lockDecompositionDiagnosis(attemptId: ID!, tags: [String!]!): Boolean!
+
+    "Score the structure. Only here are the key-derived reveal and the levels returned."
+    submitDecompositionAttempt(attemptId: ID!, structure: DecompositionStructureInput!, timeZoneOffsetMinutes: Int): DecompositionAttemptResult!
+
+    """
+    Open a revision of a scored attempt. A new attempt row rather than an
+    edit, so the draft survives and the delta compares two scored artifacts.
+    Revisions never count toward mastery.
+    """
+    startDecompositionRevision(attemptId: ID!): DecompositionServedItem!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

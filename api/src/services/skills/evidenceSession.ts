@@ -149,6 +149,16 @@ const VALID_EVENT_KINDS = new Set([
   "source_submitted",
   "verdict_set",
   "revealed",
+  // Decomposition Lab: fired live during authoring via the generic
+  // logSkillCheckEvent mutation, the same way Evidence's own kinds above are.
+  // whole_stated/diagnosis_locked/breakdown_locked are NOT here on purpose —
+  // like Clarity's prediction_locked/diagnosis_locked, they're written by
+  // decompositionSession.ts's own stamp() helper, never through this generic
+  // path, so a client can never assert its own ordering for them.
+  "node_added",
+  "node_moved",
+  "dependency_set",
+  "recompose_revealed",
 ]);
 
 /**

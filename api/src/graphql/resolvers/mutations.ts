@@ -16,6 +16,13 @@ import {
   submitClarityAttempt,
 } from "../../services/skills/clarity/claritySession";
 import {
+  lockDecompositionDiagnosis,
+  lockDecompositionWhole,
+  serveDecompositionItem,
+  startDecompositionRevision,
+  submitDecompositionAttempt,
+} from "../../services/skills/decomposition/decompositionSession";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1112,6 +1119,49 @@ mutations.submitClarityAttempt = requireAuth(
 
 mutations.startClarityRevision = requireAuth(async (_, { attemptId }: any, ctx) =>
   startClarityRevision(ctx.prisma, ctx.user.id, attemptId, ctx.locale)
+);
+
+// ── Decomposition Lab ───────────────────────────────────────────────────────
+//
+// Same shape as Clarity's block above: validation at the resolver boundary
+// (convention #4), sequencing rules in the service. The ordering rules here
+// are stricter — whole-before-any-piece as well as diagnose-before-scores —
+// because D1 and D2 are measured *from* that ordering, not just gated by it.
+
+mutations.startDecompositionItem = requireAuth(async (_, { mode, moduleKey }: any, ctx) =>
+  serveDecompositionItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale)
+);
+
+mutations.lockDecompositionWhole = requireAuth(async (_, { attemptId, statement, doneWhen }: any, ctx) => {
+  if (typeof statement !== "string" || !statement.trim()) throw new Error("A whole cannot be empty.");
+  if (typeof doneWhen !== "string") throw new Error("doneWhen must be a string.");
+  await lockDecompositionWhole(ctx.prisma, ctx.user.id, attemptId, statement, doneWhen);
+  return true;
+});
+
+mutations.lockDecompositionDiagnosis = requireAuth(async (_, { attemptId, tags }: any, ctx) => {
+  if (!Array.isArray(tags)) throw new Error("tags must be a list.");
+  await lockDecompositionDiagnosis(ctx.prisma, ctx.user.id, attemptId, tags);
+  return true;
+});
+
+mutations.submitDecompositionAttempt = requireAuth(
+  async (_, { attemptId, structure, timeZoneOffsetMinutes }: any, ctx) => {
+    if (!structure || !structure.whole || !Array.isArray(structure.nodes)) {
+      throw new Error("structure must include a whole and a node list.");
+    }
+    return submitDecompositionAttempt(
+      ctx.prisma,
+      ctx.user.id,
+      attemptId,
+      { structure, timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? 0 },
+      ctx.locale
+    );
+  }
+);
+
+mutations.startDecompositionRevision = requireAuth(async (_, { attemptId }: any, ctx) =>
+  startDecompositionRevision(ctx.prisma, ctx.user.id, attemptId, ctx.locale)
 );
 
 mutations.planSkillSchedule = requireAuth(

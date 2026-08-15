@@ -110,6 +110,8 @@ export type SuppliedNodeSpec = {
   id: string;
   parentId: string | null;
   depth: 1 | 2;
+  /** This node's (possibly faulty) dependency edges, as authored into the supplied tree. */
+  dependsOn?: string[];
 };
 
 export type DecompositionItemSpec = {
@@ -194,7 +196,7 @@ export type PublicDecompositionItem = {
   /** Arrangement only: the candidate pieces, order-scrambled by the caller. */
   palette: { id: string; label: string }[] | null;
   /** Repair only: the faulty tree to diagnose and fix. */
-  suppliedTree: { id: string; parentId: string | null; depth: 1 | 2; label: string }[] | null;
+  suppliedTree: { id: string; parentId: string | null; depth: 1 | 2; label: string; dependsOn: string[] }[] | null;
   suppliedWhole: { statement: string; doneWhen: string } | null;
 };
 
@@ -219,6 +221,7 @@ export function toPublicDecompositionItem(
             parentId: n.parentId,
             depth: n.depth,
             label: item.surface.suppliedNodeLabels?.[n.id] ?? n.id,
+            dependsOn: n.dependsOn ?? [],
           }))
         : null,
     suppliedWhole: isRepair ? (item.surface.suppliedWhole ?? null) : null,

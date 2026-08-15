@@ -374,9 +374,10 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
     itemId: "dc-p17",
     scenario: "به یه آپارتمان دیگه تو همون شهر نقل مکان کن.",
     pieceLabels: Object.fromEntries([
-      P("pack_belongings", "وسایل هر اتاق رو جمع کن"),
-      P("book_moving_truck", "کامیون اسباب‌کشی رزرو کن"),
-      P("update_address_and_utilities", "آدرس و قبض‌ها رو به‌روز کن"),
+      P("n1", "وسایل هر اتاق رو جمع کن"),
+      P("n2", "وسایل شکستنی رو جمع کن"),
+      P("n3", "کامیون اسباب‌کشی رزرو کن"),
+      P("n4", "آدرس و قبض‌ها رو به‌روز کن"),
     ]),
     suppliedWhole: {
       statement: "همه چیز رو تا اول ماه به آپارتمان جدید ببر.",
@@ -393,9 +394,10 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
     itemId: "dc-p18",
     scenario: "یه گردهمایی دو روزه‌ی خارج از شرکت برنامه‌ریزی کن.",
     pieceLabels: Object.fromEntries([
-      P("book_venue_and_confirm_headcount", "مکان رو رزرو کن و تعداد نفرات رو تأیید کن"),
-      P("arrange_catering", "غذا رو ردیف کن"),
-      P("plan_agenda", "برنامه‌ی جلسات رو بچین"),
+      P("n1", "مکان رو رزرو کن و تعداد نفرات رو تأیید کن"),
+      P("n2", "تعداد نفرات رو با مکان تأیید کن"),
+      P("n3", "غذا رو ردیف کن"),
+      P("n4", "برنامه‌ی جلسات رو بچین"),
     ]),
     suppliedWhole: {
       statement: "گردهمایی دو روزه‌ی تیم رو سازمان بده.",
@@ -495,11 +497,7 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
   {
     itemId: "dc-p29",
     scenario: "یه مهمونی شام برگزار کن.",
-    pieceLabels: Object.fromEntries([
-      P("buy_groceries", "مواد غذایی رو بخر"),
-      P("cook_the_meal", "غذا رو بپز"),
-      P("set_the_table", "میز رو بچین"),
-    ]),
+    pieceLabels: Object.fromEntries([P("n1", "مواد غذایی رو بخر"), P("n2", "غذا رو بپز"), P("n3", "میز رو بچین")]),
     suppliedWhole: { statement: "تا ساعت ۷ که مهمون‌ها می‌رسن، شام آماده باشه.", doneWhen: "غذا سرو شده و میز چیده شده تا ساعت ۷." },
     suppliedNodeLabels: Object.fromEntries([
       P("n1", "مواد غذایی رو بخر"),
@@ -510,7 +508,7 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
   {
     itemId: "dc-p30",
     scenario: "پاسپورت رو تمدید کن و بلیط پرواز بین‌المللی بگیر.",
-    pieceLabels: Object.fromEntries([P("renew_passport", "پاسپورت رو تمدید کن"), P("book_flights", "بلیط پرواز رو رزرو کن")]),
+    pieceLabels: Object.fromEntries([P("n1", "پاسپورت رو تمدید کن"), P("n2", "بلیط پرواز رو رزرو کن")]),
     suppliedWhole: { statement: "تا شش هفته‌ی دیگه آماده‌ی سفر خارجی باش.", doneWhen: "پاسپورت تمدید و بلیط رزرو شده باشه، قبل از سفر." },
     suppliedNodeLabels: Object.fromEntries([P("n1", "پاسپورت رو تمدید کن"), P("n2", "بلیط پرواز رو رزرو کن")]),
   },
@@ -546,10 +544,10 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
     itemId: "dc-p35",
     scenario: "اظهارنامه‌ی مالیاتی رو آماده و ارسال کن.",
     pieceLabels: Object.fromEntries([
-      P("gather_income_documents", "مدارک درآمد رو جمع کن"),
+      P("n1", "مدارک درآمد رو جمع کن"),
       P("claim_eligible_deductions", "کسورات قابل‌قبول رو اعلام کن"),
-      P("fill_out_the_forms", "فرم‌ها رو پر کن"),
-      P("submit_the_return", "اظهارنامه رو ارسال کن"),
+      P("n2", "فرم‌ها رو پر کن"),
+      P("n3", "اظهارنامه رو ارسال کن"),
     ]),
     suppliedWhole: { statement: "قبل از مهلت، اظهارنامه‌ی مالیاتی ارسال شده باشه.", doneWhen: "اظهارنامه ارسال و تأییدیه‌اش دریافت شده، قبل از مهلت." },
     suppliedNodeLabels: Object.fromEntries([
@@ -562,11 +560,11 @@ export const ITEM_SURFACES_FA: DecompositionItemSurface[] = [
     itemId: "dc-p36",
     scenario: "یه سفر مصاحبه‌ی کاری به شهر دیگه برنامه‌ریزی کن.",
     pieceLabels: Object.fromEntries([
-      P("book_flight", "بلیط پرواز رزرو کن"),
+      P("n1", "بلیط پرواز رزرو کن"),
       P("book_hotel", "هتل رزرو کن"),
       P("arrange_ground_transportation", "رفت‌وآمد از فرودگاه رو ردیف کن"),
-      P("print_resume_copies", "چند نسخه از رزومه پرینت بگیر"),
-      P("pick_interview_outfit", "لباس مصاحبه رو انتخاب کن"),
+      P("n2", "چند نسخه از رزومه پرینت بگیر"),
+      P("n3", "لباس مصاحبه رو انتخاب کن"),
     ]),
     suppliedWhole: { statement: "سر وقت و آماده به مصاحبه برس.", doneWhen: "سر وقت با همه‌چیز لازم برای مصاحبه رسیده باشی." },
     suppliedNodeLabels: Object.fromEntries([

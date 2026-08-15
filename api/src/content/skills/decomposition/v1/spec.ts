@@ -146,7 +146,16 @@ function breakdownItem(opts: {
   };
 }
 
-/** A supplied faulty breakdown with one seeded fault; the learner diagnoses, then fixes it. */
+/**
+ * A supplied faulty breakdown with one seeded fault; the learner diagnoses,
+ * then fixes it. Node identity survives the fix wherever the fault allows it
+ * to (overlap: merge away one of a pair; missing element: add one fresh piece
+ * alongside the untouched rest; inverted dependency: only the edges change) —
+ * that is what lets D3/D5/D6 score the fix by direct id match, the same way
+ * arrangement does, with no judge. Only `monolith`/`premature_split` break
+ * this — the fault *is* the granularity, so those two route through a
+ * node-count check instead (see `keyScoring.ts`).
+ */
 function repairItem(opts: {
   itemId: string;
   moduleKey: DecompositionModuleKey;
@@ -155,16 +164,22 @@ function repairItem(opts: {
   seededFault: FaultTag;
   suppliedTree: SuppliedNodeSpec[];
   required: RequiredPieceOpt[];
+  /** Piece ids that exist (e.g. a supplied node the fix should remove) but are never required. */
+  decoyIds?: string[];
+  overlapPairs?: [string, string][];
   blockingEdges?: [string, string][];
   independentPairs?: [string, string][];
   keyNote: string;
 }): DecompositionItemSpec {
-  const pieces: DecompositionPiece[] = opts.required.map((r) => ({
-    id: r.id,
-    intendedDepth: r.depth ?? 1,
-    atomic: r.atomic ?? false,
-    decoy: false,
-  }));
+  const pieces: DecompositionPiece[] = [
+    ...opts.required.map((r) => ({
+      id: r.id,
+      intendedDepth: r.depth ?? 1,
+      atomic: r.atomic ?? false,
+      decoy: false,
+    })),
+    ...(opts.decoyIds ?? []).map((id) => ({ id, intendedDepth: 1 as const, atomic: false, decoy: true })),
+  ];
   return {
     itemId: opts.itemId,
     moduleKey: opts.moduleKey,
@@ -175,7 +190,7 @@ function repairItem(opts: {
     key: {
       pieces,
       requiredPieceIds: opts.required.map((r) => r.id),
-      overlapPairs: [],
+      overlapPairs: opts.overlapPairs ?? [],
       blockingEdges: opts.blockingEdges ?? [],
       independentPairs: opts.independentPairs ?? [],
     },
@@ -186,10 +201,14 @@ function repairItem(opts: {
   };
 }
 
-const sn = (id: string, parentId: string | null = null, depth: 1 | 2 = 1): SuppliedNodeSpec => ({
+const sn = (
+  id: string,
+  opts: { parentId?: string | null; depth?: 1 | 2; dependsOn?: string[] } = {}
+): SuppliedNodeSpec => ({
   id,
-  parentId,
-  depth,
+  parentId: opts.parentId ?? null,
+  depth: opts.depth ?? 1,
+  ...(opts.dependsOn ? { dependsOn: opts.dependsOn } : {}),
 });
 
 export const ITEM_SPECS: DecompositionItemSpec[] = [
@@ -704,11 +723,16 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     formId: "pool",
     difficulty: 2,
     seededFault: "overlap",
+    // n1 survives (relabelled to cover both rooms and fragile items), n2 is
+    // the piece the fix should remove — node identity carries through the
+    // fix, so the overlap is checked by direct id match, not fuzzy text.
     suppliedTree: [sn("n1"), sn("n2"), sn("n3"), sn("n4")],
-    required: [{ id: "pack_belongings" }, { id: "book_moving_truck", atomic: true }, { id: "update_address_and_utilities", atomic: true }],
-    independentPairs: [["book_moving_truck", "update_address_and_utilities"]],
+    required: [{ id: "n1" }, { id: "n3", atomic: true }, { id: "n4", atomic: true }],
+    decoyIds: ["n2"],
+    overlapPairs: [["n1", "n2"]],
+    independentPairs: [["n3", "n4"]],
     keyNote:
-      "Supplied tree lists 'pack the kitchen' and 'pack fragile items' as separate pieces — the kitchen's glassware is fragile, so the two overlap. The fix factors packing into one piece.",
+      "Supplied tree lists 'pack the kitchen' (n1) and 'pack fragile items' (n2) as separate pieces — the kitchen's glassware is fragile, so the two overlap. The fix keeps n1 (relabelled to cover both) and removes n2.",
   }),
   repairItem({
     itemId: "dc-p18",
@@ -717,11 +741,13 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     difficulty: 2,
     seededFault: "overlap",
     suppliedTree: [sn("n1"), sn("n2"), sn("n3"), sn("n4")],
-    required: [{ id: "book_venue_and_confirm_headcount" }, { id: "arrange_catering" }, { id: "plan_agenda" }],
-    blockingEdges: [["book_venue_and_confirm_headcount", "arrange_catering"]],
-    independentPairs: [["arrange_catering", "plan_agenda"]],
+    required: [{ id: "n1" }, { id: "n3", atomic: true }, { id: "n4", atomic: true }],
+    decoyIds: ["n2"],
+    overlapPairs: [["n1", "n2"]],
+    blockingEdges: [["n1", "n3"]],
+    independentPairs: [["n3", "n4"]],
     keyNote:
-      "Supplied tree lists 'book the venue' and 'confirm headcount with the venue' separately — confirming headcount is part of booking, not a second piece.",
+      "Supplied tree lists 'book the venue' (n1) and 'confirm headcount with the venue' (n2) separately — confirming headcount is part of booking, not a second piece. The fix keeps n1 and removes n2.",
   }),
 
   // ── Practice pool: d4-size ───────────────────────────────────────────────
@@ -876,15 +902,17 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     formId: "pool",
     difficulty: 2,
     seededFault: "inverted_dependency",
-    suppliedTree: [sn("n1"), sn("n2"), sn("n3")],
-    required: [{ id: "buy_groceries" }, { id: "cook_the_meal" }, { id: "set_the_table", atomic: true }],
-    blockingEdges: [["buy_groceries", "cook_the_meal"]],
+    // n1 (buy groceries) is supplied depending on n3 (set the table) — backwards.
+    // The fix only reconnects edges; n1/n2/n3 keep their identity throughout.
+    suppliedTree: [sn("n1", { dependsOn: ["n3"] }), sn("n2"), sn("n3")],
+    required: [{ id: "n1" }, { id: "n2" }, { id: "n3", atomic: true }],
+    blockingEdges: [["n1", "n2"]],
     independentPairs: [
-      ["set_the_table", "buy_groceries"],
-      ["set_the_table", "cook_the_meal"],
+      ["n3", "n1"],
+      ["n3", "n2"],
     ],
     keyNote:
-      "Supplied tree marks 'set the table' as blocking 'buy the groceries' — backwards, and table-setting doesn't depend on either of the other two at all.",
+      "Supplied tree marks 'set the table' (n3) as blocking 'buy the groceries' (n1) — backwards, and table-setting doesn't depend on either of the other two at all.",
   }),
   repairItem({
     itemId: "dc-p30",
@@ -892,9 +920,10 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     formId: "pool",
     difficulty: 3,
     seededFault: "inverted_dependency",
+    // No dependsOn on either supplied node — the missing edge is the fault.
     suppliedTree: [sn("n1"), sn("n2")],
-    required: [{ id: "renew_passport" }, { id: "book_flights" }],
-    blockingEdges: [["renew_passport", "book_flights"]],
+    required: [{ id: "n1" }, { id: "n2" }],
+    blockingEdges: [["n1", "n2"]],
     keyNote: "Supplied tree marks the two pieces independent — no edge at all — when renewal genuinely gates booking a usable flight.",
   }),
 
@@ -958,19 +987,16 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     formId: "pool",
     difficulty: 2,
     seededFault: "missing_element",
+    // n1/n2/n3 survive unchanged; the fix adds one fresh piece for the
+    // missing element rather than renaming or merging anything supplied.
     suppliedTree: [sn("n1"), sn("n2"), sn("n3")],
-    required: [
-      { id: "gather_income_documents" },
-      { id: "claim_eligible_deductions" },
-      { id: "fill_out_the_forms" },
-      { id: "submit_the_return" },
-    ],
+    required: [{ id: "n1" }, { id: "claim_eligible_deductions" }, { id: "n2" }, { id: "n3" }],
     blockingEdges: [
-      ["gather_income_documents", "claim_eligible_deductions"],
-      ["gather_income_documents", "fill_out_the_forms"],
-      ["fill_out_the_forms", "submit_the_return"],
+      ["n1", "claim_eligible_deductions"],
+      ["n1", "n2"],
+      ["n2", "n3"],
     ],
-    keyNote: "Supplied tree has no piece for claiming deductions at all — present in neither name nor substance.",
+    keyNote: "Supplied tree (n1 gather docs, n2 fill forms, n3 submit) has no piece for claiming deductions at all — present in neither name nor substance. The fix adds it.",
   }),
   repairItem({
     itemId: "dc-p36",
@@ -978,17 +1004,19 @@ export const ITEM_SPECS: DecompositionItemSpec[] = [
     formId: "pool",
     difficulty: 2,
     seededFault: "missing_element",
+    // n1 book flight, n2 print resume, n3 pick outfit — survive unchanged;
+    // the fix adds the two missing pieces fresh.
     suppliedTree: [sn("n1"), sn("n2"), sn("n3")],
     required: [
-      { id: "book_flight" },
+      { id: "n1" },
       { id: "book_hotel" },
       { id: "arrange_ground_transportation" },
-      { id: "print_resume_copies", atomic: true },
-      { id: "pick_interview_outfit", atomic: true },
+      { id: "n2", atomic: true },
+      { id: "n3", atomic: true },
     ],
-    blockingEdges: [["book_flight", "book_hotel"]],
-    independentPairs: [["print_resume_copies", "pick_interview_outfit"]],
-    keyNote: "Supplied tree covers the flight and the interview prep but never mentions where the interviewee sleeps or how they get from the airport.",
+    blockingEdges: [["n1", "book_hotel"]],
+    independentPairs: [["n2", "n3"]],
+    keyNote: "Supplied tree (n1 flight, n2 resume copies, n3 outfit) never mentions where the interviewee sleeps or how they get from the airport. The fix adds both.",
   }),
 ];
 

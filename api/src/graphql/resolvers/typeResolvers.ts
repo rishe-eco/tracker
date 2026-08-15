@@ -306,6 +306,17 @@ export const typeResolvers = {
     mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
   },
 
+  DecompositionModule: {
+    masteredAt: (parent: any) =>
+      parent.masteredAt != null ? new Date(parent.masteredAt).toISOString() : null,
+    nextReviewAt: (parent: any) =>
+      parent.nextReviewAt != null ? new Date(parent.nextReviewAt).toISOString() : null,
+  },
+
+  DecompositionCriterionMean: {
+    mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
+  },
+
   SkillPlannedSession: {
     tbd: (parent: any) => new Date(parent.tbd).toISOString(),
   },

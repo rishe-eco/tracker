@@ -2,6 +2,7 @@ import { requireAuth } from "../auth";
 import { getTodayActions, getPreDayStatus, getNotDoneActionsForDate } from "../../services/todayPreDayAfterDay";
 import { getModules, getProgress } from "../../services/skills/evidenceSession";
 import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
+import { getDecompositionModules, getDecompositionProgress } from "../../services/skills/decomposition/decompositionSession";
 import { getPlan } from "../../services/skills/planning";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
 import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
@@ -282,16 +283,16 @@ export const queryResolvers = {
     return getProgress(ctx.prisma, ctx.user.id, ctx.locale);
   }),
 
-  // Union across every skill tool the user has modules for — not just Evidence.
-  // `SkillModule`'s fields (moduleKey, title, state, ...) are the same shape
-  // Clarity's modules already carry, so this is a plain merge, not a cast.
-  // Decomposition Lab joins this list once it has its own module reader.
+  // Union across every skill tool the user has modules for. `SkillModule`'s
+  // fields (moduleKey, title, state, ...) are the same shape Clarity's and
+  // Decomposition's modules already carry, so this is a plain merge, not a cast.
   skillDueReviews: requireAuth(async (_, __, ctx) => {
-    const [evidenceModules, clarityModules] = await Promise.all([
+    const [evidenceModules, clarityModules, decompositionModules] = await Promise.all([
       getModules(ctx.prisma, ctx.user.id, ctx.locale),
       getClarityModules(ctx.prisma, ctx.user.id, ctx.locale),
+      getDecompositionModules(ctx.prisma, ctx.user.id, ctx.locale),
     ]);
-    return [...evidenceModules, ...clarityModules].filter((m: any) => m.state === "due_review");
+    return [...evidenceModules, ...clarityModules, ...decompositionModules].filter((m: any) => m.state === "due_review");
   }),
 
   skillPlan: requireAuth(async (_, { skillKey }: any, ctx) => {
@@ -302,6 +303,10 @@ export const queryResolvers = {
   clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id, ctx.locale)),
 
   clarityProgress: requireAuth((_, __, ctx) => getClarityProgress(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  decompositionModules: requireAuth((_, __, ctx) => getDecompositionModules(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  decompositionProgress: requireAuth((_, __, ctx) => getDecompositionProgress(ctx.prisma, ctx.user.id, ctx.locale)),
 
   // `ctx.locale` is the language the request arrived in (Accept-Language), which
   // is what the authored content is served in. Not stored per user: see

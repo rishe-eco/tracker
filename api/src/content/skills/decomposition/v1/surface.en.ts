@@ -396,9 +396,10 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
     itemId: "dc-p17",
     scenario: "Move to a new apartment across town.",
     pieceLabels: Object.fromEntries([
-      P("pack_belongings", "Pack all belongings by room"),
-      P("book_moving_truck", "Book a moving truck"),
-      P("update_address_and_utilities", "Update your address and utilities"),
+      P("n1", "Pack all belongings by room"),
+      P("n2", "Pack fragile items"),
+      P("n3", "Book a moving truck"),
+      P("n4", "Update your address and utilities"),
     ]),
     suppliedWhole: { statement: "Move everything to the new apartment by the 1st.", doneWhen: "All belongings and utilities are transferred by the 1st." },
     suppliedNodeLabels: Object.fromEntries([
@@ -412,9 +413,10 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
     itemId: "dc-p18",
     scenario: "Plan a two-day company off-site retreat.",
     pieceLabels: Object.fromEntries([
-      P("book_venue_and_confirm_headcount", "Book the venue and confirm headcount"),
-      P("arrange_catering", "Arrange catering"),
-      P("plan_agenda", "Plan the agenda"),
+      P("n1", "Book the venue and confirm headcount"),
+      P("n2", "Confirm headcount with the venue"),
+      P("n3", "Arrange catering"),
+      P("n4", "Plan the agenda"),
     ]),
     suppliedWhole: { statement: "Organize the two-day off-site for the team.", doneWhen: "Venue, food, and agenda are locked in before the retreat date." },
     suppliedNodeLabels: Object.fromEntries([
@@ -511,11 +513,7 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
   {
     itemId: "dc-p29",
     scenario: "Host a dinner party.",
-    pieceLabels: Object.fromEntries([
-      P("buy_groceries", "Buy the groceries"),
-      P("cook_the_meal", "Cook the meal"),
-      P("set_the_table", "Set the table"),
-    ]),
+    pieceLabels: Object.fromEntries([P("n1", "Buy the groceries"), P("n2", "Cook the meal"), P("n3", "Set the table")]),
     suppliedWhole: { statement: "Have the dinner ready when guests arrive at 7.", doneWhen: "Food served and table set by 7." },
     suppliedNodeLabels: Object.fromEntries([
       P("n1", "Buy the groceries"),
@@ -526,7 +524,7 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
   {
     itemId: "dc-p30",
     scenario: "Renew a passport and book an international flight.",
-    pieceLabels: Object.fromEntries([P("renew_passport", "Renew the passport"), P("book_flights", "Book the flights")]),
+    pieceLabels: Object.fromEntries([P("n1", "Renew the passport"), P("n2", "Book the flights")]),
     suppliedWhole: { statement: "Be ready to travel internationally in 6 weeks.", doneWhen: "Passport renewed and flights booked before the trip." },
     suppliedNodeLabels: Object.fromEntries([P("n1", "Renew the passport"), P("n2", "Book the flights")]),
   },
@@ -562,10 +560,10 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
     itemId: "dc-p35",
     scenario: "Prepare and file a tax return.",
     pieceLabels: Object.fromEntries([
-      P("gather_income_documents", "Gather income documents"),
+      P("n1", "Gather income documents"),
       P("claim_eligible_deductions", "Claim eligible deductions"),
-      P("fill_out_the_forms", "Fill out the forms"),
-      P("submit_the_return", "Submit the return"),
+      P("n2", "Fill out the forms"),
+      P("n3", "Submit the return"),
     ]),
     suppliedWhole: { statement: "Get the tax return filed before the deadline.", doneWhen: "Return filed and confirmation received before the deadline." },
     suppliedNodeLabels: Object.fromEntries([
@@ -578,11 +576,11 @@ export const ITEM_SURFACES_EN: DecompositionItemSurface[] = [
     itemId: "dc-p36",
     scenario: "Plan an out-of-town job interview trip.",
     pieceLabels: Object.fromEntries([
-      P("book_flight", "Book a flight"),
+      P("n1", "Book a flight"),
       P("book_hotel", "Book a hotel"),
       P("arrange_ground_transportation", "Arrange transportation from the airport"),
-      P("print_resume_copies", "Print copies of your resume"),
-      P("pick_interview_outfit", "Pick out interview clothes"),
+      P("n2", "Print copies of your resume"),
+      P("n3", "Pick out interview clothes"),
     ]),
     suppliedWhole: { statement: "Be at the interview on time, prepared.", doneWhen: "Arrive on time with everything needed for the interview." },
     suppliedNodeLabels: Object.fromEntries([
