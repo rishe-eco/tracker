@@ -39,6 +39,7 @@ import { evaluateMastery, type MasteryGap, type ScoredAttempt } from "./mastery"
 import { onReviewFailed, onReviewPassed, scheduleOnMastery, toDayKey } from "./scheduler";
 import { ensureProfile } from "./profile";
 import { scheduleReviewAction } from "./planning";
+import { loadServingProbe } from "./probes";
 
 export type SkillMode = "assessment" | "module" | "review" | "calibrated_practice" | "open_practice";
 
@@ -88,14 +89,26 @@ export async function serveItem(
   userId: string,
   mode: SkillMode,
   moduleKey: EvidenceModuleKey | null,
-  locale: Locale
+  locale: Locale,
+  /** Assessment mode only — which probe this served item belongs to. */
+  probeId?: string | null
 ): Promise<ServedItem | null> {
   const profile = await ensureProfile(prisma, userId, locale);
   const pack = getEvidencePack(profile.contentVersion, locale);
 
+  // The form comes from the probe row, not the caller: baseline/post/delayed
+  // each get a different physical form (probes.ts's rotation), so "assessment"
+  // no longer means "form A" unconditionally the way it did before probes
+  // existed.
+  let formId: "A" | "B" | "C" = "A";
   if (mode === "assessment") {
     const readiness = probeReadiness();
     if (!readiness.ready) throw new ProbeNotReadyError(readiness.blockers);
+    if (!probeId) {
+      throw new Error("An assessment item must be served inside a probe — call startSkillProbe first.");
+    }
+    const probe = await loadServingProbe(prisma, userId, SKILL, probeId);
+    formId = probe.formId as "A" | "B" | "C";
   }
 
   const seen = await prisma.skillAttempt.findMany({
@@ -106,7 +119,7 @@ export async function serveItem(
 
   const candidates = pack.items.filter((item) => {
     if (seenIds.has(item.itemId)) return false;
-    if (mode === "assessment") return item.formId === "A";
+    if (mode === "assessment") return item.formId === formId;
     // Probe-pool items never appear in practice: an item seen in a drill is
     // spent for measurement.
     if (item.formId !== "pool") return false;
@@ -130,6 +143,7 @@ export async function serveItem(
       itemId: chosen.itemId,
       formId: chosen.formId,
       mode: mode as any,
+      probeId: mode === "assessment" ? probeId : null,
       scores: "{}",
       contentVersion: profile.contentVersion,
       scoredBy: "behavior",

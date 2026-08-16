@@ -1,3 +1,5 @@
+import { listSkillProbes, probeReadinessFor } from "../../services/skills/probes";
+
 export const typeResolvers = {
   Note: {
     createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
@@ -326,6 +328,33 @@ export const typeResolvers = {
     // sub-millisecond precision means nothing here anyway.
     medianTimeToFirstCheckMs: (parent: any) =>
       parent.medianTimeToFirstCheckMs != null ? Math.round(parent.medianTimeToFirstCheckMs) : null,
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "evidence", ctx.locale),
+  },
+
+  ClarityProgress: {
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "clarity", ctx.locale),
+    probeReady: () => probeReadinessFor("clarity").ready,
+    probeBlockers: () => probeReadinessFor("clarity").blockers,
+  },
+
+  DecompositionProgress: {
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "decomposition", ctx.locale),
+    probeReady: () => probeReadinessFor("decomposition").ready,
+    probeBlockers: () => probeReadinessFor("decomposition").blockers,
+  },
+
+  SkillProbeEntry: {
+    scheduledFor: (parent: any) => (parent.scheduledFor != null ? new Date(parent.scheduledFor).toISOString() : null),
+    startedAt: (parent: any) => (parent.startedAt != null ? new Date(parent.startedAt).toISOString() : null),
+    completedAt: (parent: any) => (parent.completedAt != null ? new Date(parent.completedAt).toISOString() : null),
+  },
+
+  SkillProbeDue: {
+    scheduledFor: (parent: any) => (parent.scheduledFor != null ? new Date(parent.scheduledFor).toISOString() : null),
+  },
+
+  SkillProbeCompleteResult: {
+    completedAt: (parent: any) => new Date(parent.completedAt).toISOString(),
   },
 
   /**

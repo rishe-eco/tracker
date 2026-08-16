@@ -16,6 +16,20 @@ export const DELAYED_PROBE_DELAY_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Deterministic non-negative hash of a seed string. Shared by `jitterDays`
+ * (review-date spread) and the probe form-rotation offset (`probes.ts`) — both
+ * need "the same seed always lands the same way" rather than a true RNG, so
+ * tests don't need a clock or a seedable random source.
+ */
+export function hashSeed(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
  * Deterministic ±1 day spread, seeded by module and user.
  *
  * Without it, a learner who does six modules in one sitting gets six reviews due
@@ -24,11 +38,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * tests don't need a clock or a seedable RNG.
  */
 export function jitterDays(seed: string): -1 | 0 | 1 {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return ((Math.abs(hash) % 3) - 1) as -1 | 0 | 1;
+  return ((hashSeed(seed) % 3) - 1) as -1 | 0 | 1;
 }
 
 /**

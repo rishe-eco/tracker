@@ -19,12 +19,14 @@ import InternalPageLayout from "~/layout/InternalPageLayout";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import {
+  COMPLETE_SKILL_PROBE,
   LOG_SKILL_CHECK_EVENT,
   START_SKILL_ITEM,
   SUBMIT_SKILL_ATTEMPT,
 } from "~/api/queries";
 import MasteryGapList, { type MasteryGap } from "./MasteryGapList";
 import RichText from "./RichText";
+import SkillSelfReportForm from "./SkillSelfReportForm";
 
 const VERDICTS = [
   "supported",
@@ -86,11 +88,15 @@ export default function EvidenceDrillPage() {
 
   const mode = params.get("mode") ?? "calibrated_practice";
   const moduleKey = params.get("module") ?? undefined;
+  const probeId = params.get("probeId") ?? undefined;
+  const timepoint = params.get("timepoint") ?? undefined;
+  const isProbe = mode === "assessment" && Boolean(probeId) && Boolean(timepoint);
 
   const [served, setServed] = useState<ServedItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [probeDone, setProbeDone] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [sources, setSources] = useState<{ url: string; snippet?: string }[]>([]);
@@ -121,7 +127,7 @@ export default function EvidenceDrillPage() {
 
     const data = await call({
       query: START_SKILL_ITEM,
-      variables: { skillKey: "evidence", mode, moduleKey },
+      variables: { skillKey: "evidence", mode, moduleKey, probeId },
     });
 
     if (!data) {
@@ -138,7 +144,7 @@ export default function EvidenceDrillPage() {
     startedAt.current = Date.now();
     setElapsed(0);
     setLoading(false);
-  }, [call, mode, moduleKey, t]);
+  }, [call, mode, moduleKey, probeId, t]);
 
   useEffect(() => {
     void loadItem();
@@ -224,9 +230,40 @@ export default function EvidenceDrillPage() {
     await logEvent("revealed");
   };
 
+  const completeProbe = async (selfReport: number[]) => {
+    if (!timepoint) return;
+    setSubmitting(true);
+    const data = await call({
+      query: COMPLETE_SKILL_PROBE,
+      variables: { skillKey: "evidence", timepoint, selfReport },
+    });
+    setSubmitting(false);
+    if (!data?.completeSkillProbe) return setError(t("skills.probe.errors.couldNotComplete"));
+    setProbeDone(true);
+  };
+
   if (loading) return <LoadingBlock />;
 
   if (exhausted) {
+    if (isProbe) {
+      if (probeDone) {
+        return (
+          <InternalPageLayout title={t("skills.evidence.title")}>
+            <div className="space-y-4 rounded-lg border-2 border-primary/40 bg-card p-6">
+              <h2 className="text-lg font-semibold">{t("skills.probe.completeTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("skills.probe.completeBody")}</p>
+              <Button onClick={() => navigate("/tools/skills/evidence")}>{t("skills.probe.backToLab")}</Button>
+            </div>
+          </InternalPageLayout>
+        );
+      }
+      return (
+        <InternalPageLayout title={t("skills.evidence.title")}>
+          {error && <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
+          <SkillSelfReportForm onSubmit={(values) => void completeProbe(values)} busy={submitting} />
+        </InternalPageLayout>
+      );
+    }
     return (
       <InternalPageLayout title={t("skills.evidence.title")}>
         <div className="space-y-4 rounded-lg border bg-card p-6">

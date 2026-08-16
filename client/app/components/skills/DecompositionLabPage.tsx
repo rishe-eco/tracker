@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_DECOMPOSITION_MODULES, GET_DECOMPOSITION_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import DecompositionRubricRail from "./DecompositionRubricRail";
+import SkillProbeBanner from "./SkillProbeBanner";
 
 type DecompositionModule = {
   moduleKey: string;
@@ -32,6 +33,8 @@ type DecompositionProgress = {
   criterionMeans: CriterionMean[];
   breadthFirstIndexTrend: number[];
   granularityDiscrimination: number | null;
+  probeReady: boolean;
+  probeBlockers: string[];
 };
 
 export default function DecompositionLabPage() {
@@ -107,10 +110,15 @@ export default function DecompositionLabPage() {
 
         {progress.reviewStatus === "draft" && <Banner tone="info" text={t("skills.banners.draftLocale")} />}
 
-        {!progress.hasBaseline && (
-          <Banner
-            tone="info"
-            text={progress.assessmentSkipped ? t("skills.banners.baselineSkipped") : t("decomposition.banners.noBaseline")}
+        {!progress.probeReady ? (
+          <Banner tone="warn" text={t("skills.banners.probeBlocked", { count: progress.probeBlockers.length })} />
+        ) : (
+          <SkillProbeBanner
+            skillKey="decomposition"
+            sessionRoute="/tools/skills/decomposition/session"
+            hasBaseline={progress.hasBaseline}
+            assessmentSkipped={progress.assessmentSkipped}
+            onSkipped={() => void load()}
           />
         )}
 

@@ -8,6 +8,7 @@ import InternalPageLayout from "~/layout/InternalPageLayout";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import {
+  COMPLETE_SKILL_PROBE,
   GET_CLARITY_PROGRESS,
   LOCK_CLARITY_DIAGNOSIS,
   LOCK_CLARITY_PREDICTION,
@@ -18,6 +19,7 @@ import {
 import RichText from "./RichText";
 import MasteryGapList, { type MasteryGap } from "./MasteryGapList";
 import RubricRail, { CRITERIA, type CriterionScore } from "./RubricRail";
+import SkillSelfReportForm from "./SkillSelfReportForm";
 
 type ClarityItem = {
   itemId: string;
@@ -96,7 +98,10 @@ export default function ClaritySessionPage() {
   const { call } = useApi();
 
   const moduleKey = params.get("module") ?? undefined;
-  const mode = moduleKey ? "module" : "calibrated_practice";
+  const probeId = params.get("probeId") ?? undefined;
+  const timepoint = params.get("timepoint") ?? undefined;
+  const isProbe = params.get("mode") === "assessment" && Boolean(probeId) && Boolean(timepoint);
+  const mode = isProbe ? "assessment" : moduleKey ? "module" : "calibrated_practice";
 
   const [served, setServed] = useState<Served | null>(null);
   const [stage, setStage] = useState<Stage>("write");
@@ -104,6 +109,7 @@ export default function ClaritySessionPage() {
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [probeDone, setProbeDone] = useState(false);
 
   const [text, setText] = useState("");
   const [prediction, setPrediction] = useState("");
@@ -127,7 +133,7 @@ export default function ClaritySessionPage() {
     reset();
 
     const [data, progress] = await Promise.all([
-      call({ query: START_CLARITY_ITEM, variables: { mode, moduleKey } }),
+      call({ query: START_CLARITY_ITEM, variables: { mode, moduleKey, probeId } }),
       call({ query: GET_CLARITY_PROGRESS }),
     ]);
 
@@ -149,7 +155,7 @@ export default function ClaritySessionPage() {
     setServed(next);
     setStage(firstStage(next.item, false));
     setLoading(false);
-  }, [call, mode, moduleKey, t]);
+  }, [call, mode, moduleKey, probeId, t]);
 
   useEffect(() => {
     void loadItem();
@@ -224,9 +230,40 @@ export default function ClaritySessionPage() {
     setStage("write");
   };
 
+  const completeProbe = async (selfReport: number[]) => {
+    if (!timepoint) return;
+    setBusy(true);
+    const data = await call({
+      query: COMPLETE_SKILL_PROBE,
+      variables: { skillKey: "clarity", timepoint, selfReport },
+    });
+    setBusy(false);
+    if (!data?.completeSkillProbe) return setError(t("skills.probe.errors.couldNotComplete"));
+    setProbeDone(true);
+  };
+
   if (loading) return <LoadingBlock />;
 
   if (exhausted) {
+    if (isProbe) {
+      if (probeDone) {
+        return (
+          <InternalPageLayout title={t("clarity.title")}>
+            <div className="space-y-4 rounded-lg border-2 border-primary/40 bg-card p-6">
+              <h2 className="text-lg font-semibold">{t("skills.probe.completeTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("skills.probe.completeBody")}</p>
+              <Button onClick={() => navigate("/tools/skills/clarity")}>{t("skills.probe.backToLab")}</Button>
+            </div>
+          </InternalPageLayout>
+        );
+      }
+      return (
+        <InternalPageLayout title={t("clarity.title")}>
+          {error && <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
+          <SkillSelfReportForm onSubmit={(values) => void completeProbe(values)} busy={busy} />
+        </InternalPageLayout>
+      );
+    }
     return (
       <InternalPageLayout title={t("clarity.title")}>
         <div className="space-y-4 rounded-lg border bg-card p-6">

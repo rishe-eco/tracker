@@ -29,6 +29,7 @@ import {
   DEFAULT_SESSIONS_PER_WEEK,
   DEFAULT_TIME_OF_DAY,
 } from "../../services/skills/planning";
+import { completeSkillProbe, startSkillProbe } from "../../services/skills/probes";
 import {
   acknowledgeGraduation,
   addPass,
@@ -1047,9 +1048,9 @@ function assertEvidenceSkill(skillKey: string) {
   }
 }
 
-mutations.startSkillItem = requireAuth(async (_, { skillKey, mode, moduleKey }: any, ctx) => {
+mutations.startSkillItem = requireAuth(async (_, { skillKey, mode, moduleKey, probeId }: any, ctx) => {
   assertEvidenceSkill(skillKey);
-  return serveItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale);
+  return serveItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null);
 });
 
 mutations.logSkillCheckEvent = requireAuth(async (_, { attemptId, kind, payload }: any, ctx) =>
@@ -1072,11 +1073,16 @@ mutations.submitSkillAttempt = requireAuth(
   }
 );
 
+// Not evidence-gated: skipping the baseline is the same no-op-if-nothing-to-
+// invalidate operation for every skill (unlike startSkillItem, which is
+// Evidence's own serving path), and building three copies of this later would
+// be silly. Fixed in the same change: this previously called ensureProfile
+// with no skillKey (defaulting to "evidence") and then hardcoded "evidence" in
+// the update, so passing any other skillKey would have updated the wrong row.
 mutations.skipSkillAssessment = requireAuth(async (_, { skillKey }: any, ctx) => {
-  assertEvidenceSkill(skillKey);
-  await ensureProfile(ctx.prisma, ctx.user.id, ctx.locale);
+  await ensureProfile(ctx.prisma, ctx.user.id, ctx.locale, skillKey);
   await ctx.prisma.skillProfile.update({
-    where: { userId_skillKey: { userId: ctx.user.id, skillKey: "evidence" } },
+    where: { userId_skillKey: { userId: ctx.user.id, skillKey } },
     data: { assessmentSkipped: true },
   });
   return true;
@@ -1089,8 +1095,8 @@ mutations.skipSkillAssessment = requireAuth(async (_, { skillKey }: any, ctx) =>
 // service, because they are rules about the attempt rather than about the
 // request.
 
-mutations.startClarityItem = requireAuth(async (_, { mode, moduleKey }: any, ctx) =>
-  serveClarityItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale)
+mutations.startClarityItem = requireAuth(async (_, { mode, moduleKey, probeId }: any, ctx) =>
+  serveClarityItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null)
 );
 
 mutations.lockClarityPrediction = requireAuth(async (_, { attemptId, prediction }: any, ctx) => {
@@ -1128,8 +1134,8 @@ mutations.startClarityRevision = requireAuth(async (_, { attemptId }: any, ctx) 
 // are stricter — whole-before-any-piece as well as diagnose-before-scores —
 // because D1 and D2 are measured *from* that ordering, not just gated by it.
 
-mutations.startDecompositionItem = requireAuth(async (_, { mode, moduleKey }: any, ctx) =>
-  serveDecompositionItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale)
+mutations.startDecompositionItem = requireAuth(async (_, { mode, moduleKey, probeId }: any, ctx) =>
+  serveDecompositionItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null)
 );
 
 mutations.lockDecompositionWhole = requireAuth(async (_, { attemptId, statement, doneWhen }: any, ctx) => {
@@ -1188,6 +1194,20 @@ mutations.clearSkillSchedule = requireAuth(async (_, { skillKey }: any, ctx) => 
   assertEvidenceSkill(skillKey);
   return clearPlan(ctx.prisma, ctx.user.id, "evidence");
 });
+
+// ── Skill probes (baseline / post / delayed) ─────────────────────────────────
+// Shared across all three tools — see probes.ts's header note. Unlike the
+// legacy startSkillItem/skipSkillAssessment/planSkillSchedule/clearSkillSchedule
+// above, these are not gated to evidence-only: they were built after Clarity
+// and Decomposition already existed, so they take every skillKey from day one.
+
+mutations.startSkillProbe = requireAuth(async (_, { skillKey, timepoint }: any, ctx) =>
+  startSkillProbe(ctx.prisma, ctx.user.id, skillKey, timepoint, ctx.locale)
+);
+
+mutations.completeSkillProbe = requireAuth(async (_, { skillKey, timepoint, selfReport }: any, ctx) =>
+  completeSkillProbe(ctx.prisma, ctx.user.id, skillKey, timepoint, selfReport, ctx.locale)
+);
 
 // ─── Feelings & Needs: the daily loop ────────────────────────────────────────
 // Each step commits on its own (convention #8). Every one of these returns the

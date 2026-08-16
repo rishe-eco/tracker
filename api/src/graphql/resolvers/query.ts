@@ -4,6 +4,7 @@ import { getModules, getProgress } from "../../services/skills/evidenceSession";
 import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
 import { getDecompositionModules, getDecompositionProgress } from "../../services/skills/decomposition/decompositionSession";
 import { getPlan } from "../../services/skills/planning";
+import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
 import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
 
@@ -299,6 +300,19 @@ export const queryResolvers = {
     assertEvidence(skillKey);
     return getPlan(ctx.prisma, ctx.user.id, "evidence");
   }),
+
+  // Skill probes — not gated to evidence-only. Built after Clarity and
+  // Decomposition already existed, so unlike the legacy fields above these
+  // take every skillKey from day one.
+  skillProbe: requireAuth((_, { skillKey, timepoint }: any, ctx) =>
+    getSkillProbe(ctx.prisma, ctx.user.id, skillKey, timepoint, ctx.locale)
+  ),
+
+  dueSkillProbes: requireAuth((_, __, ctx) => getDueSkillProbes(ctx.prisma, ctx.user.id)),
+
+  skillExport: requireAuth((_, { skillKey }: any, ctx) =>
+    exportSkillData(ctx.prisma, ctx.user.id, skillKey, ctx.locale)
+  ),
 
   clarityModules: requireAuth((_, __, ctx) => getClarityModules(ctx.prisma, ctx.user.id, ctx.locale)),
 

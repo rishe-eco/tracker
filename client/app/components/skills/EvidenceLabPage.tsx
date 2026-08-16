@@ -20,6 +20,7 @@ import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_SKILL_MODULES, GET_SKILL_PROGRESS } from "~/api/queries";
 import SkillPlanPanel from "./SkillPlanPanel";
+import SkillProbeBanner from "./SkillProbeBanner";
 import RichText from "./RichText";
 
 type SkillModule = {
@@ -142,21 +143,18 @@ export default function EvidenceLabPage() {
           <Banner tone="info" text={t("skills.banners.draftLocale")} />
         )}
 
-        {!progress.probeReady && (
+        {!progress.probeReady ? (
           <Banner
             tone="warn"
             text={t("skills.banners.probeBlocked", { count: progress.probeBlockers.length })}
           />
-        )}
-
-        {!progress.hasBaseline && (
-          <Banner
-            tone="info"
-            text={
-              progress.assessmentSkipped
-                ? t("skills.banners.baselineSkipped")
-                : t("skills.banners.noBaseline")
-            }
+        ) : (
+          <SkillProbeBanner
+            skillKey="evidence"
+            sessionRoute="/tools/skills/evidence/drill"
+            hasBaseline={progress.hasBaseline}
+            assessmentSkipped={progress.assessmentSkipped}
+            onSkipped={() => void load()}
           />
         )}
 

@@ -58,6 +58,7 @@ import { detectorCriteriaFor } from "../../../content/skills/clarity/v1/rubric";
 import { isOfflineCapable } from "../../../content/skills/clarity/validate";
 import { ensureProfile } from "../profile";
 import { scheduleOnMastery, toDayKey } from "../scheduler";
+import { loadServingProbe } from "../probes";
 import { isVoid, runDetectors } from "./detectors";
 import { createAnthropicJudge } from "./anthropicJudge";
 import { calibrationStatus, scoreCriteria } from "./judge";
@@ -128,9 +129,22 @@ export async function serveClarityItem(
   userId: string,
   mode: ClarityMode,
   moduleKey: ClarityModuleKey | null,
-  locale: Locale
+  locale: Locale,
+  /** Assessment mode only — which probe this served item belongs to. */
+  probeId?: string | null
 ): Promise<ServedClarityItem | null> {
   const { profile, pack } = await loadPack(prisma, userId, locale);
+
+  // The form comes from the probe row, not the caller — see the matching note
+  // in evidenceSession.ts's serveItem.
+  let formId: "A" | "B" | "C" = "A";
+  if (mode === "assessment") {
+    if (!probeId) {
+      throw new ClaritySequenceError("An assessment item must be served inside a probe — call startSkillProbe first.");
+    }
+    const probe = await loadServingProbe(prisma, userId, SKILL, probeId);
+    formId = probe.formId as "A" | "B" | "C";
+  }
 
   const seen = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL },
@@ -140,7 +154,7 @@ export async function serveClarityItem(
 
   const candidates = pack.items.filter((item) => {
     if (seenIds.has(item.itemId)) return false;
-    if (mode === "assessment") return item.formId === "A";
+    if (mode === "assessment") return item.formId === formId;
     if (item.formId !== "pool") return false;
     // Without a reader an elicitation item cannot be completed, so it is not a
     // candidate. Serving one and failing at the reveal would be worse than
@@ -164,6 +178,7 @@ export async function serveClarityItem(
       itemId: chosen.itemId,
       formId: chosen.formId,
       mode: mode as any,
+      probeId: mode === "assessment" ? probeId : null,
       scores: "{}",
       contentVersion: profile.contentVersion,
       rubricVersion: RUBRIC_VERSION,

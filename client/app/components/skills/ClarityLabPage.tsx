@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_CLARITY_MODULES, GET_CLARITY_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import RubricRail, { CRITERIA } from "./RubricRail";
+import SkillProbeBanner from "./SkillProbeBanner";
 
 type ClarityModule = {
   moduleKey: string;
@@ -37,6 +38,8 @@ type ClarityProgress = {
   criterionMeans: CriterionMean[];
   revisionDeltas: number[];
   meanDelta: number | null;
+  probeReady: boolean;
+  probeBlockers: string[];
 };
 
 export default function ClarityLabPage() {
@@ -127,14 +130,18 @@ export default function ClarityLabPage() {
           <Banner tone="info" text={t("clarity.banners.uncalibrated")} />
         )}
 
-        {!progress.hasBaseline && (
+        {!progress.probeReady ? (
           <Banner
-            tone="info"
-            text={
-              progress.assessmentSkipped
-                ? t("skills.banners.baselineSkipped")
-                : t("clarity.banners.noBaseline")
-            }
+            tone="warn"
+            text={t("skills.banners.probeBlocked", { count: progress.probeBlockers.length })}
+          />
+        ) : (
+          <SkillProbeBanner
+            skillKey="clarity"
+            sessionRoute="/tools/skills/clarity/session"
+            hasBaseline={progress.hasBaseline}
+            assessmentSkipped={progress.assessmentSkipped}
+            onSkipped={() => void load()}
           />
         )}
 

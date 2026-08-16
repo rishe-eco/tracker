@@ -288,6 +288,13 @@ export const typeDefs = gql`
     open_practice
   }
 
+  "Three timepoints per skill: baseline (form A), post (form B), delayed (form C) — offset per user so forms don't always land on the same timepoint for everyone."
+  enum SkillTimepoint {
+    baseline
+    post
+    delayed
+  }
+
   "A fixed verdict set, shared by every item so the options never narrow the answer."
   enum SkillVerdict {
     supported
@@ -392,6 +399,65 @@ export const typeDefs = gql`
     "Future, not-yet-done sessions replaced by this plan. Past and completed sessions are never touched."
     removed: Int!
     warnings: [String!]!
+  }
+
+  # ── Skill probes (baseline / post / delayed) ─────────────────────────────
+  #
+  # Shared across all three tools on purpose (build plan 03b §3 Phase 5):
+  # Evidence and Clarity inherit this the same way Decomposition does. The
+  # container (which form, whether it's complete, comparability, the delayed
+  # schedule, self-report) is uniform; only a single item's own score keeps
+  # its own per-tool type, unaffected by any of this.
+
+  type SkillProbeStart {
+    probeId: ID!
+    timepoint: SkillTimepoint!
+    "A, B, or C — assigned once per (user, skill, timepoint) and never reassigned."
+    formId: String!
+    "True when this probe was already open and is being resumed rather than started fresh."
+    resuming: Boolean!
+    "True when this timepoint was already completed — nothing more to do, no items served."
+    alreadyCompleted: Boolean!
+  }
+
+  type SkillProbeCompleteResult {
+    probeId: ID!
+    timepoint: SkillTimepoint!
+    formId: String!
+    itemCount: Int!
+    "JSON — shape differs by skill (behavioural composite for Evidence, per-criterion means for Clarity/Decomposition), parsed client-side like responseStructure."
+    totals: String!
+    completedAt: String!
+  }
+
+  type SkillProbeEntry {
+    timepoint: SkillTimepoint!
+    formId: String!
+    scheduledFor: String
+    startedAt: String
+    completedAt: String
+    contentVersion: String!
+    rubricVersion: String
+    "Null until completed. JSON, per-skill shape — see SkillProbeCompleteResult.totals."
+    totals: String
+    "JSON array of the 4 self-efficacy answers. Collected, never scored, never folded into totals."
+    selfReport: String
+    "False when this probe's content or rubric version differs from what the learner is currently pinned to — chart a break here, never pool across it."
+    comparable: Boolean!
+  }
+
+  type SkillProbeDue {
+    skillKey: SkillKey!
+    timepoint: SkillTimepoint!
+    "Delayed only — when it became due. Null for post, which is due as soon as it's eligible."
+    scheduledFor: String
+  }
+
+  type SkillExportResult {
+    "The learner's full attempt and probe history for this skill."
+    json: String!
+    "The same data, as a short human-readable summary."
+    markdown: String!
   }
 
   # ── Clarity Lab ───────────────────────────────────────────────────────────
@@ -538,6 +604,11 @@ export const typeDefs = gql`
     criterionMeans: [ClarityCriterionMean!]!
     revisionDeltas: [Int!]!
     meanDelta: Float
+    "False until every probe item's key has been human-verified. startSkillProbe rejects until this is true."
+    probeReady: Boolean!
+    probeBlockers: [String!]!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
   }
 
   type SkillProgress {
@@ -565,6 +636,8 @@ export const typeDefs = gql`
     medianTimeToFirstCheckMs: Int
     overTrustRate: Float!
     accuracyRate: Float!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
   }
 
   # ── Decomposition Lab ────────────────────────────────────────────────────
@@ -732,6 +805,11 @@ export const typeDefs = gql`
     breadthFirstIndexTrend: [Float!]!
     "(D4 level-2 rate on decomposable items) minus (over-decomposition rate on control items). Null with no comparison yet."
     granularityDiscrimination: Float
+    "False until every probe item's key has been human-verified. startSkillProbe rejects until this is true."
+    probeReady: Boolean!
+    probeBlockers: [String!]!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
   }
 
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
@@ -1000,6 +1078,18 @@ export const typeDefs = gql`
     "Module sittings currently on the calendar, past and future."
     skillPlan(skillKey: SkillKey!): [SkillPlannedSession!]!
 
+    "A single timepoint's probe, if it has been started. Null before the first startSkillProbe for it."
+    skillProbe(skillKey: SkillKey!, timepoint: SkillTimepoint!): SkillProbeEntry
+    """
+    Probes ready to be started or resumed right now, across every skill tool:
+    a post probe once all six modules are mastered/tested-out, or a delayed
+    probe whose 7-day schedule has come due. Never a not-yet-due delayed probe
+    — that stays invisible the same way an undue review does.
+    """
+    dueSkillProbes: [SkillProbeDue!]!
+    "The learner's full attempt/probe history for one skill, as JSON and as a markdown summary."
+    skillExport(skillKey: SkillKey!): SkillExportResult!
+
     "Clarity Lab: the six modules, each with the rubric criterion it trains."
     clarityModules: [ClarityModule!]!
     "Clarity Lab: per-criterion trend, revision deltas, and what is scoreable in this install."
@@ -1202,7 +1292,7 @@ export const typeDefs = gql`
     the ordering of check-versus-verdict is the measurement and must not be a
     number the client asserts afterwards. Returns null when the pool is spent.
     """
-    startSkillItem(skillKey: SkillKey!, mode: SkillMode!, moduleKey: String): SkillServedItem
+    startSkillItem(skillKey: SkillKey!, mode: SkillMode!, moduleKey: String, probeId: ID): SkillServedItem
 
     "Record a check event against an open attempt. Offsets are measured server-side."
     logSkillCheckEvent(attemptId: ID!, kind: String!, payload: String): Boolean!
@@ -1226,7 +1316,7 @@ export const typeDefs = gql`
     one, and serving an item that dead-ends at the reveal is worse than serving
     fewer. Returns null when the pool is spent.
     """
-    startClarityItem(mode: SkillMode!, moduleKey: String): ClarityServedItem
+    startClarityItem(mode: SkillMode!, moduleKey: String, probeId: ID): ClarityServedItem
 
     """
     Commit what the learner expects the reader to produce, before seeing it.
@@ -1258,7 +1348,7 @@ export const typeDefs = gql`
     elicitation items, nothing here is withheld for running offline. Returns
     null when the pool is spent.
     """
-    startDecompositionItem(mode: SkillMode!, moduleKey: String): DecompositionServedItem
+    startDecompositionItem(mode: SkillMode!, moduleKey: String, probeId: ID): DecompositionServedItem
 
     """
     Commit the whole, before any piece exists. Rejected if a piece already
@@ -1297,6 +1387,22 @@ export const typeDefs = gql`
 
     "Remove future planned sittings and stop generating them. Completed ones stay."
     clearSkillSchedule(skillKey: SkillKey!): Int!
+
+    """
+    Open (or resume) a probe for one timepoint. The delayed timepoint cannot be
+    started directly — it is scheduled automatically when the post probe
+    completes, and this rejects with a sequence error until then.
+    """
+    startSkillProbe(skillKey: SkillKey!, timepoint: SkillTimepoint!): SkillProbeStart!
+
+    """
+    Close out a probe: stamps totals and the self-report, and — for post
+    only — schedules the delayed probe 7 days out. Rejects a second
+    completion, and rejects completing before every one of the form's items
+    has been answered. selfReport is exactly 4 values, 0-100, collected and
+    never scored.
+    """
+    completeSkillProbe(skillKey: SkillKey!, timepoint: SkillTimepoint!, selfReport: [Int!]!): SkillProbeCompleteResult!
 
     # ── Feelings & Needs: the daily loop ──────────────────────────────────────
     # The wizard commits every step as it goes (convention #8); there is

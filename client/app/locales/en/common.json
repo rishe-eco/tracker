@@ -334,6 +334,8 @@
     "title": "Today",
     "organize": "Organize",
     "review": "Review",
+    "skillsDue_one": "{{count}} skill item due",
+    "skillsDue_other": "{{count}} skill items due",
     "gatheringActions": "We're gathering your actions for today, please wait.",
     "linkedActions": "Linked Actions",
     "standaloneActions": "Standalone Actions",
@@ -1056,6 +1058,39 @@
       "baselineSkipped": "You skipped the baseline, so later scores aren't comparable to a starting point. Practice still counts.",
       "probeBlocked_one": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} item still needs a human to verify its answer key. Nothing for you to do about it.",
       "probeBlocked_other": "Practice works normally — this notice is about the optional baseline test. That test isn’t open yet, because {{count}} items still need a human to verify their answer keys. Nothing for you to do about it."
+    },
+    "probe": {
+      "baselineTitle": "Baseline check",
+      "baselineBody": "A one-time timed check before you start the modules, so later progress has something to compare against. It's the same instrument you'll see again at the post and delayed checks — takes about as long as one module.",
+      "startBaseline": "Start the baseline",
+      "skipBaseline": "Skip it",
+      "skipBaselineHint": "Allowed — but then later scores aren't comparable to a starting point.",
+      "postReadyTitle": "Post check ready",
+      "postReadyBody": "Every module has reached mastered or tested-out. This is the same instrument as the baseline, so the comparison actually means something.",
+      "startPost": "Start the post check",
+      "delayedReadyTitle": "Delayed check due",
+      "delayedReadyBody": "It's been a week since the post check. This one is the point of the whole design — it's the check for whether it actually stuck.",
+      "startDelayed": "Start the delayed check",
+      "resuming": "Picking up where you left off.",
+      "notReady": "This check isn't open yet — {{count}} item(s) still need a human to verify the answer key.",
+      "selfReport": {
+        "title": "Before you see anything",
+        "body": "Four quick questions about how you'd rate yourself right now. These are never scored and never change anything below — they exist so you can compare what you expect of yourself against what you actually did.",
+        "q1": "How confident are you in this skill right now?",
+        "q2": "How often do you actually use it, day to day?",
+        "q3": "How hard is this, generally, for you?",
+        "q4": "Compared to when you started, how much better do you feel at it?",
+        "scaleLow": "Not at all",
+        "scaleHigh": "Completely",
+        "submit": "Finish"
+      },
+      "completeTitle": "Check complete",
+      "completeBody": "Recorded. It'll show up in your progress once there's enough of a trend to plot.",
+      "backToLab": "Back to the lab",
+      "errors": {
+        "couldNotStart": "Could not start the check. Try again.",
+        "couldNotComplete": "Could not record the check. Try again."
+      }
     },
     "metrics": {
       "strictComposite": "Checked and correct",

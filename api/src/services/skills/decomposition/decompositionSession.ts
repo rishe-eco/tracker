@@ -34,6 +34,7 @@ import {
 import { buildDecompositionPack, ITEM_SPEC_BY_ID, RUBRIC_CRITERIA_BY_MODULE, RUBRIC_VERSION } from "../../../content/skills/decomposition/v1";
 import { ensureProfile } from "../profile";
 import { scheduleOnMastery, toDayKey } from "../scheduler";
+import { loadServingProbe } from "../probes";
 import type { MasteryGap } from "../mastery";
 import {
   assembleDecompositionScore,
@@ -89,9 +90,22 @@ export async function serveDecompositionItem(
   userId: string,
   mode: DecompositionMode,
   moduleKey: DecompositionModuleKey | null,
-  locale: Locale
+  locale: Locale,
+  /** Assessment mode only — which probe this served item belongs to. */
+  probeId?: string | null
 ): Promise<ServedDecompositionItem | null> {
   const { profile, pack } = await loadPack(prisma, userId, locale);
+
+  // The form comes from the probe row, not the caller — see the matching note
+  // in evidenceSession.ts's serveItem.
+  let formId: "A" | "B" | "C" = "A";
+  if (mode === "assessment") {
+    if (!probeId) {
+      throw new DecompositionSequenceError("An assessment item must be served inside a probe — call startSkillProbe first.");
+    }
+    const probe = await loadServingProbe(prisma, userId, SKILL, probeId);
+    formId = probe.formId as "A" | "B" | "C";
+  }
 
   const seen = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL },
@@ -104,7 +118,7 @@ export async function serveDecompositionItem(
   // running offline.
   const candidates = pack.items.filter((item) => {
     if (seenIds.has(item.itemId)) return false;
-    if (mode === "assessment") return item.formId === "A";
+    if (mode === "assessment") return item.formId === formId;
     if (item.formId !== "pool") return false;
     return moduleKey ? item.moduleKey === moduleKey : true;
   });
@@ -121,6 +135,7 @@ export async function serveDecompositionItem(
       itemId: chosen.itemId,
       formId: chosen.formId,
       mode: mode as any,
+      probeId: mode === "assessment" ? probeId : null,
       scores: "{}",
       contentVersion: profile.contentVersion,
       rubricVersion: RUBRIC_VERSION,

@@ -1219,13 +1219,29 @@ export const GET_SKILL_PROGRESS = `
       medianTimeToFirstCheckMs
       overTrustRate
       accuracyRate
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
+    }
+  }
+`;
+
+export const GET_SKILL_DUE_REVIEWS = `
+  query SkillDueReviews {
+    skillDueReviews {
+      moduleKey
+      title
+      state
     }
   }
 `;
 
 export const START_SKILL_ITEM = `
-  mutation StartSkillItem($skillKey: SkillKey!, $mode: SkillMode!, $moduleKey: String) {
-    startSkillItem(skillKey: $skillKey, mode: $mode, moduleKey: $moduleKey) {
+  mutation StartSkillItem($skillKey: SkillKey!, $mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startSkillItem(skillKey: $skillKey, mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
       attemptId
       item {
         itemId
@@ -1338,6 +1354,70 @@ export const CLEAR_SKILL_SCHEDULE = `
   }
 `;
 
+// ── Skill probes (baseline / post / delayed) ─────────────────────────────────
+// Shared across all three tools — see api/src/services/skills/probes.ts.
+
+export const GET_DUE_SKILL_PROBES = `
+  query DueSkillProbes {
+    dueSkillProbes {
+      skillKey
+      timepoint
+      scheduledFor
+    }
+  }
+`;
+
+export const GET_SKILL_PROBE = `
+  query SkillProbe($skillKey: SkillKey!, $timepoint: SkillTimepoint!) {
+    skillProbe(skillKey: $skillKey, timepoint: $timepoint) {
+      timepoint
+      formId
+      scheduledFor
+      startedAt
+      completedAt
+      contentVersion
+      rubricVersion
+      totals
+      selfReport
+      comparable
+    }
+  }
+`;
+
+export const START_SKILL_PROBE = `
+  mutation StartSkillProbe($skillKey: SkillKey!, $timepoint: SkillTimepoint!) {
+    startSkillProbe(skillKey: $skillKey, timepoint: $timepoint) {
+      probeId
+      timepoint
+      formId
+      resuming
+      alreadyCompleted
+    }
+  }
+`;
+
+export const COMPLETE_SKILL_PROBE = `
+  mutation CompleteSkillProbe($skillKey: SkillKey!, $timepoint: SkillTimepoint!, $selfReport: [Int!]!) {
+    completeSkillProbe(skillKey: $skillKey, timepoint: $timepoint, selfReport: $selfReport) {
+      probeId
+      timepoint
+      formId
+      itemCount
+      totals
+      completedAt
+    }
+  }
+`;
+
+export const GET_SKILL_EXPORT = `
+  query SkillExport($skillKey: SkillKey!) {
+    skillExport(skillKey: $skillKey) {
+      json
+      markdown
+    }
+  }
+`;
+
 // ── Clarity Lab ─────────────────────────────────────────────────────────────
 //
 // Its own field set rather than a widening of the Evidence queries: the two
@@ -1380,6 +1460,14 @@ export const GET_CLARITY_PROGRESS = `
       }
       revisionDeltas
       meanDelta
+      probeReady
+      probeBlockers
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
     }
   }
 `;
@@ -1402,8 +1490,8 @@ const CLARITY_SERVED_FIELDS = `
 `;
 
 export const START_CLARITY_ITEM = `
-  mutation StartClarityItem($mode: SkillMode!, $moduleKey: String) {
-    startClarityItem(mode: $mode, moduleKey: $moduleKey) {
+  mutation StartClarityItem($mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startClarityItem(mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
       ${CLARITY_SERVED_FIELDS}
     }
   }
@@ -1506,6 +1594,14 @@ export const GET_DECOMPOSITION_PROGRESS = `
       }
       breadthFirstIndexTrend
       granularityDiscrimination
+      probeReady
+      probeBlockers
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
     }
   }
 `;
@@ -1539,8 +1635,8 @@ const DECOMPOSITION_SERVED_FIELDS = `
 `;
 
 export const START_DECOMPOSITION_ITEM = `
-  mutation StartDecompositionItem($mode: SkillMode!, $moduleKey: String) {
-    startDecompositionItem(mode: $mode, moduleKey: $moduleKey) {
+  mutation StartDecompositionItem($mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startDecompositionItem(mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
       ${DECOMPOSITION_SERVED_FIELDS}
     }
   }

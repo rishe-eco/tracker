@@ -8,6 +8,7 @@ import InternalPageLayout from "~/layout/InternalPageLayout";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import {
+  COMPLETE_SKILL_PROBE,
   LOCK_DECOMPOSITION_DIAGNOSIS,
   LOCK_DECOMPOSITION_WHOLE,
   LOG_SKILL_CHECK_EVENT,
@@ -19,6 +20,7 @@ import MasteryGapList, { type MasteryGap } from "./MasteryGapList";
 import DecompositionRubricRail, { type DecompositionCriterionScore } from "./DecompositionRubricRail";
 import BreakdownCanvas, { type CanvasNode } from "./BreakdownCanvas";
 import RecomposeReveal, { type Reveal } from "./RecomposeReveal";
+import SkillSelfReportForm from "./SkillSelfReportForm";
 
 const FAULT_TAGS = ["monolith", "overlap", "missing_element", "inverted_dependency", "premature_split"] as const;
 
@@ -88,7 +90,10 @@ export default function DecompositionSessionPage() {
   const { call } = useApi();
 
   const moduleKey = params.get("module") ?? undefined;
-  const mode = moduleKey ? "module" : "calibrated_practice";
+  const probeId = params.get("probeId") ?? undefined;
+  const timepoint = params.get("timepoint") ?? undefined;
+  const isProbe = params.get("mode") === "assessment" && Boolean(probeId) && Boolean(timepoint);
+  const mode = isProbe ? "assessment" : moduleKey ? "module" : "calibrated_practice";
 
   const [served, setServed] = useState<Served | null>(null);
   const [stage, setStage] = useState<Stage>("whole");
@@ -96,6 +101,7 @@ export default function DecompositionSessionPage() {
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [probeDone, setProbeDone] = useState(false);
 
   const [faultTag, setFaultTag] = useState<string | null>(null);
   const [statement, setStatement] = useState("");
@@ -120,7 +126,7 @@ export default function DecompositionSessionPage() {
     setLoading(true);
     reset();
 
-    const data = await call({ query: START_DECOMPOSITION_ITEM, variables: { mode, moduleKey } });
+    const data = await call({ query: START_DECOMPOSITION_ITEM, variables: { mode, moduleKey, probeId } });
     if (!data) {
       setError(t("decomposition.errors.couldNotStart"));
       setLoading(false);
@@ -136,7 +142,7 @@ export default function DecompositionSessionPage() {
     setNodes(initialNodesFor(next.item));
     setStage(firstStage(next.item, false));
     setLoading(false);
-  }, [call, mode, moduleKey, t]);
+  }, [call, mode, moduleKey, probeId, t]);
 
   useEffect(() => {
     void loadItem();
@@ -247,9 +253,40 @@ export default function DecompositionSessionPage() {
     setStage("whole");
   };
 
+  const completeProbe = async (selfReport: number[]) => {
+    if (!timepoint) return;
+    setBusy(true);
+    const data = await call({
+      query: COMPLETE_SKILL_PROBE,
+      variables: { skillKey: "decomposition", timepoint, selfReport },
+    });
+    setBusy(false);
+    if (!data?.completeSkillProbe) return setError(t("skills.probe.errors.couldNotComplete"));
+    setProbeDone(true);
+  };
+
   if (loading) return <LoadingBlock />;
 
   if (exhausted) {
+    if (isProbe) {
+      if (probeDone) {
+        return (
+          <InternalPageLayout title={t("decomposition.title")}>
+            <div className="space-y-4 rounded-lg border-2 border-primary/40 bg-card p-6">
+              <h2 className="text-lg font-semibold">{t("skills.probe.completeTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("skills.probe.completeBody")}</p>
+              <Button onClick={() => navigate("/tools/skills/decomposition")}>{t("skills.probe.backToLab")}</Button>
+            </div>
+          </InternalPageLayout>
+        );
+      }
+      return (
+        <InternalPageLayout title={t("decomposition.title")}>
+          {error && <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">{error}</p>}
+          <SkillSelfReportForm onSubmit={(values) => void completeProbe(values)} busy={busy} />
+        </InternalPageLayout>
+      );
+    }
     return (
       <InternalPageLayout title={t("decomposition.title")}>
         <div className="space-y-4 rounded-lg border bg-card p-6">

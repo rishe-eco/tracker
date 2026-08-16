@@ -12,9 +12,12 @@ import {
   GET_PRE_DAY_STATUS,
   ADD_ACTION,
   RUN_ACTION_GATHERING,
+  GET_SKILL_DUE_REVIEWS,
+  GET_DUE_SKILL_PROBES,
 } from "~/api/queries";
+import { useNavigate } from "react-router";
 import { toLocalDateString } from "~/utils/dateUtils";
-import { Moon, Pencil, Sun, Plus } from "lucide-react";
+import { Moon, Pencil, Sun, Plus, GraduationCap } from "lucide-react";
 import HintPopover from "~/components/ui/HintPopover";
 import { useTranslation } from "react-i18next";
 import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
@@ -22,6 +25,7 @@ import JournalQuickAdd from "~/components/journals/JournalQuickAdd";
 
 export default function TodayPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const todaySteps = [
     { title: t("onboarding.modules.today.step1Title"), body: t("onboarding.modules.today.step1Body") },
     { title: t("onboarding.modules.today.step2Title"), body: t("onboarding.modules.today.step2Body") },
@@ -37,6 +41,7 @@ export default function TodayPage() {
   const [addDate, setAddDate] = useState(todayKey);
   const [addEstimatedMin, setAddEstimatedMin] = useState<string>("");
   const [addTimeOfDay, setAddTimeOfDay] = useState<string>("");
+  const [skillsDueCount, setSkillsDueCount] = useState(0);
   const { call } = useApi();
   const showAddFields = addInput.trim().length > 0;
   const addDateIsToday = addDate === todayKey;
@@ -82,6 +87,25 @@ export default function TodayPage() {
       cancelled = true;
     };
   }, [todayKey]);
+
+  // The one line the Skills Engine is allowed on Today (00-skills-engine.md
+  // §12): due reviews and a due probe collapse into a single count here —
+  // not a card, not a nag, no streak. Both queries were previously wired up
+  // server-side but never actually read from this page.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      call({ query: GET_SKILL_DUE_REVIEWS }),
+      call({ query: GET_DUE_SKILL_PROBES }),
+    ]).then(([reviews, probes]) => {
+      if (cancelled) return;
+      const count = (reviews?.skillDueReviews?.length ?? 0) + (probes?.dueSkillProbes?.length ?? 0);
+      setSkillsDueCount(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [call]);
 
   const afterDayRequired = preDayStatus?.afterDayRequired === true;
 
@@ -158,6 +182,16 @@ export default function TodayPage() {
           </Button>
         </div>
       </div>
+
+      {skillsDueCount > 0 && (
+        <button
+          onClick={() => navigate("/tools")}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <GraduationCap className="h-4 w-4 shrink-0" aria-hidden />
+          {t("today.skillsDue", { count: skillsDueCount })}
+        </button>
+      )}
 
       {showGatheringState ? (
         <p className="text-muted-foreground">{t("today.gatheringActions")}</p>
