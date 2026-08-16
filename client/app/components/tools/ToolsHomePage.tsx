@@ -43,7 +43,7 @@ export default function ToolsHomePage() {
             bare buttons under a sentence naming both skills left the reader to
             work out which was which — and the buttons were in the opposite
             order to the sentence. */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
             <p className="text-sm">{t("toolsHome.evidenceLabTrains")}</p>
             <Button className="mt-auto" onClick={() => navigate("/tools/skills/evidence")}>
@@ -54,6 +54,12 @@ export default function ToolsHomePage() {
             <p className="text-sm">{t("toolsHome.clarityLabTrains")}</p>
             <Button className="mt-auto" onClick={() => navigate("/tools/skills/clarity")}>
               {t("toolsHome.openClarityLab")}
+            </Button>
+          </div>
+          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
+            <p className="text-sm">{t("toolsHome.decompositionLabTrains")}</p>
+            <Button className="mt-auto" onClick={() => navigate("/tools/skills/decomposition")}>
+              {t("toolsHome.openDecompositionLab")}
             </Button>
           </div>
         </div>

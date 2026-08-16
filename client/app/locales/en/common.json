@@ -372,7 +372,9 @@
     "learnDescription": "A short daily practice: notice what you feel, find a word for it, and the need underneath.",
     "openFeelingsNeeds": "Open Feelings & Needs",
     "evidenceLabTrains": "Checking what an AI tells you — working out whether a confident answer is actually right.",
-    "clarityLabTrains": "Saying precisely what you want — writing a request someone can act on."
+    "clarityLabTrains": "Saying precisely what you want — writing a request someone can act on.",
+    "openDecompositionLab": "Open Decomposition Lab",
+    "decompositionLabTrains": "Breaking a messy problem into pieces you can actually check."
   },
   "learn": {
     "feelingsNeeds": {
@@ -1338,5 +1340,165 @@
     "nothingScored": "Nothing here could be assessed, so there is no score — not a score of zero. Setting up an AI scorer is what unlocks it.",
     "listLocale": "en",
     "listSeparator": ", "
+  },
+  "decomposition": {
+    "title": "Decomposition Lab",
+    "subtitle": "Training one thing: breaking a messy problem into pieces you can actually check. Not a prompting technique — the habit of decomposing so you know what you're asking for, which doesn't expire when the model does.",
+    "startSitting": "Start a sitting",
+    "startFirstSitting": "Start your first sitting",
+    "sittingLength": "Most items take two to ten minutes: state the whole, build the breakdown, see what it missed.",
+    "modulesTitle": "Modules",
+    "modulesSubtitle": "Six, each training one criterion of the rubric. You don't have to do them in order.",
+    "practiceModule": "Practise",
+    "conceptLabel": "The idea",
+    "exampleLabel": "What it looks like",
+    "rubricTitle": "The rubric",
+    "rubricHint": "Kept on screen on purpose, including while you build a breakdown. It's the thing being taught, not a hidden grading scheme.",
+    "unscored": "not scored",
+    "unscoredHint": "Nothing assessed this, so it counts neither for nor against you. It is left out of the total rather than scored zero.",
+    "backToLab": "Back to Decomposition Lab",
+    "exhaustedTitle": "No items left here",
+    "exhaustedBody": "Every item in this pool has been used. An item is spent once it's been revealed — running it again would measure memory rather than skill. More arrive with the next content pass.",
+    "rubric": {
+      "D1": {
+        "label": "State the whole",
+        "test": "The undivided problem and a done condition, before any piece exists"
+      },
+      "D2": {
+        "label": "Breadth before depth",
+        "test": "Every top-level piece before any piece nested under one"
+      },
+      "D3": {
+        "label": "Seams",
+        "test": "No two pieces do the same work"
+      },
+      "D4": {
+        "label": "Right-sized pieces",
+        "test": "Every piece has a yes/no done condition; nothing atomic was split further"
+      },
+      "D5": {
+        "label": "Dependency",
+        "test": "What genuinely blocks what — not just the order you wrote things in"
+      },
+      "D6": {
+        "label": "Coverage",
+        "test": "Every required piece the whole implies is there, exactly once"
+      }
+    },
+    "moduleName": {
+      "d1-frame": "State the whole before the parts",
+      "d2-breadth": "All the pieces before any one piece",
+      "d3-seams": "Cut where the seams are",
+      "d4-size": "Right-sized pieces",
+      "d5-order": "Dependencies, not just order",
+      "d6-recompose": "Does it add back up?"
+    },
+    "itemType": {
+      "arrangement": "arrange the pieces",
+      "breakdown": "build it from scratch",
+      "repair": "diagnose and fix",
+      "control": "leave it whole, or don't"
+    },
+    "intro": {
+      "step1Title": "A place to practise one thing",
+      "step1Body": "Decomposition Lab trains a single skill: breaking a problem into pieces you can actually check. It's self-contained — nothing here touches your goals, projects or calendar unless you ask it to.",
+      "step2Title": "This is not a prompting trick",
+      "step2Body": "Breaking a task into steps and handing them to a model one at a time is a real technique, and it's fading — newer models already do that internally. What survives every model change is decomposing so *you* know what you're asking for. That's the whole tool.",
+      "step3Title": "You'll state the whole before touching a single piece",
+      "step3Body": "In your own words, before any piece exists. You can't check whether your pieces cover the job if you never wrote down what the job was — and that order is locked in, because it's part of what gets measured.",
+      "step4Title": "No suggestions, ever",
+      "step4Body": "No autocomplete, no \"generate a breakdown\", nothing AI-assisted in the canvas at all. This is the most offloadable skill on the list — a model produces a plausible breakdown instantly — so the canvas offers nothing to lean on.",
+      "step5Title": "The rubric is not hidden",
+      "step5Body": "Six criteria, on screen the whole time. Writing toward them is the intended behaviour — each is a checkable feature of the structure, not a judgement about whether it felt thorough.",
+      "step6Title": "About a third of items are a trick question",
+      "step6Body": "Some tasks are already one checkable piece. Splitting them anyway isn't rigor — it's a different failure with the same shape as missing a piece, and it's scored that way."
+    },
+    "banners": {
+      "noBaseline": "You haven't taken the baseline yet. Without one, later scores have nothing to be compared against."
+    },
+    "metrics": {
+      "breadthFirst": "Breadth-first index",
+      "breadthFirstHint": "Top-level pieces named before you went deep on any one of them. The direct measure of the expert/novice signature — 1.0 means every piece was named before any was developed.",
+      "discrimination": "Granularity discrimination",
+      "discriminationHint": "Right-sized rate on real items, minus the over-split rate on control items. A learner who shatters everything scores low here even with perfect coverage — that's the point.",
+      "perCriterion": "Per criterion"
+    },
+    "task": "The task",
+    "diagnoseTitle": "Something is wrong with this breakdown. What is it?",
+    "diagnoseBody": "Read the given structure, then tag the fault. You'll fix it next — naming *why* it's wrong is the half that carries to the next one.",
+    "faultTag": {
+      "monolith": "Monolith — too big, needs splitting",
+      "overlap": "Overlap — two pieces doing the same work",
+      "missing_element": "Missing piece",
+      "inverted_dependency": "Dependency backwards or missing",
+      "premature_split": "Split something that didn't need it"
+    },
+    "lockDiagnosis": "Lock diagnosis",
+    "wholeTitle": "State the whole, before any piece",
+    "wholeStatementLabel": "In your own words — what is the whole problem?",
+    "wholeStatementPlaceholder": "Not a re-read of the brief…",
+    "wholeDoneWhenLabel": "How will you know it's done?",
+    "wholeDoneWhenPlaceholder": "A yes/no condition a third party could check…",
+    "wholeGateHint": "You can't start adding pieces until this is locked. Coverage means \"adds back up to this\" — so this has to exist first.",
+    "lockWhole": "Lock & continue",
+    "wholeNotEditable": "Not editable once you start adding pieces.",
+    "canvasTitle": "Build the breakdown",
+    "commit": "Commit breakdown",
+    "commitLocks": "This scores what you've built and reveals the answer.",
+    "resultLabel": "Result",
+    "diagnosisCorrect": "Right fault, and here's how the fix scored",
+    "diagnosisIncorrect": "Different fault than the one you named — here's how the fix scored anyway",
+    "scored": "Here's how it scored",
+    "voidNote": "There wasn't enough here to assess, so nothing was scored. That's recorded as no data rather than as a zero.",
+    "recomposeTitle": "Does it add back up?",
+    "perCriterion": "Criterion by criterion",
+    "total": "Total",
+    "nothingScored": "Nothing here could be assessed, so there is no score — not a score of zero.",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "overDecomposedLabel": "Draft to revision",
+    "overDecomposedYes": "Split into more than one piece — this task was already checkable as one.",
+    "overDecomposedNo": "Left whole, correctly.",
+    "deltaHint": "Only set once you've revised.",
+    "masteryRemaining": "Still needed to finish this module",
+    "reviseIt": "Revise it",
+    "nextItem": "Next item",
+    "reveal": {
+      "wholePane": "The whole, as you stated it",
+      "piecesPane": "Your pieces, reassembled",
+      "leftWhole": "Left whole — no pieces added.",
+      "gapPane": "The gap",
+      "noGap": "Nothing missing, nothing overlapping.",
+      "missing": "missing",
+      "overlap": "overlap",
+      "selfDiagnoseHint": "Free-authored text needs a judge to match against the key automatically — check your breakdown against this list yourself."
+    },
+    "canvas": {
+      "addPiecePlaceholder": "Name a piece…",
+      "addTopLevel": "Add piece",
+      "addNestedPiece": "add a piece nested here",
+      "addNested": "Add nested",
+      "paletteHint": "Available pieces — not all of them belong.",
+      "nothingLeft": "Nothing left to add.",
+      "cancel": "Cancel",
+      "noDoneWhenYet": "no done condition yet",
+      "doneWhenPlaceholder": "A yes/no condition…",
+      "blockedByCount": "blocked by {{count}}",
+      "noDependency": "no dependency",
+      "removePiece": "Remove piece",
+      "noAssistNote": "No autocomplete, no suggested pieces, no AI review. That's deliberate — decomposing it yourself is the whole exercise."
+    },
+    "errors": {
+      "couldNotLoad": "Decomposition Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "couldNotStart": "Could not start an item. Try again.",
+      "couldNotSubmit": "Could not score that. Your breakdown is still here — try again.",
+      "couldNotLock": "Could not save that. Try again."
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} unscaffolded attempts done — revisions don't count toward finishing",
+      "rubricIncomplete": "{{done}} of six criteria still unscored — free-authored practice needs a judge for full scoring",
+      "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module's own criterion at level 2",
+      "days": "practised on {{done}} of the {{required}} separate days required",
+      "overDecomposedControl": "A control item in this window was split into more than one piece — that has to clear before mastery"
+    }
   }
 }

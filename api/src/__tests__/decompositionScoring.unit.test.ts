@@ -146,6 +146,26 @@ describe("assembleDecompositionScore — repair (dc-p17, overlap)", () => {
     expect(score.criteria.find((c) => c.id === "D6")!.level).toBe(2);
   });
 
+  it("scores D2 as not-applicable (never 0) when the fix only edits/removes pre-seeded pieces", () => {
+    // A pure edit-in-place fix has no authoring order to judge — scoring it 0
+    // via the general breadth-first formula would make this fault type
+    // permanently ineligible for mastery, since mastery requires no
+    // criterion at 0.
+    const nodes = [node("n1"), node("n3", { doneWhen: "booked" }), node("n4", { doneWhen: "updated by Friday" })];
+    const score = assembleDecompositionScore({
+      item,
+      structure: { whole: { statement: "Move to the new apartment.", doneWhen: "Done by the 1st." }, nodes },
+      addEventsInOrder: [],
+      wholeStatedFirst: true,
+      itemPrompt: "x",
+      locale: "en",
+      judgeAvailable: false,
+    });
+    const d2 = score.criteria.find((c) => c.id === "D2")!;
+    expect(d2.level).toBeNull();
+    expect(d2.scoredBy).toBe("unscored");
+  });
+
   it("still scores D3 level 1 if the fix leaves both overlapping pieces in place", () => {
     const nodes = [node("n1"), node("n2"), node("n3"), node("n4")];
     const score = assembleDecompositionScore({

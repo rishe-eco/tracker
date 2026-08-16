@@ -129,9 +129,19 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
     const scored: KeyedScores = scoreControl(nodes.length);
     ({ d2, d3, d4, d5, d6 } = scored);
   } else if (item.type === "repair") {
-    const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
-    d2 = { level: bf.level, evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.` };
-    bfi = bf.bfi;
+    // A fix that only edits/removes pre-seeded pieces — never adding a fresh
+    // one — has no authoring order for D2 to judge at all. Scoring it via the
+    // general formula would read as depth-first (0) rather than not
+    // applicable, and since mastery requires *no* criterion at 0, that would
+    // make every edit-in-place repair permanently ineligible.
+    if (input.addEventsInOrder.length === 0) {
+      d2 = { level: null, evidence: "Nothing was added during the fix — there is no authoring order to judge." };
+      bfi = null;
+    } else {
+      const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
+      d2 = { level: bf.level, evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.` };
+      bfi = bf.bfi;
+    }
     const fault = item.seededFault ?? "overlap";
     const scored = scoreRepairFix(fault, nodes, dependsOn, leaves, item.key, locale);
     ({ d3, d4, d5, d6 } = scored);

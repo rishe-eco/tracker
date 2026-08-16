@@ -17,16 +17,17 @@ export type MasteryGap = {
 };
 
 /**
- * `ns` picks the wording set: the two labs measure different things and phrase
- * their gates differently, so `skills.mastery.*` and `clarity.mastery.*` are
- * separate rather than one shared list of near-synonyms.
+ * `ns` picks the wording set: the three labs measure different things and
+ * phrase their gates differently, so `skills.mastery.*`, `clarity.mastery.*`
+ * and `decomposition.mastery.*` are separate rather than one shared list of
+ * near-synonyms.
  */
 export default function MasteryGapList({
   gaps,
   ns,
 }: {
   gaps: MasteryGap[];
-  ns: "skills" | "clarity";
+  ns: "skills" | "clarity" | "decomposition";
 }) {
   const { t } = useTranslation();
   if (gaps.length === 0) return null;

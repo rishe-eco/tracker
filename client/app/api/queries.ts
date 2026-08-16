@@ -1471,6 +1471,157 @@ export const SUBMIT_CLARITY_ATTEMPT = `
   }
 `;
 
+// ── Decomposition Lab ────────────────────────────────────────────────────────
+
+export const GET_DECOMPOSITION_MODULES = `
+  query DecompositionModules {
+    decompositionModules {
+      moduleKey
+      title
+      concept
+      model
+      criterion
+      state
+      currentStep
+      masteredAt
+      nextReviewAt
+    }
+  }
+`;
+
+export const GET_DECOMPOSITION_PROGRESS = `
+  query DecompositionProgress {
+    decompositionProgress {
+      contentVersion
+      rubricVersion
+      locale
+      reviewStatus
+      hasBaseline
+      assessmentSkipped
+      totalAttempts
+      criterionMeans {
+        criterion
+        mean
+        count
+      }
+      breadthFirstIndexTrend
+      granularityDiscrimination
+    }
+  }
+`;
+
+const DECOMPOSITION_SERVED_FIELDS = `
+  attemptId
+  needsDiagnosis
+  draftStructure
+  item {
+    itemId
+    moduleKey
+    type
+    difficulty
+    scenario
+    palette {
+      id
+      label
+    }
+    suppliedTree {
+      id
+      parentId
+      depth
+      label
+      dependsOn
+    }
+    suppliedWhole {
+      statement
+      doneWhen
+    }
+  }
+`;
+
+export const START_DECOMPOSITION_ITEM = `
+  mutation StartDecompositionItem($mode: SkillMode!, $moduleKey: String) {
+    startDecompositionItem(mode: $mode, moduleKey: $moduleKey) {
+      ${DECOMPOSITION_SERVED_FIELDS}
+    }
+  }
+`;
+
+export const START_DECOMPOSITION_REVISION = `
+  mutation StartDecompositionRevision($attemptId: ID!) {
+    startDecompositionRevision(attemptId: $attemptId) {
+      ${DECOMPOSITION_SERVED_FIELDS}
+    }
+  }
+`;
+
+export const LOCK_DECOMPOSITION_WHOLE = `
+  mutation LockDecompositionWhole($attemptId: ID!, $statement: String!, $doneWhen: String!) {
+    lockDecompositionWhole(attemptId: $attemptId, statement: $statement, doneWhen: $doneWhen)
+  }
+`;
+
+export const LOCK_DECOMPOSITION_DIAGNOSIS = `
+  mutation LockDecompositionDiagnosis($attemptId: ID!, $tags: [String!]!) {
+    lockDecompositionDiagnosis(attemptId: $attemptId, tags: $tags)
+  }
+`;
+
+export const SUBMIT_DECOMPOSITION_ATTEMPT = `
+  mutation SubmitDecompositionAttempt($attemptId: ID!, $structure: DecompositionStructureInput!, $timeZoneOffsetMinutes: Int) {
+    submitDecompositionAttempt(attemptId: $attemptId, structure: $structure, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      attemptId
+      score {
+        criteria {
+          id
+          level
+          scoredBy
+          evidence
+        }
+        total
+        scoredCount
+        coverage {
+          found
+          required
+        }
+        bfi
+        overDecomposed
+        isVoid
+        isComplete
+      }
+      diagnosisCorrect
+      delta
+      moduleState
+      masteryUnmet {
+        code
+        count
+        required
+        minTotal
+      }
+      atCriterion
+      reveal {
+        pieces {
+          id
+          label
+          required
+          atomic
+        }
+        overlapPairs {
+          a
+          b
+        }
+        blockingEdges {
+          a
+          b
+        }
+        independentPairs {
+          a
+          b
+        }
+      }
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `
