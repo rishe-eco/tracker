@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { clearDb, createTestUser, makeCtx, prisma } from "../test/helpers";
 import { mutationResolvers } from "../graphql/resolvers/mutations";
 import { queryResolvers } from "../graphql/resolvers/query";
+import { updateModuleProgress } from "../services/skills/evidenceSession";
 
 beforeEach(async () => {
   await clearDb();
@@ -500,5 +501,54 @@ describe("skillDueReviews unions across skill tools (Decomposition Lab build pla
     const moduleKeys = due.map((m: any) => m.moduleKey);
     expect(moduleKeys).toContain("c6-economy");
     expect(moduleKeys).toContain("e1-stop");
+  });
+});
+
+describe("a review submission advances or resets the schedule", () => {
+  // onReviewPassed/onReviewFailed (scheduler.ts) were unit-tested but never
+  // called: a mode:"review" submission recomputed progress the same way any
+  // other attempt did, which only ever reads `reviewIntervalIndex`
+  // (`scheduleOnMastery`) and never writes it. So every review — pass or fail
+  // — rescheduled at the first rung, and a failed review never routed back to
+  // step 5 (diagnose & fix).
+  async function seedMastered(userId: string, reviewIntervalIndex: number) {
+    await prisma.skillModuleProgress.create({
+      data: {
+        userId,
+        skillKey: "evidence",
+        moduleKey: "e1-stop",
+        state: "mastered",
+        masteredAt: new Date("2026-07-01T00:00:00.000Z"),
+        reviewIntervalIndex,
+        nextReviewAt: new Date("2026-07-02T00:00:00.000Z"),
+      },
+    });
+  }
+
+  it("advances the interval ladder and resumes at the review step on a pass", async () => {
+    const user = await createTestUser();
+    await seedMastered(user.id, 1);
+
+    await updateModuleProgress(prisma, user.id, "e1-stop", 0, "en", { mode: "review", passed: true });
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "evidence", moduleKey: "e1-stop" } },
+    });
+    expect(progress?.reviewIntervalIndex).toBe(2);
+    expect(progress?.currentStep).toBe(7);
+    expect(progress?.nextReviewAt!.getTime()).toBeGreaterThan(new Date("2026-07-02T00:00:00.000Z").getTime());
+  });
+
+  it("resets the interval and routes back to diagnose (step 5) on a fail", async () => {
+    const user = await createTestUser();
+    await seedMastered(user.id, 3);
+
+    await updateModuleProgress(prisma, user.id, "e1-stop", 0, "en", { mode: "review", passed: false });
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "evidence", moduleKey: "e1-stop" } },
+    });
+    expect(progress?.reviewIntervalIndex).toBe(0);
+    expect(progress?.currentStep).toBe(5);
   });
 });

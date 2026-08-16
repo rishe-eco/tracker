@@ -369,6 +369,68 @@ describe("mastery schedules the next review (Decomposition Lab build plan, Phase
   });
 });
 
+describe("a review submission advances or resets the schedule (shared engine gap)", () => {
+  // Same gap as Evidence Lab's: `onReviewPassed`/`onReviewFailed` existed and
+  // were unit-tested, but nothing called them — a mode:"review" submission
+  // recomputed progress the same way any other attempt did, which only ever
+  // reads `reviewIntervalIndex` (`scheduleOnMastery`) and never writes it.
+  async function seedMastered(userId: string, reviewIntervalIndex: number) {
+    await prisma.skillModuleProgress.create({
+      data: {
+        userId,
+        skillKey: "clarity",
+        moduleKey: "c6-economy",
+        state: "mastered",
+        masteredAt: new Date("2026-07-01T00:00:00.000Z"),
+        reviewIntervalIndex,
+        nextReviewAt: new Date("2026-07-02T00:00:00.000Z"),
+      },
+    });
+  }
+
+  it("advances the interval ladder and resumes at the review step on a pass", async () => {
+    const user = await createTestUser();
+    await seedMastered(user.id, 1);
+
+    await updateClarityModuleProgress(prisma, user.id, "c6-economy", 0, { mode: "review", passed: true });
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "clarity", moduleKey: "c6-economy" } },
+    });
+    expect(progress?.reviewIntervalIndex).toBe(2);
+    expect(progress?.currentStep).toBe(7);
+    expect(progress?.nextReviewAt!.getTime()).toBeGreaterThan(new Date("2026-07-02T00:00:00.000Z").getTime());
+  });
+
+  it("resets the interval and routes back to diagnose (step 5) on a fail", async () => {
+    const user = await createTestUser();
+    await seedMastered(user.id, 3);
+
+    await updateClarityModuleProgress(prisma, user.id, "c6-economy", 0, { mode: "review", passed: false });
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "clarity", moduleKey: "c6-economy" } },
+    });
+    expect(progress?.reviewIntervalIndex).toBe(0);
+    expect(progress?.currentStep).toBe(5);
+  });
+
+  it("does not let a revision drive the review schedule, even one that revises a review", async () => {
+    // `submitClarityAttempt` passes `null` for a revision's own mode/passed —
+    // the draft carries the due review, and the revision is scaffolded
+    // feedback on top of it, so it must not re-trigger the schedule.
+    const user = await createTestUser();
+    await seedMastered(user.id, 1);
+
+    await updateClarityModuleProgress(prisma, user.id, "c6-economy", 0, null);
+
+    const progress = await prisma.skillModuleProgress.findUnique({
+      where: { userId_skillKey_moduleKey: { userId: user.id, skillKey: "clarity", moduleKey: "c6-economy" } },
+    });
+    expect(progress?.reviewIntervalIndex).toBe(1);
+  });
+});
+
 describe("locale", () => {
   // The bug this guards: every session function read `SkillProfile.locale`, no
   // caller ever wrote anything but "en" to it, and there was no mutation that

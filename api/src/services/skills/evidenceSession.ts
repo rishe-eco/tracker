@@ -36,7 +36,15 @@ import {
 } from "../../content/skills/types";
 import { scoreEvidenceItem, scoreSession, type CheckEventInput } from "./scoring";
 import { evaluateMastery, type MasteryGap, type ScoredAttempt } from "./mastery";
-import { onReviewFailed, onReviewPassed, scheduleOnMastery, toDayKey } from "./scheduler";
+import {
+  onReviewFailed,
+  onReviewPassed,
+  scheduleOnMastery,
+  scheduleOnReviewSubmitted,
+  toDayKey,
+  type MasterySchedule,
+  type ReviewSubmissionSchedule,
+} from "./scheduler";
 import { ensureProfile } from "./profile";
 import { scheduleReviewAction } from "./planning";
 
@@ -256,7 +264,8 @@ export async function submitAttempt(
     userId,
     attempt.moduleKey as EvidenceModuleKey,
     input.timeZoneOffsetMinutes ?? 0,
-    locale
+    locale,
+    { mode: attempt.mode as SkillMode, passed: score.strict === 1 }
   );
 
   return {
@@ -269,13 +278,19 @@ export async function submitAttempt(
   };
 }
 
-/** Recompute a module's state from its unscaffolded attempts. */
-async function updateModuleProgress(
+/**
+ * Recompute a module's state from its unscaffolded attempts. Exported for the
+ * review-schedule regression test — it seeds `SkillModuleProgress` directly
+ * and calls this with a `submitted` outcome rather than driving a whole scored
+ * attempt through `submitAttempt`.
+ */
+export async function updateModuleProgress(
   prisma: PrismaClient,
   userId: string,
   moduleKey: EvidenceModuleKey,
   tzOffsetMinutes: number,
-  locale: Locale
+  locale: Locale,
+  submitted: { mode: SkillMode; passed: boolean }
 ) {
   const attempts = await prisma.skillAttempt.findMany({
     where: {
@@ -304,11 +319,22 @@ async function updateModuleProgress(
   });
 
   const state = verdict.mastered ? "mastered" : "in_progress";
+
+  // A review-mode submission carries its own schedule, from the pass/fail of
+  // that one attempt — not the mastery window's rolling verdict. Any other
+  // mode falls back to the ordinary first-mastery scheduling.
+  const schedule: Partial<ReviewSubmissionSchedule & MasterySchedule> =
+    submitted.mode === "review"
+      ? scheduleOnReviewSubmitted(submitted.passed, existing, now, seed)
+      : verdict.mastered
+        ? scheduleOnMastery(existing, now, seed)
+        : {};
+
   const data = {
     state: state as any,
     consecutiveAtCriterion: verdict.strictCount,
     lastCriterionDay: scored.length ? scored[scored.length - 1].dayKey : null,
-    ...(verdict.mastered && scheduleOnMastery(existing, now, seed)),
+    ...schedule,
   };
 
   await prisma.skillModuleProgress.upsert({

@@ -57,7 +57,13 @@ import {
 import { detectorCriteriaFor } from "../../../content/skills/clarity/v1/rubric";
 import { isOfflineCapable } from "../../../content/skills/clarity/validate";
 import { ensureProfile } from "../profile";
-import { scheduleOnMastery, toDayKey } from "../scheduler";
+import {
+  scheduleOnMastery,
+  scheduleOnReviewSubmitted,
+  toDayKey,
+  type MasterySchedule,
+  type ReviewSubmissionSchedule,
+} from "../scheduler";
 import { isVoid, runDetectors } from "./detectors";
 import { createAnthropicJudge } from "./anthropicJudge";
 import { calibrationStatus, scoreCriteria } from "./judge";
@@ -370,7 +376,11 @@ export async function submitClarityAttempt(
     prisma,
     userId,
     item.moduleKey,
-    input.timeZoneOffsetMinutes ?? 0
+    input.timeZoneOffsetMinutes ?? 0,
+    // A revision is scaffolded feedback, not a due review, even when it
+    // revises one — the draft is the attempt whose pass/fail should move the
+    // review schedule.
+    isRevision ? null : { mode: attempt.mode as ClarityMode, passed: atCriterion(score, item.moduleKey) }
   );
 
   return {
@@ -605,7 +615,8 @@ export async function updateClarityModuleProgress(
   prisma: PrismaClient,
   userId: string,
   moduleKey: ClarityModuleKey,
-  tzOffsetMinutes: number
+  tzOffsetMinutes: number,
+  submitted?: { mode: ClarityMode; passed: boolean } | null
 ) {
   const attempts = await prisma.skillAttempt.findMany({
     where: { userId, skillKey: SKILL, moduleKey },
@@ -629,15 +640,28 @@ export async function updateClarityModuleProgress(
 
   const verdict = evaluateClarityMastery(scored);
   const state = verdict.mastered ? "mastered" : "in_progress";
+  const now = new Date();
+  const seed = `${userId}:${moduleKey}`;
 
   const existing = await prisma.skillModuleProgress.findUnique({
     where: { userId_skillKey_moduleKey: { userId, skillKey: SKILL, moduleKey } },
   });
 
+  // A review-mode submission carries its own schedule, from the pass/fail of
+  // that one attempt — not the mastery window's rolling verdict. Any other
+  // mode (including a revision, passed as null above) falls back to the
+  // ordinary first-mastery scheduling.
+  const schedule: Partial<ReviewSubmissionSchedule & MasterySchedule> =
+    submitted?.mode === "review"
+      ? scheduleOnReviewSubmitted(submitted.passed, existing, now, seed)
+      : verdict.mastered
+        ? scheduleOnMastery(existing, now, seed)
+        : {};
+
   const data = {
     state: state as any,
     lastCriterionDay: scored.length ? scored[scored.length - 1].dayKey : null,
-    ...(verdict.mastered && scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)),
+    ...schedule,
   };
 
   await prisma.skillModuleProgress.upsert({

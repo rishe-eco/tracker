@@ -64,6 +64,38 @@ export function onReviewFailed(_currentIndex: number, now: Date, seed: string): 
   return { intervalIndex: 0, nextReviewAt: nextReviewAt(0, now, seed), resumeAtStep: 5 };
 }
 
+export type ReviewSubmissionSchedule = {
+  reviewIntervalIndex: number;
+  nextReviewAt: Date;
+  currentStep: number;
+};
+
+/**
+ * What a submitted review does to a module's row — the step every skill tool
+ * must take when the attempt just submitted was itself a due review, instead
+ * of the ordinary `scheduleOnMastery` recompute. `scheduleOnMastery` only ever
+ * *reads* `reviewIntervalIndex`; nothing writes it. Without this, a passed or
+ * a failed review both fall through to `scheduleOnMastery`, which reschedules
+ * at whatever the stored index already is (always 0, since nothing advances
+ * it) — so the expanding ladder never expands and a fail never routes back to
+ * the diagnose step.
+ */
+export function scheduleOnReviewSubmitted(
+  passed: boolean,
+  existing: { reviewIntervalIndex: number } | null | undefined,
+  now: Date,
+  seed: string
+): ReviewSubmissionSchedule {
+  const outcome = passed
+    ? onReviewPassed(existing?.reviewIntervalIndex ?? 0, now, seed)
+    : onReviewFailed(existing?.reviewIntervalIndex ?? 0, now, seed);
+  return {
+    reviewIntervalIndex: outcome.intervalIndex,
+    nextReviewAt: outcome.nextReviewAt,
+    currentStep: outcome.resumeAtStep,
+  };
+}
+
 export type MasterySchedule = { masteredAt: Date; nextReviewAt: Date };
 
 /**
