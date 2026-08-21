@@ -23,6 +23,7 @@ import ClarityLabPage from "./components/skills/ClarityLabPage";
 import ClaritySessionPage from "./components/skills/ClaritySessionPage";
 import DecompositionLabPage from "./components/skills/DecompositionLabPage";
 import DecompositionSessionPage from "./components/skills/DecompositionSessionPage";
+import DecompositionRealWorkPage from "./components/skills/DecompositionRealWorkPage";
 import FeelingsNeedsPage from "./components/learn/FeelingsNeedsPage";
 import FeelingsNeedsLoopPage from "./components/learn/FeelingsNeedsLoopPage";
 import FeelingsNeedsHistoryPage from "./components/learn/FeelingsNeedsHistoryPage";
@@ -77,6 +78,10 @@ export default [
   {
     path: "/tools/skills/decomposition/session",
     element: <DecompositionSessionPage />,
+  },
+  {
+    path: "/tools/skills/decomposition/real-work",
+    element: <DecompositionRealWorkPage />,
   },
   {
     // Learn · Feelings & Needs (Module 1). Namespaced under /tools/learn per the

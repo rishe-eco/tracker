@@ -424,8 +424,11 @@ export async function getDecompositionModules(prisma: PrismaClient, userId: stri
 
 export async function getDecompositionProgress(prisma: PrismaClient, userId: string, locale: Locale) {
   const { profile, pack } = await loadPack(prisma, userId, locale);
+  // open_practice (real-work) attempts are excluded from every trend and
+  // total here — they're uncalibrated real material, never mastery or probe
+  // signal (build plan §3 Phase 7; spec §8).
   const attempts = await prisma.skillAttempt.findMany({
-    where: { userId, skillKey: SKILL },
+    where: { userId, skillKey: SKILL, mode: { not: "open_practice" } },
     orderBy: { createdAt: "asc" },
   });
 

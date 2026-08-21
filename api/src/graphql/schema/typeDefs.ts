@@ -812,6 +812,55 @@ export const typeDefs = gql`
     probes: [SkillProbeEntry!]!
   }
 
+  # ── Decomposition Lab: real-work export ───────────────────────────────────
+  #
+  # The one flow in the whole build that writes the learner's real data
+  # (spec 03-decomposition-lab.md §8, build plan Phase 7). No authored item,
+  # no key: D3/D5/D6 can never be scored here, not "unscored until a judge
+  # exists" — permanently, by construction. Never counts toward mastery or
+  # probes (mode: open_practice).
+
+  "Which of the learner's own Tracker entities they're decomposing."
+  enum DecompositionRealWorkTargetType {
+    goal
+    project
+  }
+
+  type DecompositionRealWorkServedItem {
+    attemptId: ID!
+    targetType: DecompositionRealWorkTargetType!
+    targetId: ID!
+    "The target's own title, shown as the read-only material being decomposed."
+    title: String!
+    "The target's own DoD, if it has one."
+    dod: String!
+  }
+
+  type DecompositionRealWorkResult {
+    attemptId: ID!
+    "D3, D5 and D6 are always null here — there is no key for real material."
+    score: DecompositionScore!
+  }
+
+  type DecompositionExportedProject {
+    id: ID!
+    title: String!
+  }
+
+  type DecompositionExportedAction {
+    id: ID!
+    title: String!
+    projectId: ID
+  }
+
+  "What actually got written into Tracker, and what didn't survive the trip."
+  type DecompositionExportResult {
+    createdProjects: [DecompositionExportedProject!]!
+    createdActions: [DecompositionExportedAction!]!
+    "Dependency edges among the exported pieces that had nowhere to go — Tracker models containment and sequence, not dependency."
+    dependencyEdgesDropped: Int!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1370,6 +1419,24 @@ export const typeDefs = gql`
     Revisions never count toward mastery.
     """
     startDecompositionRevision(attemptId: ID!): DecompositionServedItem!
+
+    """
+    Real-work practice: open an attempt against one of the learner's own
+    Goals or Projects. mode: open_practice — never scored into mastery or
+    probes.
+    """
+    startDecompositionRealWork(targetType: DecompositionRealWorkTargetType!, targetId: ID!): DecompositionRealWorkServedItem!
+
+    "Score a real-work breakdown. D3, D5 and D6 are always null — there is no key for real material."
+    submitDecompositionRealWork(attemptId: ID!, structure: DecompositionStructureInput!, timeZoneOffsetMinutes: Int): DecompositionRealWorkResult!
+
+    """
+    Write the selected pieces into Tracker as real Projects/Actions.
+    Itemised, opt-in, reversible (ordinary rows the learner can delete like
+    any other), and never automatic. Rejects a second call for the same
+    attempt outright.
+    """
+    exportDecompositionBreakdown(attemptId: ID!, nodeIds: [String!]!): DecompositionExportResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

@@ -23,6 +23,11 @@ import {
   submitDecompositionAttempt,
 } from "../../services/skills/decomposition/decompositionSession";
 import {
+  exportDecompositionBreakdown,
+  startDecompositionRealWork,
+  submitDecompositionRealWork,
+} from "../../services/skills/decomposition/realWork";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1169,6 +1174,34 @@ mutations.submitDecompositionAttempt = requireAuth(
 mutations.startDecompositionRevision = requireAuth(async (_, { attemptId }: any, ctx) =>
   startDecompositionRevision(ctx.prisma, ctx.user.id, attemptId, ctx.locale)
 );
+
+// ── Decomposition Lab: real-work export ─────────────────────────────────────
+// Handle with care: exportDecompositionBreakdown is the one mutation in this
+// entire build that writes the learner's real Goal/Project data.
+
+mutations.startDecompositionRealWork = requireAuth(async (_, { targetType, targetId }: any, ctx) =>
+  startDecompositionRealWork(ctx.prisma, ctx.user.id, targetType, targetId, ctx.locale)
+);
+
+mutations.submitDecompositionRealWork = requireAuth(
+  async (_, { attemptId, structure, timeZoneOffsetMinutes }: any, ctx) => {
+    if (!structure || !structure.whole || !Array.isArray(structure.nodes)) {
+      throw new Error("structure must include a whole and a node list.");
+    }
+    return submitDecompositionRealWork(
+      ctx.prisma,
+      ctx.user.id,
+      attemptId,
+      { structure, timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? 0 },
+      ctx.locale
+    );
+  }
+);
+
+mutations.exportDecompositionBreakdown = requireAuth(async (_, { attemptId, nodeIds }: any, ctx) => {
+  if (!Array.isArray(nodeIds) || nodeIds.length === 0) throw new Error("nodeIds must be a non-empty list.");
+  return exportDecompositionBreakdown(ctx.prisma, ctx.user.id, attemptId, nodeIds);
+});
 
 mutations.planSkillSchedule = requireAuth(
   async (_, { skillKey, startDate, sessionsPerWeek, timeOfDay, sessionsPerModule }: any, ctx) => {

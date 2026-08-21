@@ -1718,6 +1718,57 @@ export const SUBMIT_DECOMPOSITION_ATTEMPT = `
   }
 `;
 
+// ── Decomposition Lab: real-work export ──────────────────────────────────────
+// The one flow in the build that writes the learner's real data.
+
+export const START_DECOMPOSITION_REAL_WORK = `
+  mutation StartDecompositionRealWork($targetType: DecompositionRealWorkTargetType!, $targetId: ID!) {
+    startDecompositionRealWork(targetType: $targetType, targetId: $targetId) {
+      attemptId
+      targetType
+      targetId
+      title
+      dod
+    }
+  }
+`;
+
+export const SUBMIT_DECOMPOSITION_REAL_WORK = `
+  mutation SubmitDecompositionRealWork($attemptId: ID!, $structure: DecompositionStructureInput!, $timeZoneOffsetMinutes: Int) {
+    submitDecompositionRealWork(attemptId: $attemptId, structure: $structure, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      attemptId
+      score {
+        criteria {
+          id
+          level
+          scoredBy
+          evidence
+        }
+        total
+        scoredCount
+        isVoid
+      }
+    }
+  }
+`;
+
+export const EXPORT_DECOMPOSITION_BREAKDOWN = `
+  mutation ExportDecompositionBreakdown($attemptId: ID!, $nodeIds: [String!]!) {
+    exportDecompositionBreakdown(attemptId: $attemptId, nodeIds: $nodeIds) {
+      createdProjects {
+        id
+        title
+      }
+      createdActions {
+        id
+        title
+        projectId
+      }
+      dependencyEdgesDropped
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `

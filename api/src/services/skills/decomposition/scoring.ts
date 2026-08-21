@@ -189,6 +189,93 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
   };
 }
 
+// ─── Real-work practice (§8) ────────────────────────────────────────────────
+
+export type AssembleRealWorkInput = {
+  structure: DecompositionStructure;
+  /** `node_added` check-event payloads, in the order they were logged. */
+  addEventsInOrder: NodeAddedPayload[];
+  /** True iff the `whole_stated` event predates the first `node_added` event. */
+  wholeStatedFirst: boolean;
+  /** The target Goal/Project's own title + DoD, for the D1 near-copy check. */
+  itemPrompt: string;
+  locale: Locale;
+};
+
+/**
+ * Real-work material has no authored item and therefore no key — not "no
+ * judge yet" the way a breakdown item's D3/D5/D6 are, but permanently, by
+ * construction: there is nothing to compare overlap, dependency or coverage
+ * against. D1 and D2 are unaffected (they never needed a key). D4 degrades
+ * to leaf-boundedness only, the same shape `scoreD4FreeAuthoring` already
+ * gives a breakdown item when nothing is marked atomic. Reuses exactly the
+ * detector/instrumentation paths `assembleDecompositionScore`'s `breakdown`
+ * branch uses — this function differs only in never having D3/D5/D6 to
+ * offer, scored or not.
+ */
+export function assembleRealWorkScore(input: AssembleRealWorkInput): DecompositionScore {
+  const { structure, locale } = input;
+  const nodes = structure.nodes;
+  const isVoid = !structure.whole.statement.trim() && nodes.length === 0;
+
+  const d1 = isVoid
+    ? { level: 0 as RubricLevel, evidence: "Nothing submitted." }
+    : scoreWholeStatement({
+        statement: structure.whole.statement,
+        doneWhen: structure.whole.doneWhen,
+        itemPrompt: input.itemPrompt,
+        pieceExistedFirst: !input.wholeStatedFirst,
+        locale,
+      });
+
+  const finalDepth1Ids = new Set(nodes.filter((n) => n.parentId === null).map((n) => n.id));
+  const leaves = leavesOf(nodes);
+
+  let d2: KeyedCriterionResult = { level: null, evidence: "Nothing submitted." };
+  let d4: KeyedCriterionResult = { level: null, evidence: "Nothing submitted." };
+  let bfi: number | null = null;
+
+  if (!isVoid) {
+    const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
+    d2 = {
+      level: bf.level,
+      evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.`,
+    };
+    bfi = bf.bfi;
+    d4 = scoreD4FreeAuthoring(
+      leaves.map((l) => ({ id: l.id, doneWhen: l.doneWhen, splitAnAtomicPiece: false })),
+      locale
+    );
+  }
+
+  const noKey = "There is no authored key for real material — this criterion can't be scored outside the modules.";
+
+  const criteria: DecompositionCriterionScore[] = [
+    { id: "D1", level: isVoid ? 0 : d1.level, scoredBy: "detector", evidence: d1.evidence },
+    { id: "D2", level: d2.level, scoredBy: d2.level == null ? "unscored" : "instrumentation", evidence: d2.evidence },
+    { id: "D3", level: null, scoredBy: "unscored", evidence: noKey },
+    { id: "D4", level: d4.level, scoredBy: d4.level == null ? "unscored" : "detector", evidence: d4.evidence },
+    { id: "D5", level: null, scoredBy: "unscored", evidence: noKey },
+    { id: "D6", level: null, scoredBy: "unscored", evidence: noKey },
+  ];
+
+  const scored = criteria.filter((c) => c.level !== null);
+
+  return {
+    criteria,
+    total: isVoid ? 0 : scored.reduce((sum, c) => sum + (c.level as number), 0),
+    scoredCount: scored.length,
+    coverage: null,
+    bfi,
+    overDecomposed: false,
+    isVoid,
+    // D3/D5/D6 can never be scored here, so "complete" is unreachable by
+    // construction — consistent with real-work never counting toward
+    // mastery (engine §4: open_practice earns feedback and history only).
+    isComplete: false,
+  };
+}
+
 // ─── Mastery (§4.7) ─────────────────────────────────────────────────────────
 
 export type ScoredDecompositionAttempt = {

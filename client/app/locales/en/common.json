@@ -1534,6 +1534,39 @@
       "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module's own criterion at level 2",
       "days": "practised on {{done}} of the {{required}} separate days required",
       "overDecomposedControl": "A control item in this window was split into more than one piece — that has to clear before mastery"
+    },
+    "realWork": {
+      "entryTitle": "Practise on something real",
+      "entryBody": "Pick one of your own goals or projects and decompose it for real. It's scored the same way, but never counts toward mastery or your baseline — and when you're done, you can choose to write the pieces into Tracker.",
+      "entryButton": "Decompose something real",
+      "title": "Real-work breakdown",
+      "pickBody": "Pick a goal or project of your own to decompose. Nothing here is scored into your baseline or mastery — this is about the material, not the measurement.",
+      "noTargets": "No goals or projects yet — add one first.",
+      "targetType": {
+        "goal": "goal",
+        "project": "project"
+      },
+      "startOnPicked": "Decompose this",
+      "materialLabel": "What you're decomposing",
+      "noKeyNote": "There's no answer key for real material, so seams, dependency and coverage (D3, D5, D6) can't be scored here — shown as not scored, not zero.",
+      "exportTitle": "Write this into Tracker",
+      "exportBody": "Pick which pieces to keep. Nothing is written until you confirm, and anything created here is an ordinary project or action you can edit or delete afterward — just like anything else in Tracker.",
+      "dependencyNote": "Tracker has no place to record what blocks what. Containment and grouping carry over; any dependency you marked between pieces does not — this is where that information actually goes away, not silently, but stated here.",
+      "dependencyCount_one": "{{count}} dependency link among the pieces you're exporting won't be carried over.",
+      "dependencyCount_other": "{{count}} dependency links among the pieces you're exporting won't be carried over.",
+      "exportSelected_one": "Export {{count}} piece",
+      "exportSelected_other": "Export {{count}} pieces",
+      "confirmTitle": "Write to Tracker?",
+      "confirmBody_one": "This creates {{count}} new item in your real goals and projects. You can edit or delete it afterward like anything else.",
+      "confirmBody_other": "This creates {{count}} new items in your real goals and projects. You can edit or delete them afterward like anything else.",
+      "confirmButton": "Write it",
+      "doneTitle": "Written to Tracker",
+      "doneBody": "Created {{projects}} project(s) and {{actions}} action(s). Find them where you'd expect — under the goal or project you decomposed.",
+      "backToLab": "Back to Decomposition Lab",
+      "errors": {
+        "couldNotStart": "Could not start on that. Try again.",
+        "couldNotExport": "Could not write those to Tracker. Nothing was created — try again."
+      }
     }
   }
 }
