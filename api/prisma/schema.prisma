@@ -352,6 +352,7 @@ enum SkillKey {
   clarity
   evidence
   decomposition
+  verification
 }
 
 enum SkillModuleState {
@@ -423,6 +424,10 @@ model SkillModuleProgress {
   /// requires two *distinct* days — same-session repetition measures short-term
   /// retention only, which is the illusion this tool exists to dispel.
   lastCriterionDay       String?
+  /// "assisted" | "unassisted" — the rung this module is currently practised at
+  /// (04-verification-lab.md §4a). Per module, not per learner: competence is
+  /// uneven by fault class. Unused by every skill except Verification.
+  rung                   String           @default("assisted")
   masteredAt             DateTime?
   /// Index into the expanding review schedule (1d, 3d, 7d, 21d, 60d).
   reviewIntervalIndex    Int              @default(0)
@@ -453,6 +458,11 @@ model SkillAttempt {
   /// Draft → revision chain. The delta between the two is the learning signal
   /// for Clarity Lab.
   revisionOfAttemptId String?
+  /// The rung this attempt was taken on ("assisted" | "unassisted"), for
+  /// Verification Lab. Stamped, never derived — a module's rung changes over
+  /// time, so deriving it would retroactively relabel history and silently
+  /// join two different instruments into one trend line.
+  rung                String?
   /// JSON: per-criterion levels and composites. Never contains the answer key.
   scores              String
   /// JSON: derived behavioural metrics (lateral, independence, latency).
