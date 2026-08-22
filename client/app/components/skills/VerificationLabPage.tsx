@@ -114,6 +114,14 @@ export default function VerificationLabPage() {
           </Button>
         </div>
 
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm font-medium">{t("verification.realWork.entryTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t("verification.realWork.entryBody")}</p>
+          <Button variant="outline" className="mt-3" onClick={() => navigate("/tools/skills/verification/real-work")}>
+            {t("verification.realWork.entryButton")}
+          </Button>
+        </div>
+
         {progress.reviewStatus === "draft" && <Banner tone="info" text={t("skills.banners.draftLocale")} />}
 
         {!progress.probeReady ? (

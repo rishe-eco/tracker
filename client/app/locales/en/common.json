@@ -1705,6 +1705,40 @@
       "falseAlarms": "{{done}} false alarm(s) on a correct-artifact control in this window — has to clear before mastery",
       "costRatio": "A check in this window overspent past {{required}}x the cheapest sufficient one",
       "ritual": "{{done}} attempt(s) in this window reached a verdict with no check that could have failed — has to clear before mastery"
+    },
+    "realWork": {
+      "entryTitle": "Bring something real",
+      "entryBody": "Verify an actual AI answer you've received. There's no bench here — inventing the oracle is the point — and it's never scored into your baseline or mastery.",
+      "entryButton": "Verify something real",
+      "title": "Real-work verification",
+      "claimLabel": "The claim you want to check",
+      "claimBody": "Paste the AI answer, or the specific claim inside it, that you want to verify.",
+      "claimPlaceholder": "What the AI said…",
+      "startButton": "Start the record",
+      "recordTitle": "Your oracle — in your own words, no bench here",
+      "oracleLabel": "What would tell you whether this is right?",
+      "oraclePlaceholder": "The check you're about to run, outside the app…",
+      "resultLabel": "What you found — paste it back",
+      "resultPlaceholder": "What the check outside the app actually showed…",
+      "resultHint": "The check happened outside the app, as it should. Tracker never runs it for you.",
+      "saveRecordButton": "Save the record",
+      "recordDone": "Verification record",
+      "recordClaim": "Claim",
+      "recordOracle": "Oracle used",
+      "recordResult": "Result",
+      "recordVerdict": "Verdict",
+      "recordResidualRisk": "Still unchecked",
+      "saveJournalButton": "Save as journal entry",
+      "attachButton": "Attach to a goal or project",
+      "savedJournal": "Saved as a journal entry.",
+      "savedNote": "Attached as a note.",
+      "noTargets": "No goals or projects yet — add one first.",
+      "errors": {
+        "couldNotStart": "Could not start on that. Try again.",
+        "couldNotSubmit": "Could not save that record. Try again.",
+        "couldNotSaveJournal": "Could not save that as a journal entry — you may need a journal first, from the Journals tool.",
+        "couldNotAttach": "Could not attach that. Try again."
+      }
     }
   }
 }

@@ -36,6 +36,7 @@ import {
   setVerificationLocalization,
   setVerificationRung,
 } from "../../services/skills/verification/verificationSession";
+import { startVerificationRealWork, submitVerificationRealWork } from "../../services/skills/verification/realWork";
 import {
   applyPlan,
   clearPlan,
@@ -1258,6 +1259,15 @@ mutations.setVerificationRung = requireAuth(async (_, { moduleKey, rung }: any, 
   const result = await setVerificationRung(ctx.prisma, ctx.user.id, moduleKey, rung);
   return result.rung;
 });
+
+mutations.startVerificationRealWork = requireAuth(async (_, { claim }: any, ctx) =>
+  startVerificationRealWork(ctx.prisma, ctx.user.id, claim, ctx.locale)
+);
+
+mutations.submitVerificationRealWork = requireAuth(
+  async (_, { attemptId, oracle, result, verdict, confidence, residualRisk }: any, ctx) =>
+    submitVerificationRealWork(ctx.prisma, ctx.user.id, attemptId, { oracle, result, verdict, confidence, residualRisk })
+);
 
 mutations.planSkillSchedule = requireAuth(
   async (_, { skillKey, startDate, sessionsPerWeek, timeOfDay, sessionsPerModule }: any, ctx) => {

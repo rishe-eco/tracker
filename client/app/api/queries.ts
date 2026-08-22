@@ -1949,6 +1949,44 @@ export const SET_VERIFICATION_RUNG = `
   }
 `;
 
+export const START_VERIFICATION_REAL_WORK = `
+  mutation StartVerificationRealWork($claim: String!) {
+    startVerificationRealWork(claim: $claim) {
+      attemptId
+      claim
+    }
+  }
+`;
+
+export const SUBMIT_VERIFICATION_REAL_WORK = `
+  mutation SubmitVerificationRealWork(
+    $attemptId: ID!
+    $oracle: String!
+    $result: String!
+    $verdict: VerificationVerdict!
+    $confidence: Int!
+    $residualRisk: String!
+  ) {
+    submitVerificationRealWork(
+      attemptId: $attemptId
+      oracle: $oracle
+      result: $result
+      verdict: $verdict
+      confidence: $confidence
+      residualRisk: $residualRisk
+    ) {
+      attemptId
+      record {
+        claim
+        oracle
+        result
+        verdict
+        residualRisk
+      }
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `

@@ -1027,6 +1027,32 @@ export const typeDefs = gql`
     probes: [SkillProbeEntry!]!
   }
 
+  # ── Verification Lab: real-work verification record ─────────────────────
+  #
+  # The learner brings a real AI output, names an oracle in free text (no
+  # bench — inventing one is the point), checks it outside the app, and
+  # pastes back what they found. Nothing here is scored or written into
+  # Tracker directly — the record is saved through the existing addQuickEntry
+  # / addNote mutations, the same way any other working note would be.
+
+  type VerificationRealWorkServedItem {
+    attemptId: ID!
+    claim: String!
+  }
+
+  type VerificationRealWorkRecord {
+    claim: String!
+    oracle: String!
+    result: String!
+    verdict: VerificationVerdict!
+    residualRisk: String!
+  }
+
+  type VerificationRealWorkResult {
+    attemptId: ID!
+    record: VerificationRealWorkRecord!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1664,6 +1690,27 @@ export const typeDefs = gql`
     promotion is offered, never forced, and there is no automatic demotion.
     """
     setVerificationRung(moduleKey: String!, rung: VerificationRung!): VerificationRung!
+
+    """
+    Real-work verification: open a record against a real AI claim.
+    mode: open_practice — never scored into mastery or probes.
+    """
+    startVerificationRealWork(claim: String!): VerificationRealWorkServedItem!
+
+    """
+    Complete the record with the oracle used, what was found outside the
+    app, the verdict and residual risk. Nothing is written into Tracker by
+    this call — save the returned record yourself via addQuickEntry or
+    addNote.
+    """
+    submitVerificationRealWork(
+      attemptId: ID!
+      oracle: String!
+      result: String!
+      verdict: VerificationVerdict!
+      confidence: Int!
+      residualRisk: String!
+    ): VerificationRealWorkResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future
