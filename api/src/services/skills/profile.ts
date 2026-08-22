@@ -10,11 +10,13 @@ import { CURRENT_VERSION, ENROLLABLE_EVIDENCE_VERSIONS } from "../../content/ski
 import { EVIDENCE_MODULE_KEYS, type Locale, type SkillKey } from "../../content/skills/types";
 import { CLARITY_MODULE_KEYS } from "../../content/skills/clarity/types";
 import { DECOMPOSITION_MODULE_KEYS } from "../../content/skills/decomposition/types";
+import { VERIFICATION_MODULE_KEYS } from "../../content/skills/verification/types";
 
 const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
+  verification: VERIFICATION_MODULE_KEYS,
 };
 
 /**

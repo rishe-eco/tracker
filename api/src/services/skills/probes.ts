@@ -34,6 +34,12 @@ import {
   isProbeReady as isDecompositionProbeReady,
   validateDecompositionContent,
 } from "../../content/skills/decomposition/validate";
+import { VERIFICATION_MODULE_KEYS } from "../../content/skills/verification/types";
+import { buildVerificationPack, RUBRIC_VERSION as VERIFICATION_RUBRIC_VERSION } from "../../content/skills/verification/v1";
+import {
+  isProbeReady as isVerificationProbeReady,
+  validateVerificationContent,
+} from "../../content/skills/verification/validate";
 import { ensureProfile } from "./profile";
 import { delayedProbeDueAt, hashSeed } from "./scheduler";
 import { scoreSession, type EvidenceItemScore } from "./scoring";
@@ -66,6 +72,7 @@ const MODULE_KEYS: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
+  verification: VERIFICATION_MODULE_KEYS,
 };
 
 const FORMS: ProbeForm[] = ["A", "B", "C"];
@@ -106,8 +113,12 @@ export function probeReadinessFor(skillKey: SkillKey): { ready: boolean; blocker
     const issues = validateClarityContent();
     return { ready: isClarityProbeReady(issues), blockers: blockersFrom(issues) };
   }
-  const issues = validateDecompositionContent();
-  return { ready: isDecompositionProbeReady(issues), blockers: blockersFrom(issues) };
+  if (skillKey === "decomposition") {
+    const issues = validateDecompositionContent();
+    return { ready: isDecompositionProbeReady(issues), blockers: blockersFrom(issues) };
+  }
+  const issues = validateVerificationContent();
+  return { ready: isVerificationProbeReady(issues), blockers: blockersFrom(issues) };
 }
 
 type PackInfo = { items: { formId: FormId }[]; rubricVersion: string | null };
@@ -122,8 +133,12 @@ async function loadPackInfo(prisma: PrismaClient, userId: string, skillKey: Skil
     const pack = buildClarityPack(locale);
     return { items: pack.items, rubricVersion: CLARITY_RUBRIC_VERSION };
   }
-  const pack = buildDecompositionPack(locale);
-  return { items: pack.items, rubricVersion: DECOMPOSITION_RUBRIC_VERSION };
+  if (skillKey === "decomposition") {
+    const pack = buildDecompositionPack(locale);
+    return { items: pack.items, rubricVersion: DECOMPOSITION_RUBRIC_VERSION };
+  }
+  const pack = buildVerificationPack(locale);
+  return { items: pack.items, rubricVersion: VERIFICATION_RUBRIC_VERSION };
 }
 
 // ─── Serving support ────────────────────────────────────────────────────────

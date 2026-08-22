@@ -15,6 +15,8 @@ import { buildEvidencePack as buildV1, ITEM_SPECS as SPECS_V1 } from "./evidence
 import { buildEvidencePack as buildV2, ITEM_SPECS as SPECS_V2 } from "./evidence/v2";
 import { buildDecompositionPack, ITEM_SPECS as DECOMPOSITION_SPECS_V1 } from "./decomposition/v1";
 import type { DecompositionItemSpec, DecompositionPack } from "./decomposition/types";
+import { buildVerificationPack, ITEM_SPECS as VERIFICATION_SPECS_V1 } from "./verification/v1";
+import type { VerificationItemSpec, VerificationPack } from "./verification/types";
 import type { EvidenceItemSpec, EvidencePack, Locale, SkillKey } from "./types";
 
 /** The version a new learner is enrolled on. */
@@ -23,6 +25,7 @@ export const CURRENT_VERSION: Record<SkillKey, string> = {
   // Clarity Lab is P1 — see 06-specs/00-skills-engine.md §14.
   clarity: "clarity/v1",
   decomposition: "decomposition/v1",
+  verification: "verification/v1",
 };
 
 export type EvidenceVersion = {
@@ -52,3 +55,14 @@ export const DECOMPOSITION_VERSIONS: Record<string, DecompositionVersion> = {
 };
 
 export const ENROLLABLE_DECOMPOSITION_VERSIONS = ["decomposition/v1"];
+
+export type VerificationVersion = {
+  build: (locale: Locale) => VerificationPack;
+  specs: VerificationItemSpec[];
+};
+
+export const VERIFICATION_VERSIONS: Record<string, VerificationVersion> = {
+  "verification/v1": { build: buildVerificationPack, specs: VERIFICATION_SPECS_V1 },
+};
+
+export const ENROLLABLE_VERIFICATION_VERSIONS = ["verification/v1"];
