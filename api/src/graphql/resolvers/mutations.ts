@@ -29,6 +29,7 @@ import {
 } from "../../services/skills/decomposition/realWork";
 import {
   commitVerificationVerdict,
+  loadVerificationElements,
   nameVerificationOracle,
   revealVerificationCheck,
   serveVerificationItem,
@@ -1227,6 +1228,10 @@ mutations.nameVerificationOracle = requireAuth(async (_, { attemptId, text, pred
 
 mutations.revealVerificationCheck = requireAuth(async (_, { attemptId, checkId }: any, ctx) =>
   revealVerificationCheck(ctx.prisma, ctx.user.id, attemptId, checkId, ctx.locale)
+);
+
+mutations.loadVerificationElements = requireAuth(async (_, { attemptId }: any, ctx) =>
+  loadVerificationElements(ctx.prisma, ctx.user.id, attemptId, ctx.locale)
 );
 
 mutations.commitVerificationVerdict = requireAuth(

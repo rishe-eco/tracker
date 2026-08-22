@@ -268,6 +268,32 @@ export async function revealVerificationCheck(
   return { checkId, outcome, costSeconds: entry.costSeconds, cumulativeSpent, ceilingSeconds };
 }
 
+/**
+ * The assisted rung shows the element list at the verdict step, before the
+ * commit call — unlike the unassisted rung, where the list only exists in
+ * the commit's own response. A dedicated call rather than folding it into
+ * the served item keeps the list out of the client's memory for the whole
+ * check-selection stage, not merely unrendered: nothing before this call
+ * ever holds it.
+ */
+export async function loadVerificationElements(
+  prisma: PrismaClient,
+  userId: string,
+  attemptId: string,
+  locale: Locale
+): Promise<LocalisationElement[]> {
+  const attempt = await loadOpenAttempt(prisma, userId, attemptId);
+  if ((attempt.rung as Rung) !== "assisted") {
+    throw new VerificationSequenceError("The element list is only fetched separately on the assisted rung.");
+  }
+  if (!hasEvent(attempt, "oracle_named")) {
+    throw new VerificationSequenceError("Name an oracle before requesting the element list.");
+  }
+  const { pack } = await loadPack(prisma, userId, locale);
+  const item = findItem(pack.items, attempt.itemId);
+  return item.elements.map((e) => ({ elementId: e.elementId, label: item.surface.elementLabels[e.elementId] ?? e.elementId }));
+}
+
 // ─── Commit and scoring ─────────────────────────────────────────────────────
 
 export type CommitInput = {
@@ -500,21 +526,25 @@ export async function getVerificationModules(prisma: PrismaClient, userId: strin
   const byKey = new Map(progress.map((p) => [p.moduleKey, p]));
   const now = Date.now();
 
-  return pack.modules.map((mod) => {
-    const p = byKey.get(mod.moduleKey);
-    const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
-    return {
-      moduleKey: mod.moduleKey,
-      title: mod.title,
-      concept: mod.concept,
-      model: mod.model,
-      rung: (p?.rung as Rung | undefined) ?? "assisted",
-      state: due ? "due_review" : (p?.state ?? "not_started"),
-      currentStep: p?.currentStep ?? 1,
-      masteredAt: p?.masteredAt ?? null,
-      nextReviewAt: p?.nextReviewAt ?? null,
-    };
-  });
+  return Promise.all(
+    pack.modules.map(async (mod) => {
+      const p = byKey.get(mod.moduleKey);
+      const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
+      const rung = (p?.rung as Rung | undefined) ?? "assisted";
+      return {
+        moduleKey: mod.moduleKey,
+        title: mod.title,
+        concept: mod.concept,
+        model: mod.model,
+        rung,
+        state: due ? "due_review" : (p?.state ?? "not_started"),
+        currentStep: p?.currentStep ?? 1,
+        masteredAt: p?.masteredAt ?? null,
+        nextReviewAt: p?.nextReviewAt ?? null,
+        promotionOffered: rung === "assisted" ? await isPromotionOffered(prisma, userId, mod.moduleKey) : false,
+      };
+    })
+  );
 }
 
 export async function getVerificationProgress(prisma: PrismaClient, userId: string, locale: Locale) {

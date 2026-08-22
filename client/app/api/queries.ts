@@ -1769,6 +1769,186 @@ export const EXPORT_DECOMPOSITION_BREAKDOWN = `
   }
 `;
 
+// ── Verification Lab ──────────────────────────────────────────────────────────
+
+export const GET_VERIFICATION_MODULES = `
+  query VerificationModules {
+    verificationModules {
+      moduleKey
+      title
+      concept
+      model
+      rung
+      state
+      currentStep
+      masteredAt
+      nextReviewAt
+      promotionOffered
+    }
+  }
+`;
+
+export const GET_VERIFICATION_PROGRESS = `
+  query VerificationProgress {
+    verificationProgress {
+      contentVersion
+      rubricVersion
+      locale
+      reviewStatus
+      hasBaseline
+      assessmentSkipped
+      totalAttempts
+      criterionMeans {
+        criterion
+        mean
+        count
+      }
+      strictComposite
+      ritualRate
+      discrimination
+      meanCostRatio
+      correctUnverifiedCount
+      falseUnverifiedCount
+      probeReady
+      probeBlockers
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
+    }
+  }
+`;
+
+export const START_VERIFICATION_ITEM = `
+  mutation StartVerificationItem($mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startVerificationItem(mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
+      attemptId
+      rung
+      assistedCeilingSeconds
+      item {
+        itemId
+        moduleKey
+        difficulty
+        ask
+        answer
+        bench {
+          checkId
+          label
+          costSeconds
+        }
+      }
+    }
+  }
+`;
+
+export const NAME_VERIFICATION_ORACLE = `
+  mutation NameVerificationOracle($attemptId: ID!, $text: String!, $predictedCostSeconds: Int) {
+    nameVerificationOracle(attemptId: $attemptId, text: $text, predictedCostSeconds: $predictedCostSeconds)
+  }
+`;
+
+export const REVEAL_VERIFICATION_CHECK = `
+  mutation RevealVerificationCheck($attemptId: ID!, $checkId: String!) {
+    revealVerificationCheck(attemptId: $attemptId, checkId: $checkId) {
+      checkId
+      outcome
+      costSeconds
+      cumulativeSpent
+      ceilingSeconds
+    }
+  }
+`;
+
+const VERIFICATION_SUBMIT_RESULT_FIELDS = `
+  attemptId
+  score {
+    criteria {
+      id
+      level
+      scoredBy
+      evidence
+    }
+    total
+    scoredCount
+    strict
+    ritualState
+    costSpent
+    costRatio
+    rung
+    isVoid
+    isComplete
+  }
+  moduleState
+  masteryUnmet {
+    code
+    count
+    required
+    minTotal
+  }
+  promotionOffered
+  reveal {
+    failingElementLabel
+    cheapestCheckId
+    cheapestCostSeconds
+  }
+`;
+
+export const LOAD_VERIFICATION_ELEMENTS = `
+  mutation LoadVerificationElements($attemptId: ID!) {
+    loadVerificationElements(attemptId: $attemptId) {
+      elementId
+      label
+    }
+  }
+`;
+
+export const COMMIT_VERIFICATION_VERDICT = `
+  mutation CommitVerificationVerdict(
+    $attemptId: ID!
+    $verdict: VerificationVerdict!
+    $confidence: Int!
+    $residualRisk: String!
+    $elementId: String
+    $elementFreeText: String
+    $timeZoneOffsetMinutes: Int
+  ) {
+    commitVerificationVerdict(
+      attemptId: $attemptId
+      verdict: $verdict
+      confidence: $confidence
+      residualRisk: $residualRisk
+      elementId: $elementId
+      elementFreeText: $elementFreeText
+      timeZoneOffsetMinutes: $timeZoneOffsetMinutes
+    ) {
+      stage
+      elements {
+        elementId
+        label
+      }
+      result {
+        ${VERIFICATION_SUBMIT_RESULT_FIELDS}
+      }
+    }
+  }
+`;
+
+export const SET_VERIFICATION_LOCALIZATION = `
+  mutation SetVerificationLocalization($attemptId: ID!, $elementId: String!, $timeZoneOffsetMinutes: Int) {
+    setVerificationLocalization(attemptId: $attemptId, elementId: $elementId, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${VERIFICATION_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const SET_VERIFICATION_RUNG = `
+  mutation SetVerificationRung($moduleKey: String!, $rung: VerificationRung!) {
+    setVerificationRung(moduleKey: $moduleKey, rung: $rung)
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `

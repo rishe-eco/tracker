@@ -1568,5 +1568,143 @@
         "couldNotExport": "Could not write those to Tracker. Nothing was created — try again."
       }
     }
+  },
+  "verification": {
+    "title": "Verification Lab",
+    "subtitle": "Training one thing: deciding whether an answer is actually right — naming an oracle before you look, designing a check that could fail, and running it. Not a checklist. A checklist that returns the same result either way has already failed you.",
+    "startSitting": "Start a sitting",
+    "startFirstSitting": "Start your first sitting",
+    "modulesTitle": "Modules",
+    "modulesSubtitle": "Six, each training one criterion of the rubric. You don't have to do them in order.",
+    "practiceModule": "Practise",
+    "conceptLabel": "The idea",
+    "exampleLabel": "What it looks like",
+    "rubricTitle": "The rubric",
+    "rubricHint": "Kept on screen the whole time, including during the reveal. It's the thing being taught, not a hidden grading scheme.",
+    "unscored": "not scored",
+    "unscoredHint": "Nothing assessed this on this attempt — either it doesn't apply here, or this rung can't measure it. Left out of the total rather than scored zero.",
+    "backToLab": "Back to Verification Lab",
+    "exhaustedTitle": "No items left here",
+    "exhaustedBody": "Every item in this pool has been used. An item is spent once it's been revealed — running it again would measure memory rather than skill. More arrive with the next content pass.",
+    "rung": {
+      "assisted": "assisted",
+      "unassisted": "unassisted"
+    },
+    "promotion": {
+      "offer": "You've been clearing this module under a time ceiling. Want to try it without one?",
+      "stepUp": "Step up to unassisted",
+      "offerInline": "You're clearing this module well enough on the assisted rung that stepping up to unassisted is worth trying — head back to the module list when you're ready."
+    },
+    "metrics": {
+      "strictComposite": "Strict composite",
+      "ritualRate": "Ritual rate",
+      "ritualRateHint": "Share of attempts where every check you ran was pass-either-way. The metric this tool watches hardest.",
+      "discrimination": "Discrimination",
+      "costRatio": "Cost ratio"
+    },
+    "rubric": {
+      "V1": { "label": "Oracle named" },
+      "V2": { "label": "Independence" },
+      "V3": { "label": "Falsifiability" },
+      "V4": { "label": "Proportionate cost" },
+      "V5": { "label": "Localisation" },
+      "V6": { "label": "Honest closure" }
+    },
+    "moduleName": {
+      "v1-oracle": "What would tell you?",
+      "v2-independent": "Not the same source twice",
+      "v3-falsify": "The check that would fail",
+      "v4-cheapest": "Cheapest sufficient check",
+      "v5-locate": "Where exactly is it wrong?",
+      "v6-unverifiable": "When you can't check"
+    },
+    "intro": {
+      "step1Title": "A place to practise one thing",
+      "step1Body": "Verification Lab trains deciding whether an AI answer is actually right. It's self-contained — nothing here touches your goals, projects or calendar unless you ask it to.",
+      "step2Title": "You name the oracle before you look",
+      "step2Body": "Before any check runs, you write down what would actually tell you whether the answer is right. That order is locked in and measured — a check chosen after the fact isn't the same move.",
+      "step3Title": "Cost is always visible, outcomes never are — until you spend",
+      "step3Body": "Every check on the bench shows what it costs before you run it. Running one is irreversible. That's the entire decision this tool is built around.",
+      "step4Title": "Two costumes are on the bench on purpose",
+      "step4Body": "\"Ask the model if it's sure\" and \"ask for a confidence score\" are the two things most widely taught as verification, and both return the same thing whether or not the answer is wrong. They're always there, priced cheap, so you can learn to recognise them rather than just be told about them.",
+      "step5Title": "A correct answer reached by ritual is scored as ritual, not as success",
+      "step5Body": "If every check you ran could have returned the same result either way, the reveal says so before it says whether you were right. A right answer with no real check behind it is the failure this tool exists to catch.",
+      "step6Title": "\"Cannot verify\" is a real answer",
+      "step6Body": "About a third of items have nothing on the bench that can settle them. Recognising that and saying so is scored correct — inventing a check that only feels like it settles things is worse than admitting there isn't one."
+    },
+    "askLabel": "What was asked",
+    "answerLabel": "What the AI answered",
+    "oracleTitle": "Before you check anything: what would tell you?",
+    "oracleBody": "Name the thing that would actually settle whether this is right — before the bench opens.",
+    "oraclePlaceholder": "The thing that would settle it…",
+    "predictedCostLabel": "Optional — what should a sufficient check cost, in seconds?",
+    "predictedCostPlaceholder": "seconds",
+    "lockOracle": "Lock & open the bench",
+    "oracleNotEditable": "Not editable once the bench opens.",
+    "benchTitle": "The oracle bench",
+    "bench": {
+      "seconds_one": "{{count}}s",
+      "seconds_other": "{{count}}s",
+      "spent": "spent {{seconds}}s",
+      "ofCeiling": "of {{seconds}}s",
+      "noLimit": "no limit"
+    },
+    "commitVerdictButton": "Done checking — commit a verdict",
+    "commitTitle": "Commit — verdict, element and residual risk together",
+    "verdictLabel": "Your verdict",
+    "verdict": {
+      "supported": "supported",
+      "unsupported": "unsupported",
+      "outdated": "outdated",
+      "cannot_verify": "cannot verify with what's here"
+    },
+    "elementLabel": "Which part fails? — pick one",
+    "elementFreeTextLabel": "Which part fails? — in your own words",
+    "elementFreeTextPlaceholder": "Name the element that fails…",
+    "elementFreeTextHint": "Write it before you see the options. You'll pick from a list next — whether the two agree is itself worth knowing.",
+    "residualRiskLabel": "What's still unchecked?",
+    "residualRiskPlaceholder": "Residual risk…",
+    "confidenceLabel": "Confidence",
+    "commit": "Commit — no edits after",
+    "commitLocks": "Verdict, element and residual risk lock together and cannot be changed afterward.",
+    "localiseTitle": "Now pick from the list",
+    "localiseBody": "This is the part that's actually scored — whether your own words and this pick agree is worth knowing either way.",
+    "resultLabel": "Result",
+    "strictYes": "Oracle, falsifiable check, and the right verdict — all three.",
+    "strictNo": "Here's how it scored",
+    "voidNote": "There wasn't enough here to assess, so nothing was scored. That's recorded as no data rather than as a zero.",
+    "perCriterion": "Criterion by criterion",
+    "total": "Total",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "masteryRemaining": "Still needed to finish this module",
+    "nextItem": "Next item",
+    "reveal": {
+      "whatYouRan": "What you ran",
+      "nothingRun": "You committed without running a check.",
+      "wouldHaveSettledIt": "What would have settled it",
+      "nothingSettlesIt": "Nothing on this bench settles it — that was the correct read.",
+      "verdict": "Verdict",
+      "verdictCorrect": "matched the key",
+      "verdictIncorrect": "did not match the key",
+      "costRatio": "Cost ratio",
+      "predicted": "You predicted",
+      "actualWas": "a sufficient check cost {{seconds}}s",
+      "whatFailed": "What actually failed"
+    },
+    "errors": {
+      "couldNotLoad": "Verification Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "couldNotStart": "Could not start an item. Try again.",
+      "couldNotLock": "Could not save that. Try again.",
+      "couldNotReveal": "Could not run that check. Try again.",
+      "couldNotSubmit": "Could not score that. Try again."
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} unassisted attempts done",
+      "strict": "{{done}} of {{required}} attempts scoring strict (oracle, falsifiable check, and the right verdict, all three)",
+      "days": "practised on {{done}} of the {{required}} separate days required",
+      "falseAlarms": "{{done}} false alarm(s) on a correct-artifact control in this window — has to clear before mastery",
+      "costRatio": "A check in this window overspent past {{required}}x the cheapest sufficient one",
+      "ritual": "{{done}} attempt(s) in this window reached a verdict with no check that could have failed — has to clear before mastery"
+    }
   }
 }

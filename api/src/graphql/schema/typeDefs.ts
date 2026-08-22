@@ -893,6 +893,8 @@ export const typeDefs = gql`
     currentStep: Int!
     masteredAt: String
     nextReviewAt: String
+    "Assisted rung only: true once >=4 of the last 6 attempts are strict with no control false alarm. Offered, never forced."
+    promotionOffered: Boolean!
   }
 
   "One candidate check as the client may see it before it's run — cost and label only, never the outcome."
@@ -1627,6 +1629,14 @@ export const typeDefs = gql`
     check, or on the assisted rung if it would exceed the hard ceiling.
     """
     revealVerificationCheck(attemptId: ID!, checkId: String!): VerificationCheckOutcome!
+
+    """
+    Assisted rung only: fetch the labelled element list at the verdict step,
+    right before commit. A dedicated call rather than shipping the list with
+    the served item, so nothing holds it in memory during check selection —
+    not merely unrendered, absent.
+    """
+    loadVerificationElements(attemptId: ID!): [VerificationLocalisationElement!]!
 
     """
     Commit verdict, confidence and residual risk. On the assisted rung,

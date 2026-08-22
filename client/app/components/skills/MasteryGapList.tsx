@@ -27,7 +27,7 @@ export default function MasteryGapList({
   ns,
 }: {
   gaps: MasteryGap[];
-  ns: "skills" | "clarity" | "decomposition";
+  ns: "skills" | "clarity" | "decomposition" | "verification";
 }) {
   const { t } = useTranslation();
   if (gaps.length === 0) return null;

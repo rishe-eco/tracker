@@ -24,6 +24,8 @@ import ClaritySessionPage from "./components/skills/ClaritySessionPage";
 import DecompositionLabPage from "./components/skills/DecompositionLabPage";
 import DecompositionSessionPage from "./components/skills/DecompositionSessionPage";
 import DecompositionRealWorkPage from "./components/skills/DecompositionRealWorkPage";
+import VerificationLabPage from "./components/skills/VerificationLabPage";
+import VerificationSessionPage from "./components/skills/VerificationSessionPage";
 import FeelingsNeedsPage from "./components/learn/FeelingsNeedsPage";
 import FeelingsNeedsLoopPage from "./components/learn/FeelingsNeedsLoopPage";
 import FeelingsNeedsHistoryPage from "./components/learn/FeelingsNeedsHistoryPage";
@@ -82,6 +84,14 @@ export default [
   {
     path: "/tools/skills/decomposition/real-work",
     element: <DecompositionRealWorkPage />,
+  },
+  {
+    path: "/tools/skills/verification",
+    element: <VerificationLabPage />,
+  },
+  {
+    path: "/tools/skills/verification/session",
+    element: <VerificationSessionPage />,
   },
   {
     // Learn · Feelings & Needs (Module 1). Namespaced under /tools/learn per the
