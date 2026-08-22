@@ -319,6 +319,23 @@ export const typeResolvers = {
     mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
   },
 
+  VerificationModule: {
+    masteredAt: (parent: any) =>
+      parent.masteredAt != null ? new Date(parent.masteredAt).toISOString() : null,
+    nextReviewAt: (parent: any) =>
+      parent.nextReviewAt != null ? new Date(parent.nextReviewAt).toISOString() : null,
+  },
+
+  VerificationCriterionMean: {
+    mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
+  },
+
+  VerificationProgress: {
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "verification", ctx.locale),
+    probeReady: () => probeReadinessFor("verification").ready,
+    probeBlockers: () => probeReadinessFor("verification").blockers,
+  },
+
   SkillPlannedSession: {
     tbd: (parent: any) => new Date(parent.tbd).toISOString(),
   },

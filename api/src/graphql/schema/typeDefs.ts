@@ -861,6 +861,169 @@ export const typeDefs = gql`
     dependencyEdgesDropped: Int!
   }
 
+  # ── Verification Lab ──────────────────────────────────────────────────────
+  #
+  # Own set of types, per the Clarity/Decomposition precedent. The bench-leak
+  # rule shapes the served item and the reveal flow: no bench entry's
+  # independent/discriminating tag, no outcome, no element decoy flag, and no
+  # failingElementId ever appears before the corresponding check is run or
+  # the verdict is committed. VerificationSubmitResult is the first place any
+  # of that appears, because it cannot exist before scoring already happened.
+
+  enum VerificationVerdict {
+    supported
+    unsupported
+    outdated
+    cannot_verify
+  }
+
+  "assisted (hard cost ceiling) or unassisted (none) — two different instruments, never pooled (spec §4a)."
+  enum VerificationRung {
+    assisted
+    unassisted
+  }
+
+  type VerificationModule {
+    moduleKey: String!
+    title: String!
+    concept: String!
+    model: String!
+    rung: VerificationRung!
+    state: String!
+    currentStep: Int!
+    masteredAt: String
+    nextReviewAt: String
+  }
+
+  "One candidate check as the client may see it before it's run — cost and label only, never the outcome."
+  type VerificationBenchEntry {
+    checkId: String!
+    label: String!
+    costSeconds: Int!
+  }
+
+  "What the learner may see before submission. No independent/discriminating tags, no outcomes, no keyVerdict."
+  type VerificationItem {
+    itemId: String!
+    moduleKey: String!
+    difficulty: Int!
+    ask: String!
+    answer: String!
+    bench: [VerificationBenchEntry!]!
+  }
+
+  type VerificationServedItem {
+    attemptId: ID!
+    item: VerificationItem!
+    rung: VerificationRung!
+    "Seconds, only on the assisted rung — the hard ceiling, visible from the start."
+    assistedCeilingSeconds: Int
+  }
+
+  "One check's outcome, revealed only once it is selected — never shipped as part of the bench."
+  type VerificationCheckOutcome {
+    checkId: String!
+    outcome: String!
+    costSeconds: Int!
+    cumulativeSpent: Int!
+    ceilingSeconds: Int
+  }
+
+  type VerificationLocalisationElement {
+    elementId: String!
+    label: String!
+  }
+
+  """
+  Two shapes in one type rather than a union, matching this schema's existing
+  style: on the unassisted rung a commit returns the withheld element list
+  (stage "awaitingLocalisation") instead of a score, because nothing is
+  revealed before setVerificationLocalization runs.
+  """
+  type VerificationCommitResult {
+    "scored | awaitingLocalisation"
+    stage: String!
+    "Unassisted rung only, before localisation — absent from the DOM otherwise, not merely hidden."
+    elements: [VerificationLocalisationElement!]
+    result: VerificationSubmitResult
+  }
+
+  type VerificationCriterionScore {
+    "V1-V6"
+    id: String!
+    "0-2, or null when nothing scored it (unscored on this rung, or inapplicable on a control item). Null is not zero."
+    level: Int
+    "detector | instrumentation | key | key+instrumentation | unscored"
+    scoredBy: String!
+    evidence: String!
+  }
+
+  type VerificationScore {
+    criteria: [VerificationCriterionScore!]!
+    "Sum over scored criteria only."
+    total: Int!
+    scoredCount: Int!
+    "V1 x V3 x verdict-match — the headline number."
+    strict: Boolean!
+    "none-run | none-could-fail | some-could-fail | all-could-fail. Only none-could-fail counts toward the ritual rate."
+    ritualState: String!
+    costSpent: Int!
+    "Spend divided by the key's cheapest sufficient check. Null when nothing discriminates (a NO_ORACLE item)."
+    costRatio: Float
+    rung: VerificationRung!
+    isVoid: Boolean!
+    isComplete: Boolean!
+  }
+
+  "Only ever populated after scoring — the cheapest sufficient check and the ideal cost, never shown before commit."
+  type VerificationReveal {
+    failingElementLabel: String
+    cheapestCheckId: String
+    cheapestCostSeconds: Int
+  }
+
+  type VerificationSubmitResult {
+    attemptId: ID!
+    score: VerificationScore!
+    moduleState: String!
+    masteryUnmet: [MasteryGap!]!
+    "Assisted rung only: offered, never forced — the learner still chooses via setVerificationRung."
+    promotionOffered: Boolean!
+    reveal: VerificationReveal!
+  }
+
+  type VerificationCriterionMean {
+    criterion: String!
+    mean: Float
+    count: Int!
+  }
+
+  type VerificationProgress {
+    contentVersion: String!
+    rubricVersion: String!
+    locale: String!
+    reviewStatus: String!
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    totalAttempts: Int!
+    criterionMeans: [VerificationCriterionMean!]!
+    strictComposite: Float
+    "The metric unique to this tool: the share of attempts where every check run was pass-either-way."
+    ritualRate: Float
+    "Hit rate on faulty items minus false-alarm rate on CORRECT controls."
+    discrimination: Float
+    meanCostRatio: Float
+    "Correct 'cannot verify' on NO_ORACLE items."
+    correctUnverifiedCount: Int!
+    "Incorrect 'cannot verify' on a verifiable item — reported beside the correct count, or the tool would reward giving up."
+    falseUnverifiedCount: Int!
+    "False until every probe item's key has been human-verified. startSkillProbe rejects until this is true."
+    probeReady: Boolean!
+    probeBlockers: [String!]!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1148,6 +1311,11 @@ export const typeDefs = gql`
     decompositionModules: [DecompositionModule!]!
     "Decomposition Lab: per-criterion trend, breadth-first index trend, granularity discrimination."
     decompositionProgress: DecompositionProgress!
+
+    "Verification Lab: the six modules, each with its current rung."
+    verificationModules: [VerificationModule!]!
+    "Verification Lab: per-criterion trend, strict composite, ritual rate, discrimination, cost ratio."
+    verificationProgress: VerificationProgress!
 
     "Feelings & Needs: the tool home's state — enough to route into the frame or the loop."
     feelingsNeedsState: FeelingsNeedsState!
@@ -1437,6 +1605,54 @@ export const typeDefs = gql`
     attempt outright.
     """
     exportDecompositionBreakdown(attemptId: ID!, nodeIds: [String!]!): DecompositionExportResult!
+
+    """
+    Verification Lab: open an attempt and serve the next item. The rung
+    comes from the module's current SkillModuleProgress, except in
+    assessment mode where it is always unassisted regardless of the
+    learner's practice rung. Returns null when the pool is spent.
+    """
+    startVerificationItem(mode: SkillMode!, moduleKey: String, probeId: ID): VerificationServedItem
+
+    """
+    Name the oracle before the bench opens. Rejected once any check has
+    already been selected — the order is what V1 measures, so it is
+    server-stamped rather than reconstructed afterwards.
+    """
+    nameVerificationOracle(attemptId: ID!, text: String!, predictedCostSeconds: Int): Boolean!
+
+    """
+    Spend one check and see its outcome — never the whole bench at once.
+    Rejected before an oracle is named, on a repeat of an already-revealed
+    check, or on the assisted rung if it would exceed the hard ceiling.
+    """
+    revealVerificationCheck(attemptId: ID!, checkId: String!): VerificationCheckOutcome!
+
+    """
+    Commit verdict, confidence and residual risk. On the assisted rung,
+    elementId arrives here and scoring runs immediately. On the unassisted
+    rung, elementFreeText is required instead and the response withholds
+    the score, returning the element list for setVerificationLocalization
+    to score against — nothing is revealed before that call.
+    """
+    commitVerificationVerdict(
+      attemptId: ID!
+      verdict: VerificationVerdict!
+      confidence: Int!
+      residualRisk: String!
+      elementId: String
+      elementFreeText: String
+      timeZoneOffsetMinutes: Int
+    ): VerificationCommitResult!
+
+    "Unassisted rung only: the pick that is actually scored, after the free-text commit."
+    setVerificationLocalization(attemptId: ID!, elementId: String!, timeZoneOffsetMinutes: Int): VerificationSubmitResult!
+
+    """
+    The only way a module's rung changes. Always a learner action — a
+    promotion is offered, never forced, and there is no automatic demotion.
+    """
+    setVerificationRung(moduleKey: String!, rung: VerificationRung!): VerificationRung!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

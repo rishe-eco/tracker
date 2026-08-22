@@ -28,6 +28,14 @@ import {
   submitDecompositionRealWork,
 } from "../../services/skills/decomposition/realWork";
 import {
+  commitVerificationVerdict,
+  nameVerificationOracle,
+  revealVerificationCheck,
+  serveVerificationItem,
+  setVerificationLocalization,
+  setVerificationRung,
+} from "../../services/skills/verification/verificationSession";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1201,6 +1209,49 @@ mutations.submitDecompositionRealWork = requireAuth(
 mutations.exportDecompositionBreakdown = requireAuth(async (_, { attemptId, nodeIds }: any, ctx) => {
   if (!Array.isArray(nodeIds) || nodeIds.length === 0) throw new Error("nodeIds must be a non-empty list.");
   return exportDecompositionBreakdown(ctx.prisma, ctx.user.id, attemptId, nodeIds);
+});
+
+// ── Verification Lab ────────────────────────────────────────────────────────
+// The bench-leak rule is enforced in the service, not here: a served item and
+// a revealed check never carry more than their own type allows.
+
+mutations.startVerificationItem = requireAuth(async (_, { mode, moduleKey, probeId }: any, ctx) =>
+  serveVerificationItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null)
+);
+
+mutations.nameVerificationOracle = requireAuth(async (_, { attemptId, text, predictedCostSeconds }: any, ctx) => {
+  if (typeof text !== "string" || !text.trim()) throw new Error("An oracle statement cannot be empty.");
+  await nameVerificationOracle(ctx.prisma, ctx.user.id, attemptId, text, predictedCostSeconds ?? null);
+  return true;
+});
+
+mutations.revealVerificationCheck = requireAuth(async (_, { attemptId, checkId }: any, ctx) =>
+  revealVerificationCheck(ctx.prisma, ctx.user.id, attemptId, checkId, ctx.locale)
+);
+
+mutations.commitVerificationVerdict = requireAuth(
+  async (_, { attemptId, verdict, confidence, residualRisk, elementId, elementFreeText, timeZoneOffsetMinutes }: any, ctx) => {
+    const outcome = await commitVerificationVerdict(
+      ctx.prisma,
+      ctx.user.id,
+      attemptId,
+      { verdict, confidence, residualRisk, elementId: elementId ?? null, elementFreeText: elementFreeText ?? null },
+      ctx.locale,
+      timeZoneOffsetMinutes ?? 0
+    );
+    return outcome.stage === "scored"
+      ? { stage: outcome.stage, elements: null, result: outcome.result }
+      : { stage: outcome.stage, elements: outcome.elements, result: null };
+  }
+);
+
+mutations.setVerificationLocalization = requireAuth(async (_, { attemptId, elementId, timeZoneOffsetMinutes }: any, ctx) =>
+  setVerificationLocalization(ctx.prisma, ctx.user.id, attemptId, elementId, ctx.locale, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.setVerificationRung = requireAuth(async (_, { moduleKey, rung }: any, ctx) => {
+  const result = await setVerificationRung(ctx.prisma, ctx.user.id, moduleKey, rung);
+  return result.rung;
 });
 
 mutations.planSkillSchedule = requireAuth(
