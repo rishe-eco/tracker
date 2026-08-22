@@ -275,6 +275,25 @@ function summarizeAttempts(skillKey: SkillKey, attempts: { scores: string }[]) {
     return scoreSession(scores as EvidenceItemScore[]);
   }
 
+  if (skillKey === "verification") {
+    // A probe attempt is always unassisted (build plan §5), so every
+    // criterion is scoreable on every scored attempt — unlike the module
+    // progress screen, this total never has to account for a ceiling or a
+    // control's inapplicable V5.
+    const scored = scores.filter((s) => Array.isArray(s.criteria));
+    const strictCount = scored.filter((s) => s.strict === true).length;
+    const ritualCount = scored.filter((s) => s.ritualState === "none-could-fail").length;
+    const costRatios = scored.map((s) => s.costRatio).filter((r: unknown): r is number => typeof r === "number");
+    return {
+      itemCount: scored.length,
+      meanTotal: null,
+      criteria: meanByKey(scored, ["V1", "V2", "V3", "V4", "V5", "V6"], "id"),
+      strictComposite: scored.length ? strictCount / scored.length : null,
+      ritualRate: scored.length ? ritualCount / scored.length : null,
+      meanCostRatio: costRatios.length ? costRatios.reduce((a: number, b: number) => a + b, 0) / costRatios.length : null,
+    };
+  }
+
   const criteria = skillKey === "clarity" ? (["R1", "R2", "R3", "R4", "R5", "R6"] as const) : (["D1", "D2", "D3", "D4", "D5", "D6"] as const);
   const key = skillKey === "clarity" ? ("criterion" as const) : ("id" as const);
   const scored = scores.filter((s) => Array.isArray(s.criteria));
@@ -467,7 +486,7 @@ export type DueSkillProbe = { skillKey: SkillKey; timepoint: ProbeTimepoint; sch
  * stays invisible, same as a review that isn't due yet.
  */
 export async function getDueSkillProbes(prisma: PrismaClient, userId: string): Promise<DueSkillProbe[]> {
-  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition"];
+  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition", "verification"];
   const out: DueSkillProbe[] = [];
   const now = Date.now();
 

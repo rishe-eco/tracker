@@ -270,6 +270,7 @@ export const typeDefs = gql`
     clarity
     evidence
     decomposition
+    verification
   }
 
   enum SkillModuleState {
