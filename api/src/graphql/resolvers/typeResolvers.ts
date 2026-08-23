@@ -347,6 +347,12 @@ export const typeResolvers = {
     mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
   },
 
+  DelegationProgress: {
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "delegation", ctx.locale),
+    probeReady: () => probeReadinessFor("delegation").ready,
+    probeBlockers: () => probeReadinessFor("delegation").blockers,
+  },
+
   SkillPlannedSession: {
     tbd: (parent: any) => new Date(parent.tbd).toISOString(),
   },

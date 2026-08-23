@@ -142,7 +142,10 @@ describe("baseline -> post -> delayed completes", () => {
       ctx
     );
     expect(delayedComplete.itemCount).toBe(6);
-  });
+    // 3 timepoints x 6 items x several sequential mutation round-trips each
+    // — comfortably over the default 30s under full-suite worker contention
+    // (observed flaking as the suite grew; passes in well under 30s alone).
+  }, 60_000);
 });
 
 describe("dueSkillProbes", () => {

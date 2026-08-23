@@ -1199,6 +1199,11 @@ export const typeDefs = gql`
     "Withheld (null) until the baseline probe completes, or 12 scored items if it was skipped — an anchor delivered early cannot be withdrawn."
     populationMeanWoa: Float
     ownMeanWoa: Float
+    "False until every probe item's key has been human-verified. startSkillProbe rejects until this is true."
+    probeReady: Boolean!
+    probeBlockers: [String!]!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
   }
 
   input DelegationDispositionInput {

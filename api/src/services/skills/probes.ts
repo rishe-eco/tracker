@@ -41,6 +41,8 @@ import {
   validateVerificationContent,
 } from "../../content/skills/verification/validate";
 import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
+import { buildDelegationPack, RUBRIC_VERSION as DELEGATION_RUBRIC_VERSION } from "../../content/skills/delegation/v1";
+import { isProbeReady as isDelegationProbeReady, validateDelegationContent } from "../../content/skills/delegation/validate";
 import { ensureProfile } from "./profile";
 import { delayedProbeDueAt, hashSeed } from "./scheduler";
 import { scoreSession, type EvidenceItemScore } from "./scoring";
@@ -122,6 +124,10 @@ export function probeReadinessFor(skillKey: SkillKey): { ready: boolean; blocker
     const issues = validateDecompositionContent();
     return { ready: isDecompositionProbeReady(issues), blockers: blockersFrom(issues) };
   }
+  if (skillKey === "delegation") {
+    const issues = validateDelegationContent();
+    return { ready: isDelegationProbeReady(issues), blockers: blockersFrom(issues) };
+  }
   const issues = validateVerificationContent();
   return { ready: isVerificationProbeReady(issues), blockers: blockersFrom(issues) };
 }
@@ -141,6 +147,10 @@ async function loadPackInfo(prisma: PrismaClient, userId: string, skillKey: Skil
   if (skillKey === "decomposition") {
     const pack = buildDecompositionPack(locale);
     return { items: pack.items, rubricVersion: DECOMPOSITION_RUBRIC_VERSION };
+  }
+  if (skillKey === "delegation") {
+    const pack = buildDelegationPack(locale);
+    return { items: pack.items, rubricVersion: DELEGATION_RUBRIC_VERSION };
   }
   const pack = buildVerificationPack(locale);
   return { items: pack.items, rubricVersion: VERIFICATION_RUBRIC_VERSION };
@@ -296,6 +306,24 @@ function summarizeAttempts(skillKey: SkillKey, attempts: { scores: string }[]) {
       strictComposite: scored.length ? strictCount / scored.length : null,
       ritualRate: scored.length ? ritualCount / scored.length : null,
       meanCostRatio: costRatios.length ? costRatios.reduce((a: number, b: number) => a + b, 0) / costRatios.length : null,
+    };
+  }
+
+  if (skillKey === "delegation") {
+    // Heterogeneous by design (build plan §3, D-39): a probe form's 7 rows
+    // span all six modules, and only g1/g2/g3/g5 ever produce a WOA — so the
+    // reliance-discrimination/anchoring headline (spec §6) is too sparse at
+    // n<=2 per side to mean anything over a single form. Reported the same
+    // shape as Clarity/Decomposition instead: per-criterion means (mostly a
+    // single data point each) plus the mean of whichever single criterion
+    // each item actually scored — comparable across forms, not a claim of
+    // statistical power this sample size doesn't have.
+    const scored = scores.filter((s) => Array.isArray(s.criteria));
+    const totals = scored.map((s) => s.total).filter((t): t is number => typeof t === "number");
+    return {
+      itemCount: scored.length,
+      meanTotal: totals.length ? totals.reduce((a: number, b: number) => a + b, 0) / totals.length : null,
+      criteria: meanByKey(scored, ["G1", "G2", "G3", "G4", "G5", "G6"], "id"),
     };
   }
 
@@ -491,7 +519,7 @@ export type DueSkillProbe = { skillKey: SkillKey; timepoint: ProbeTimepoint; sch
  * stays invisible, same as a review that isn't due yet.
  */
 export async function getDueSkillProbes(prisma: PrismaClient, userId: string): Promise<DueSkillProbe[]> {
-  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition", "verification"];
+  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition", "verification", "delegation"];
   const out: DueSkillProbe[] = [];
   const now = Date.now();
 

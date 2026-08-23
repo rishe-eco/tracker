@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_DELEGATION_MODULES, GET_DELEGATION_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import DelegationRubricRail from "./DelegationRubricRail";
+import SkillProbeBanner from "./SkillProbeBanner";
 
 type DelegationModule = {
   moduleKey: string;
@@ -37,6 +38,8 @@ type DelegationProgress = {
   selfAssessmentCalibration: number | null;
   populationMeanWoa: number | null;
   ownMeanWoa: number | null;
+  probeReady: boolean;
+  probeBlockers: string[];
 };
 
 export default function DelegationLabPage() {
@@ -101,6 +104,18 @@ export default function DelegationLabPage() {
         </div>
 
         {progress.reviewStatus === "draft" && <Banner tone="info" text={t("skills.banners.draftLocale")} />}
+
+        {!progress.probeReady ? (
+          <Banner tone="warn" text={t("skills.banners.probeBlocked", { count: progress.probeBlockers.length })} />
+        ) : (
+          <SkillProbeBanner
+            skillKey="delegation"
+            sessionRoute="/tools/skills/delegation/session"
+            hasBaseline={progress.hasBaseline}
+            assessmentSkipped={progress.assessmentSkipped}
+            onSkipped={() => void load()}
+          />
+        )}
 
         {started && (
           <>

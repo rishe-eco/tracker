@@ -2027,6 +2027,14 @@ export const GET_DELEGATION_PROGRESS = `
       selfAssessmentCalibration
       populationMeanWoa
       ownMeanWoa
+      probeReady
+      probeBlockers
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
     }
   }
 `;
