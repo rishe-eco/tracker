@@ -45,6 +45,7 @@ import {
   selectDelegationCue,
   startDelegationItem,
 } from "../../services/skills/delegation/delegationSession";
+import { startDelegationRealWork, submitDelegationRealWork } from "../../services/skills/delegation/realWork";
 import {
   applyPlan,
   clearPlan,
@@ -1325,6 +1326,14 @@ mutations.commitSequenceRound = requireAuth(
     if (outcome.stage === "scored") return { stage: outcome.stage, advice: null, result: outcome.result };
     return { stage: outcome.stage, advice: null, result: null };
   }
+);
+
+mutations.startDelegationRealWork = requireAuth(async (_, { handingOver, keeping, wouldTellMeWrong }: any, ctx) =>
+  startDelegationRealWork(ctx.prisma, ctx.user.id, handingOver, keeping, wouldTellMeWrong, ctx.locale)
+);
+
+mutations.submitDelegationRealWork = requireAuth(async (_, { attemptId, whatActuallyHappened }: any, ctx) =>
+  submitDelegationRealWork(ctx.prisma, ctx.user.id, attemptId, whatActuallyHappened)
 );
 
 mutations.planSkillSchedule = requireAuth(

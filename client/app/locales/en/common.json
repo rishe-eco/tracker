@@ -1852,6 +1852,42 @@
       "overReliance": "Over-reliance in this module is above {{required}} — has to clear before mastery",
       "underReliance": "Under-reliance in this module is above {{required}} — has to clear before mastery",
       "keyMatch": "{{done}} of {{required}} recent attempts fully matching the key"
+    },
+    "realWork": {
+      "entryTitle": "Bring something real",
+      "entryBody": "Log a real decision before you make it — what you're handing over, what you're keeping, what would tell you the split was wrong. Come back after and record what happened. Never scored into your baseline or mastery.",
+      "entryButton": "Log a real decision",
+      "title": "Real-work delegation",
+      "beforeLabel": "Before the decision",
+      "beforeBody": "Write this before you know how it turns out — a prediction made after the fact is a memory, not a prediction.",
+      "handingOverLabel": "What you're handing over",
+      "handingOverPlaceholder": "The part you're letting the AI do…",
+      "keepingLabel": "What you're keeping",
+      "keepingPlaceholder": "The part only you can judge…",
+      "wouldTellMeWrongLabel": "What would tell you the split was wrong",
+      "wouldTellMeWrongPlaceholder": "The sign that you delegated the wrong piece…",
+      "saveBeforeButton": "Save — remind me after",
+      "nothingScoredHere": "Nothing here is scored.",
+      "afterLabel": "After — what actually happened",
+      "whatHappenedLabel": "What actually happened",
+      "whatHappenedPlaceholder": "What you found out, and what you did about it…",
+      "saveRecordButton": "Save the record",
+      "recordDone": "Delegation record",
+      "recordHandingOver": "Handed over",
+      "recordKeeping": "Kept",
+      "recordWouldTellMeWrong": "Would have signalled a wrong split",
+      "recordWhatHappened": "What happened",
+      "saveJournalButton": "Save as journal entry",
+      "attachButton": "Attach to a goal or project",
+      "savedJournal": "Saved as a journal entry.",
+      "savedNote": "Attached as a note.",
+      "noTargets": "No goals or projects yet — add one first.",
+      "errors": {
+        "couldNotStart": "Could not start on that. Try again.",
+        "couldNotSubmit": "Could not save that record. Try again.",
+        "couldNotSaveJournal": "Could not save that as a journal entry — you may need a journal first, from the Journals tool.",
+        "couldNotAttach": "Could not attach that. Try again."
+      }
     }
   }
 }

@@ -1212,6 +1212,33 @@ export const typeDefs = gql`
     disposition: String!
   }
 
+  # ── Delegation Lab: real-work delegation record ─────────────────────────
+  #
+  # The only mode in this engine that spans two sittings: logged before a
+  # real decision, revisited after the outcome is known. Nothing here is
+  # scored or written into Tracker directly — the record is saved through
+  # the existing addQuickEntry / addNote mutations, same as Verification's
+  # real-work record.
+
+  type DelegationRealWorkServedItem {
+    attemptId: ID!
+    handingOver: String!
+    keeping: String!
+    wouldTellMeWrong: String!
+  }
+
+  type DelegationRealWorkRecord {
+    handingOver: String!
+    keeping: String!
+    wouldTellMeWrong: String!
+    whatActuallyHappened: String!
+  }
+
+  type DelegationRealWorkResult {
+    attemptId: ID!
+    record: DelegationRealWorkRecord!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1928,6 +1955,20 @@ export const typeDefs = gql`
       confidence: Int
       timeZoneOffsetMinutes: Int
     ): DelegationSequenceRoundResult!
+
+    """
+    Real-work delegation: log a real decision before making it — what you're
+    handing over, what you're keeping, what would tell you the split was
+    wrong. mode: open_practice — never scored into mastery or probes.
+    """
+    startDelegationRealWork(handingOver: String!, keeping: String!, wouldTellMeWrong: String!): DelegationRealWorkServedItem!
+
+    """
+    Complete the record with what actually happened. Nothing is written into
+    Tracker by this call — save the returned record yourself via
+    addQuickEntry or addNote.
+    """
+    submitDelegationRealWork(attemptId: ID!, whatActuallyHappened: String!): DelegationRealWorkResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

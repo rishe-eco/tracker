@@ -29,6 +29,7 @@ import VerificationSessionPage from "./components/skills/VerificationSessionPage
 import VerificationRealWorkPage from "./components/skills/VerificationRealWorkPage";
 import DelegationLabPage from "./components/skills/DelegationLabPage";
 import DelegationSessionPage from "./components/skills/DelegationSessionPage";
+import DelegationRealWorkPage from "./components/skills/DelegationRealWorkPage";
 import FeelingsNeedsPage from "./components/learn/FeelingsNeedsPage";
 import FeelingsNeedsLoopPage from "./components/learn/FeelingsNeedsLoopPage";
 import FeelingsNeedsHistoryPage from "./components/learn/FeelingsNeedsHistoryPage";
@@ -107,6 +108,10 @@ export default [
   {
     path: "/tools/skills/delegation/session",
     element: <DelegationSessionPage />,
+  },
+  {
+    path: "/tools/skills/delegation/real-work",
+    element: <DelegationRealWorkPage />,
   },
   {
     // Learn · Feelings & Needs (Module 1). Namespaced under /tools/learn per the

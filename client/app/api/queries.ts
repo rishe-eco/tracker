@@ -2168,6 +2168,31 @@ export const COMMIT_SEQUENCE_ROUND = `
   }
 `;
 
+export const START_DELEGATION_REAL_WORK = `
+  mutation StartDelegationRealWork($handingOver: String!, $keeping: String!, $wouldTellMeWrong: String!) {
+    startDelegationRealWork(handingOver: $handingOver, keeping: $keeping, wouldTellMeWrong: $wouldTellMeWrong) {
+      attemptId
+      handingOver
+      keeping
+      wouldTellMeWrong
+    }
+  }
+`;
+
+export const SUBMIT_DELEGATION_REAL_WORK = `
+  mutation SubmitDelegationRealWork($attemptId: ID!, $whatActuallyHappened: String!) {
+    submitDelegationRealWork(attemptId: $attemptId, whatActuallyHappened: $whatActuallyHappened) {
+      attemptId
+      record {
+        handingOver
+        keeping
+        wouldTellMeWrong
+        whatActuallyHappened
+      }
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `
