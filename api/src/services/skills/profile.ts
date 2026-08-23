@@ -12,6 +12,7 @@ import { CLARITY_MODULE_KEYS } from "../../content/skills/clarity/types";
 import { DECOMPOSITION_MODULE_KEYS } from "../../content/skills/decomposition/types";
 import { VERIFICATION_MODULE_KEYS } from "../../content/skills/verification/types";
 import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
+import { MONITORING_MODULE_KEYS } from "../../content/skills/monitoring/types";
 
 const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
@@ -19,6 +20,7 @@ const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
   decomposition: DECOMPOSITION_MODULE_KEYS,
   verification: VERIFICATION_MODULE_KEYS,
   delegation: DELEGATION_MODULE_KEYS,
+  monitoring: MONITORING_MODULE_KEYS,
 };
 
 /**

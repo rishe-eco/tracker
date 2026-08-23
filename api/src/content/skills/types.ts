@@ -19,7 +19,7 @@
  * targets and independence rules must never reach a browser bundle.
  */
 
-export type SkillKey = "clarity" | "evidence" | "decomposition" | "verification" | "delegation";
+export type SkillKey = "clarity" | "evidence" | "decomposition" | "verification" | "delegation" | "monitoring";
 export type Locale = "en" | "fa";
 
 /** A/B/C are the parallel probe forms; `pool` is practice-only material. */

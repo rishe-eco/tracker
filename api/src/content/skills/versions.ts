@@ -19,6 +19,8 @@ import { buildVerificationPack, ITEM_SPECS as VERIFICATION_SPECS_V1 } from "./ve
 import type { VerificationItemSpec, VerificationPack } from "./verification/types";
 import { buildDelegationPack, ITEM_SPECS as DELEGATION_SPECS_V1 } from "./delegation/v1";
 import type { DelegationItemSpec, DelegationPack } from "./delegation/types";
+import { buildMonitoringPack, ITEM_SPECS as MONITORING_SPECS_V1 } from "./monitoring/v1";
+import type { MonitoringItemSpec, MonitoringPack } from "./monitoring/types";
 import type { EvidenceItemSpec, EvidencePack, Locale, SkillKey } from "./types";
 
 /** The version a new learner is enrolled on. */
@@ -29,6 +31,7 @@ export const CURRENT_VERSION: Record<SkillKey, string> = {
   decomposition: "decomposition/v1",
   verification: "verification/v1",
   delegation: "delegation/v1",
+  monitoring: "monitoring/v1",
 };
 
 export type EvidenceVersion = {
@@ -80,3 +83,14 @@ export const DELEGATION_VERSIONS: Record<string, DelegationVersion> = {
 };
 
 export const ENROLLABLE_DELEGATION_VERSIONS = ["delegation/v1"];
+
+export type MonitoringVersion = {
+  build: (locale: Locale) => MonitoringPack;
+  specs: MonitoringItemSpec[];
+};
+
+export const MONITORING_VERSIONS: Record<string, MonitoringVersion> = {
+  "monitoring/v1": { build: buildMonitoringPack, specs: MONITORING_SPECS_V1 },
+};
+
+export const ENROLLABLE_MONITORING_VERSIONS = ["monitoring/v1"];

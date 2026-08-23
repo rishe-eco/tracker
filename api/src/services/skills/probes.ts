@@ -43,6 +43,7 @@ import {
 import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
 import { buildDelegationPack, RUBRIC_VERSION as DELEGATION_RUBRIC_VERSION } from "../../content/skills/delegation/v1";
 import { isProbeReady as isDelegationProbeReady, validateDelegationContent } from "../../content/skills/delegation/validate";
+import { MONITORING_MODULE_KEYS } from "../../content/skills/monitoring/types";
 import { ensureProfile } from "./profile";
 import { delayedProbeDueAt, hashSeed } from "./scheduler";
 import { scoreSession, type EvidenceItemScore } from "./scoring";
@@ -76,10 +77,15 @@ const MODULE_KEYS: Record<SkillKey, readonly string[]> = {
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
   verification: VERIFICATION_MODULE_KEYS,
-  // Not yet registered with the rest of this file — that's build plan Phase 5.
-  // Only listed here so this Record stays exhaustive as soon as `delegation`
-  // exists in the shared SkillKey union (Phase 1).
   delegation: DELEGATION_MODULE_KEYS,
+  // Not yet registered with the rest of this file — that's build plan Phase 5.
+  // Only listed here so this Record stays exhaustive as soon as `monitoring`
+  // exists in the shared SkillKey union (Phase 1). The D-35-shaped gap this
+  // pattern exists to avoid: `probeReadinessFor`/`loadPackInfo` have no
+  // monitoring branch yet, so a call for it still silently falls through to
+  // this file's final unconditional branch (Verification's content) until
+  // Phase 5 adds one.
+  monitoring: MONITORING_MODULE_KEYS,
 };
 
 const FORMS: ProbeForm[] = ["A", "B", "C"];
