@@ -272,6 +272,7 @@ export const typeDefs = gql`
     decomposition
     verification
     delegation
+    monitoring
   }
 
   enum SkillModuleState {
@@ -1239,6 +1240,200 @@ export const typeDefs = gql`
     record: DelegationRealWorkRecord!
   }
 
+  # ── Monitoring Lab ─────────────────────────────────────────────────────────
+  #
+  # No rung, no new tables (build plan §9). The artifact is a prediction: every
+  # item collects a claim the learner makes about themselves, then measures it.
+  # S1 and S3 never get a per-attempt level at all (unlike every other tool's
+  # "one criterion per attempt" — here two criteria are window-level patterns,
+  # not a property of one item), so a recall/pair-unassisted MonitoringScore
+  # carries a predictionSample instead, aggregated in MonitoringProgress.
+  # Resolution never renders without performance beside it (spec §2, §10) —
+  # enforced in the client, asserted in its test suite, not in this schema.
+
+  type MonitoringModule {
+    moduleKey: String!
+    title: String!
+    concept: String!
+    model: String!
+    state: String!
+    currentStep: Int!
+    masteredAt: String
+    nextReviewAt: String
+  }
+
+  type MonitoringTurn {
+    turnId: String!
+    role: String!
+    text: String!
+  }
+
+  type MonitoringCheckpoint {
+    checkpointId: String!
+    text: String!
+  }
+
+  type MonitoringCountermeasureOption {
+    optionId: String!
+    label: String!
+  }
+
+  "What the learner may see before any commit. Never answerVariants, never causalSteps, never a planted-influence tag, never a checkpoint's claimCorrect, never a countermeasure's attentionDependent flag."
+  type MonitoringItem {
+    itemId: String!
+    moduleKey: String!
+    difficulty: Int!
+    "recall | pair | explain | transcript | longset"
+    kind: String!
+    question: String
+    explainPrompt: String
+    "Assisted pair half only, shown before any rating."
+    authoredExplanation: String
+    pairId: String
+    "assisted | unassisted"
+    pairHalf: String
+    turns: [MonitoringTurn!]
+    checkpoints: [MonitoringCheckpoint!]
+    countermeasureOptions: [MonitoringCountermeasureOption!]
+  }
+
+  type MonitoringServedItem {
+    attemptId: ID!
+    item: MonitoringItem!
+  }
+
+  type MonitoringOk {
+    ok: Boolean!
+  }
+
+  type MonitoringCriterionScore {
+    "S1-S6"
+    id: String!
+    "0-2, or null when this item's module doesn't train this criterion, or when the criterion is window-level (S1, S3) rather than per-attempt. Null is not zero."
+    level: Int
+    "computed | key | unscored"
+    scoredBy: String!
+    evidence: String!
+  }
+
+  type MonitoringPredictionSample {
+    "no_idea | probably_not | probably | confident"
+    prediction: String!
+    outcome: Int!
+  }
+
+  type MonitoringRatingSample {
+    pairId: String!
+    "assisted | unassisted"
+    pairHalf: String!
+    rating: Int!
+  }
+
+  type MonitoringDeflation {
+    before: Int!
+    after: Int!
+  }
+
+  type MonitoringInfluenceResult {
+    hits: Int!
+    falseAlarms: Int!
+    plantedTotal: Int!
+    misses: Int!
+  }
+
+  "Descriptive only, never scored (build plan §4.5) — never aggregated across sessions either."
+  type MonitoringCheckRate {
+    firstThird: Float!
+    lastThird: Float!
+    decay: Float
+  }
+
+  type MonitoringScore {
+    criteria: [MonitoringCriterionScore!]!
+    total: Int!
+    scoredCount: Int!
+    "recall (s3), and the unassisted half of a pair (s1) — feeds window-level gamma/bias, never scored per-attempt."
+    predictionSample: MonitoringPredictionSample
+    "pair only — feeds window-level post-AI inflation."
+    ratingSample: MonitoringRatingSample
+    "explain only — descriptive, never scored."
+    deflation: MonitoringDeflation
+    "transcript only."
+    influenceResult: MonitoringInfluenceResult
+    "longset only — descriptive, never scored."
+    checkRate: MonitoringCheckRate
+  }
+
+  type MonitoringSubmitResult {
+    attemptId: ID!
+    score: MonitoringScore!
+    moduleState: String!
+    masteryUnmet: [MasteryGap!]!
+  }
+
+  "recall, and the unassisted half of a pair: submitMonitoringAnswer scores immediately, except on the unassisted pair half, which still needs its rating."
+  type MonitoringAnswerResult {
+    "scored | needsRating"
+    stage: String!
+    result: MonitoringSubmitResult
+  }
+
+  "pair items score on this call; explain items only record the rating (before or after) and score later, on selectMonitoringSteps."
+  type MonitoringRatingResult {
+    "recorded | scored"
+    stage: String!
+    result: MonitoringSubmitResult
+  }
+
+  type MonitoringCausalStep {
+    stepId: String!
+    label: String!
+  }
+
+  "Returned by commitMonitoringExplanation. The re-rating (commitMonitoringRating, phase 'after') must land before selectMonitoringSteps will accept a selection, so the learner is never rating against a list they've already acted on (spec §10; D-45)."
+  type MonitoringExplanationResult {
+    steps: [MonitoringCausalStep!]!
+  }
+
+  type MonitoringCriterionMean {
+    criterion: String!
+    mean: Float
+    count: Int!
+  }
+
+  type MonitoringProgress {
+    contentVersion: String!
+    rubricVersion: String!
+    locale: String!
+    reviewStatus: String!
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    totalAttempts: Int!
+    criterionMeans: [MonitoringCriterionMean!]!
+    resolutionSampleCount: Int!
+    "Gamma over s3-resolution items only. Null renders as 'not measurable from this set,' never as zero (build plan §4.1: all-correct, all-identical predictions, and <4 items are all null, not 0). Never shown without performance beside it."
+    resolution: Float
+    "Fraction correct on s3-resolution items — always shown beside resolution, never alone."
+    performance: Float
+    "mean(predicted probability) - accuracy on s3-resolution items, signed so direction is legible."
+    bias: Float
+    "selfRating(assisted) - selfRating(unassisted), averaged per completed pair. The §1.1 AI-literacy finding is withheld until this number exists (postAiInflationReady), then shown attached to it — including when it's near zero."
+    postAiInflation: Float
+    postAiInflationReady: Boolean!
+    "hitRate - falseAlarmRate across every scored transcript."
+    influenceDiscrimination: Float
+    "False until every probe item's key has been human-verified. startSkillProbe rejects until this is true."
+    probeReady: Boolean!
+    probeBlockers: [String!]!
+    "Baseline/post/delayed, whichever have been started. Empty until the first startSkillProbe."
+    probes: [SkillProbeEntry!]!
+  }
+
+  input MonitoringInfluenceMarkInput {
+    turnId: String!
+    movedWhat: String!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1536,6 +1731,11 @@ export const typeDefs = gql`
     delegationModules: [DelegationModule!]!
     "Delegation Lab: reliance discrimination, over/under reliance (never summed), net gain, anchoring, self-assessment calibration."
     delegationProgress: DelegationProgress!
+
+    "Monitoring Lab: the six modules with this learner's state on each. No rung — this tool has none."
+    monitoringModules: [MonitoringModule!]!
+    "Monitoring Lab: resolution beside performance, bias, post-AI inflation (gated), influence discrimination."
+    monitoringProgress: MonitoringProgress!
 
     "Feelings & Needs: the tool home's state — enough to route into the frame or the loop."
     feelingsNeedsState: FeelingsNeedsState!
@@ -1969,6 +2169,48 @@ export const typeDefs = gql`
     addQuickEntry or addNote.
     """
     submitDelegationRealWork(attemptId: ID!, whatActuallyHappened: String!): DelegationRealWorkResult!
+
+    """
+    Monitoring Lab: open an attempt and serve the next item. No rung — every
+    item practises the same way regardless of module. Returns null when the
+    pool is spent.
+    """
+    startMonitoringItem(mode: SkillMode!, moduleKey: String, probeId: ID): MonitoringServedItem
+
+    "recall, and the unassisted half of a pair: commit the prediction before the answer field exists anywhere in the payload."
+    commitMonitoringPrediction(attemptId: ID!, level: String!): MonitoringOk!
+
+    """
+    Score against the authored key. On the unassisted half of a pair, this
+    does not finalize the attempt yet — the pair's unit is
+    (prediction, outcome, rating) together, so it waits for
+    commitMonitoringRating.
+    """
+    submitMonitoringAnswer(attemptId: ID!, text: String!, timeZoneOffsetMinutes: Int): MonitoringAnswerResult!
+
+    """
+    phase "before" | "after". On a pair item, always phase "after" (a half
+    never rates twice) and scores immediately. On an explain item, "before"
+    must precede commitMonitoringExplanation and "after" must follow it
+    (and must land before selectMonitoringSteps — D-45); neither phase
+    scores the attempt by itself.
+    """
+    commitMonitoringRating(attemptId: ID!, phase: String!, value: Int!, timeZoneOffsetMinutes: Int): MonitoringRatingResult!
+
+    "explain items only: free-text explanation, returns the causal step list. Requires a 'before' rating first."
+    commitMonitoringExplanation(attemptId: ID!, text: String!): MonitoringExplanationResult!
+
+    "explain items only: which authored causal steps the explanation covered. Scores the attempt. Requires an 'after' rating first (D-45)."
+    selectMonitoringSteps(attemptId: ID!, stepIds: [String!]!, timeZoneOffsetMinutes: Int): MonitoringSubmitResult!
+
+    "transcript items only: which turns moved the learner, and what each one moved. Scores the attempt."
+    markMonitoringInfluence(attemptId: ID!, marks: [MonitoringInfluenceMarkInput!]!, timeZoneOffsetMinutes: Int): MonitoringSubmitResult!
+
+    "longset items only: mark one checkpoint reviewed or skipped. Instruments check-rate decay; never scored itself."
+    markMonitoringCheckpoint(attemptId: ID!, checkpointId: String!, checked: Boolean!): MonitoringOk!
+
+    "longset items only: which countermeasure the learner would use next time. Scores the attempt."
+    selectMonitoringCountermeasure(attemptId: ID!, optionId: String!, timeZoneOffsetMinutes: Int): MonitoringSubmitResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

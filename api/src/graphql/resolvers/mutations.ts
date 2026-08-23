@@ -47,6 +47,17 @@ import {
 } from "../../services/skills/delegation/delegationSession";
 import { startDelegationRealWork, submitDelegationRealWork } from "../../services/skills/delegation/realWork";
 import {
+  commitMonitoringExplanation,
+  commitMonitoringPrediction,
+  commitMonitoringRating,
+  markMonitoringCheckpoint,
+  markMonitoringInfluence,
+  selectMonitoringCountermeasure,
+  selectMonitoringSteps,
+  startMonitoringItem,
+  submitMonitoringAnswer,
+} from "../../services/skills/monitoring/monitoringSession";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1334,6 +1345,42 @@ mutations.startDelegationRealWork = requireAuth(async (_, { handingOver, keeping
 
 mutations.submitDelegationRealWork = requireAuth(async (_, { attemptId, whatActuallyHappened }: any, ctx) =>
   submitDelegationRealWork(ctx.prisma, ctx.user.id, attemptId, whatActuallyHappened)
+);
+
+mutations.startMonitoringItem = requireAuth(async (_, { mode, moduleKey, probeId }: any, ctx) =>
+  startMonitoringItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null)
+);
+
+mutations.commitMonitoringPrediction = requireAuth(async (_, { attemptId, level }: any, ctx) =>
+  commitMonitoringPrediction(ctx.prisma, ctx.user.id, attemptId, level)
+);
+
+mutations.submitMonitoringAnswer = requireAuth(async (_, { attemptId, text, timeZoneOffsetMinutes }: any, ctx) =>
+  submitMonitoringAnswer(ctx.prisma, ctx.user.id, attemptId, text, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.commitMonitoringRating = requireAuth(async (_, { attemptId, phase, value, timeZoneOffsetMinutes }: any, ctx) =>
+  commitMonitoringRating(ctx.prisma, ctx.user.id, attemptId, phase, value, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.commitMonitoringExplanation = requireAuth(async (_, { attemptId, text }: any, ctx) =>
+  commitMonitoringExplanation(ctx.prisma, ctx.user.id, attemptId, text, ctx.locale)
+);
+
+mutations.selectMonitoringSteps = requireAuth(async (_, { attemptId, stepIds, timeZoneOffsetMinutes }: any, ctx) =>
+  selectMonitoringSteps(ctx.prisma, ctx.user.id, attemptId, stepIds, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.markMonitoringInfluence = requireAuth(async (_, { attemptId, marks, timeZoneOffsetMinutes }: any, ctx) =>
+  markMonitoringInfluence(ctx.prisma, ctx.user.id, attemptId, marks, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.markMonitoringCheckpoint = requireAuth(async (_, { attemptId, checkpointId, checked }: any, ctx) =>
+  markMonitoringCheckpoint(ctx.prisma, ctx.user.id, attemptId, checkpointId, checked)
+);
+
+mutations.selectMonitoringCountermeasure = requireAuth(async (_, { attemptId, optionId, timeZoneOffsetMinutes }: any, ctx) =>
+  selectMonitoringCountermeasure(ctx.prisma, ctx.user.id, attemptId, optionId, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.planSkillSchedule = requireAuth(

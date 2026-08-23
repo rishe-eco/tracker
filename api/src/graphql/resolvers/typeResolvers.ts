@@ -353,6 +353,27 @@ export const typeResolvers = {
     probeBlockers: () => probeReadinessFor("delegation").blockers,
   },
 
+  MonitoringModule: {
+    masteredAt: (parent: any) =>
+      parent.masteredAt != null ? new Date(parent.masteredAt).toISOString() : null,
+    nextReviewAt: (parent: any) =>
+      parent.nextReviewAt != null ? new Date(parent.nextReviewAt).toISOString() : null,
+  },
+
+  MonitoringCriterionMean: {
+    mean: (parent: any) => (parent.mean == null ? null : Math.round(parent.mean * 100) / 100),
+  },
+
+  MonitoringProgress: {
+    // Not yet registered in probes.ts (build plan Phase 5) — falls through to
+    // that file's final unconditional branch (Verification's content) until
+    // then. The same D-35-shaped gap noted proactively in probes.ts's
+    // MODULE_KEYS comment.
+    probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "monitoring", ctx.locale),
+    probeReady: () => probeReadinessFor("monitoring").ready,
+    probeBlockers: () => probeReadinessFor("monitoring").blockers,
+  },
+
   SkillPlannedSession: {
     tbd: (parent: any) => new Date(parent.tbd).toISOString(),
   },
