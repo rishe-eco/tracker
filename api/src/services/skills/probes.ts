@@ -43,7 +43,10 @@ import {
 import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
 import { buildDelegationPack, RUBRIC_VERSION as DELEGATION_RUBRIC_VERSION } from "../../content/skills/delegation/v1";
 import { isProbeReady as isDelegationProbeReady, validateDelegationContent } from "../../content/skills/delegation/validate";
-import { MONITORING_MODULE_KEYS } from "../../content/skills/monitoring/types";
+import { MONITORING_MODULE_KEYS, PREDICTION_ORDINAL } from "../../content/skills/monitoring/types";
+import { buildMonitoringPack, RUBRIC_VERSION as MONITORING_RUBRIC_VERSION } from "../../content/skills/monitoring/v1";
+import { isProbeReady as isMonitoringProbeReady, validateMonitoringContent } from "../../content/skills/monitoring/validate";
+import { computeGamma } from "./monitoring/gamma";
 import { ensureProfile } from "./profile";
 import { delayedProbeDueAt, hashSeed } from "./scheduler";
 import { scoreSession, type EvidenceItemScore } from "./scoring";
@@ -78,13 +81,6 @@ const MODULE_KEYS: Record<SkillKey, readonly string[]> = {
   decomposition: DECOMPOSITION_MODULE_KEYS,
   verification: VERIFICATION_MODULE_KEYS,
   delegation: DELEGATION_MODULE_KEYS,
-  // Not yet registered with the rest of this file — that's build plan Phase 5.
-  // Only listed here so this Record stays exhaustive as soon as `monitoring`
-  // exists in the shared SkillKey union (Phase 1). The D-35-shaped gap this
-  // pattern exists to avoid: `probeReadinessFor`/`loadPackInfo` have no
-  // monitoring branch yet, so a call for it still silently falls through to
-  // this file's final unconditional branch (Verification's content) until
-  // Phase 5 adds one.
   monitoring: MONITORING_MODULE_KEYS,
 };
 
@@ -134,6 +130,10 @@ export function probeReadinessFor(skillKey: SkillKey): { ready: boolean; blocker
     const issues = validateDelegationContent();
     return { ready: isDelegationProbeReady(issues), blockers: blockersFrom(issues) };
   }
+  if (skillKey === "monitoring") {
+    const issues = validateMonitoringContent();
+    return { ready: isMonitoringProbeReady(issues), blockers: blockersFrom(issues) };
+  }
   const issues = validateVerificationContent();
   return { ready: isVerificationProbeReady(issues), blockers: blockersFrom(issues) };
 }
@@ -157,6 +157,10 @@ async function loadPackInfo(prisma: PrismaClient, userId: string, skillKey: Skil
   if (skillKey === "delegation") {
     const pack = buildDelegationPack(locale);
     return { items: pack.items, rubricVersion: DELEGATION_RUBRIC_VERSION };
+  }
+  if (skillKey === "monitoring") {
+    const pack = buildMonitoringPack(locale);
+    return { items: pack.items, rubricVersion: MONITORING_RUBRIC_VERSION };
   }
   const pack = buildVerificationPack(locale);
   return { items: pack.items, rubricVersion: VERIFICATION_RUBRIC_VERSION };
@@ -330,6 +334,26 @@ function summarizeAttempts(skillKey: SkillKey, attempts: { scores: string }[]) {
       itemCount: scored.length,
       meanTotal: totals.length ? totals.reduce((a: number, b: number) => a + b, 0) / totals.length : null,
       criteria: meanByKey(scored, ["G1", "G2", "G3", "G4", "G5", "G6"], "id"),
+    };
+  }
+
+  if (skillKey === "monitoring") {
+    // Unlike Delegation's per-side sparsity (D-41), a probe form's 6
+    // s3-resolution recall items comfortably clear GAMMA_MIN_ITEMS — so this
+    // form's own resolution/performance pair is meaningful on its own, not
+    // just the whole-history version on the progress screen. S1 and S3 never
+    // carry a per-attempt level (they're window-level patterns), so
+    // meanByKey's S1/S3 entries are always null here — expected, not a gap.
+    const scored = scores.filter((s) => Array.isArray(s.criteria));
+    const s3Samples = scored.filter((s) => s.moduleKey === "s3-resolution" && s.predictionSample).map((s) => s.predictionSample);
+    const resolution = computeGamma(s3Samples.map((s: any) => ({ prediction: PREDICTION_ORDINAL[s.prediction as keyof typeof PREDICTION_ORDINAL], outcome: s.outcome })));
+    const performance = s3Samples.length ? s3Samples.filter((s: any) => s.outcome === 1).length / s3Samples.length : null;
+    return {
+      itemCount: scored.length,
+      meanTotal: null,
+      criteria: meanByKey(scored, ["S1", "S2", "S3", "S4", "S5", "S6"], "id"),
+      resolution,
+      performance,
     };
   }
 
@@ -525,7 +549,7 @@ export type DueSkillProbe = { skillKey: SkillKey; timepoint: ProbeTimepoint; sch
  * stays invisible, same as a review that isn't due yet.
  */
 export async function getDueSkillProbes(prisma: PrismaClient, userId: string): Promise<DueSkillProbe[]> {
-  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition", "verification", "delegation"];
+  const skillKeys: SkillKey[] = ["evidence", "clarity", "decomposition", "verification", "delegation", "monitoring"];
   const out: DueSkillProbe[] = [];
   const now = Date.now();
 

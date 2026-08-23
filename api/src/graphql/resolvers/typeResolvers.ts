@@ -365,10 +365,6 @@ export const typeResolvers = {
   },
 
   MonitoringProgress: {
-    // Not yet registered in probes.ts (build plan Phase 5) — falls through to
-    // that file's final unconditional branch (Verification's content) until
-    // then. The same D-35-shaped gap noted proactively in probes.ts's
-    // MODULE_KEYS comment.
     probes: (_parent: any, __: any, ctx: any) => listSkillProbes(ctx.prisma, ctx.user.id, "monitoring", ctx.locale),
     probeReady: () => probeReadinessFor("monitoring").ready,
     probeBlockers: () => probeReadinessFor("monitoring").blockers,
