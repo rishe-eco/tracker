@@ -38,6 +38,14 @@ import {
 } from "../../services/skills/verification/verificationSession";
 import { startVerificationRealWork, submitVerificationRealWork } from "../../services/skills/verification/realWork";
 import {
+  commitDelegationEstimate,
+  commitDelegationRevision,
+  commitDelegationSplit,
+  commitSequenceRound,
+  selectDelegationCue,
+  startDelegationItem,
+} from "../../services/skills/delegation/delegationSession";
+import {
   applyPlan,
   clearPlan,
   DEFAULT_SESSIONS_PER_MODULE,
@@ -1267,6 +1275,56 @@ mutations.startVerificationRealWork = requireAuth(async (_, { claim }: any, ctx)
 mutations.submitVerificationRealWork = requireAuth(
   async (_, { attemptId, oracle, result, verdict, confidence, residualRisk }: any, ctx) =>
     submitVerificationRealWork(ctx.prisma, ctx.user.id, attemptId, { oracle, result, verdict, confidence, residualRisk })
+);
+
+mutations.startDelegationItem = requireAuth(async (_, { mode, moduleKey, probeId }: any, ctx) =>
+  startDelegationItem(ctx.prisma, ctx.user.id, mode, moduleKey ?? null, ctx.locale, probeId ?? null)
+);
+
+mutations.commitDelegationEstimate = requireAuth(async (_, { attemptId, value, confidence }: any, ctx) =>
+  commitDelegationEstimate(ctx.prisma, ctx.user.id, attemptId, value, confidence, ctx.locale)
+);
+
+mutations.commitDelegationRevision = requireAuth(async (_, { attemptId, value, recoverabilityMove, timeZoneOffsetMinutes }: any, ctx) => {
+  const outcome = await commitDelegationRevision(
+    ctx.prisma,
+    ctx.user.id,
+    attemptId,
+    value,
+    recoverabilityMove ?? null,
+    ctx.locale,
+    timeZoneOffsetMinutes ?? 0
+  );
+  return outcome.stage === "scored"
+    ? { stage: outcome.stage, cueOptions: null, result: outcome.result }
+    : { stage: outcome.stage, cueOptions: outcome.cueOptions, result: null };
+});
+
+mutations.selectDelegationCue = requireAuth(async (_, { attemptId, cueId, timeZoneOffsetMinutes }: any, ctx) =>
+  selectDelegationCue(ctx.prisma, ctx.user.id, attemptId, cueId, ctx.locale, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.commitDelegationSplit = requireAuth(async (_, { attemptId, dispositions, timeZoneOffsetMinutes }: any, ctx) =>
+  commitDelegationSplit(ctx.prisma, ctx.user.id, attemptId, dispositions, ctx.locale, timeZoneOffsetMinutes ?? 0)
+);
+
+mutations.commitSequenceRound = requireAuth(
+  async (_, { attemptId, roundIndex, value, phase, confidence, timeZoneOffsetMinutes }: any, ctx) => {
+    const outcome = await commitSequenceRound(
+      ctx.prisma,
+      ctx.user.id,
+      attemptId,
+      roundIndex,
+      value,
+      phase,
+      ctx.locale,
+      confidence ?? null,
+      timeZoneOffsetMinutes ?? 0
+    );
+    if (outcome.stage === "advice") return { stage: outcome.stage, advice: outcome.advice, result: null };
+    if (outcome.stage === "scored") return { stage: outcome.stage, advice: null, result: outcome.result };
+    return { stage: outcome.stage, advice: null, result: null };
+  }
 );
 
 mutations.planSkillSchedule = requireAuth(

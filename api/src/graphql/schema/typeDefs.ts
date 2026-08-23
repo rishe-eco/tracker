@@ -271,6 +271,7 @@ export const typeDefs = gql`
     evidence
     decomposition
     verification
+    delegation
   }
 
   enum SkillModuleState {
@@ -1053,6 +1054,157 @@ export const typeDefs = gql`
     record: VerificationRealWorkRecord!
   }
 
+  # ── Delegation Lab ─────────────────────────────────────────────────────────
+  #
+  # No rung (the two-rung scaffold is specific to Verification's cost bench).
+  # The ordering rule this tool rests on: DelegationItem never carries advice
+  # or truth, and DelegationAdvice — returned only by commitDelegationEstimate
+  # — is the first place either ever appears. A single attempt scores only the
+  # one criterion its own module trains; the other five DelegationCriterionScore
+  # slots come back as scoredBy "unscored", same convention as a null level
+  # elsewhere in this engine.
+
+  type DelegationModule {
+    moduleKey: String!
+    title: String!
+    concept: String!
+    model: String!
+    state: String!
+    currentStep: Int!
+    masteredAt: String
+    nextReviewAt: String
+  }
+
+  type DelegationCueOption {
+    cueId: String!
+    label: String!
+  }
+
+  type DelegationSplitPieceOption {
+    pieceId: String!
+    label: String!
+  }
+
+  "What the learner may see before any commit. No truth, no advice, no split key, no round data beyond what's already committed."
+  type DelegationItem {
+    itemId: String!
+    moduleKey: String!
+    difficulty: Int!
+    "estimate | cue | split | stakes | sequence"
+    kind: String!
+    ask: String!
+    unitLabel: String
+    plausibleRange: [Float!]
+    "cue items only."
+    cueOptions: [DelegationCueOption!]
+    "split items only."
+    splitPieces: [DelegationSplitPieceOption!]
+    "stakes items only — both halves of a pair share this id."
+    stakesPairId: String
+    "sequence items only."
+    roundIndex: Int
+    totalRounds: Int
+  }
+
+  type DelegationServedItem {
+    attemptId: ID!
+    item: DelegationItem!
+  }
+
+  "Returned only once estimate_committed is stamped — absent from every payload before that (build plan §3)."
+  type DelegationAdvice {
+    advice: Float!
+    unitLabel: String
+  }
+
+  type DelegationCriterionScore {
+    "G1-G6"
+    id: String!
+    "0-2, or null when this item's module doesn't train this criterion. Null is not zero."
+    level: Int
+    "computed | key | key+computed | unscored"
+    scoredBy: String!
+    evidence: String!
+  }
+
+  type DelegationScore {
+    criteria: [DelegationCriterionScore!]!
+    total: Int!
+    scoredCount: Int!
+    "Retained for export even when clamped for scoring. Null on split/sequence-in-progress items and when advice equalled the initial estimate."
+    woaRaw: Float
+    woaClamped: Float
+    benchmark: Float
+    "over | under | ok — never shown live, only at the reveal."
+    direction: String!
+    netGain: Float
+    "good | bad | tie | null — whether advice beat the learner's own initial estimate on this item, for this learner."
+    adviceQuality: String
+    "The initial estimate fell outside plausibleRange — void, not wrong, never averaged in as a zero."
+    isVoid: Boolean!
+    "g5-stakes only: true until the sibling half of the pair has also committed."
+    pendingPair: Boolean!
+  }
+
+  type DelegationSubmitResult {
+    attemptId: ID!
+    score: DelegationScore!
+    moduleState: String!
+    masteryUnmet: [MasteryGap!]!
+  }
+
+  "cue items only: returned after the revision commits, before the cue is picked."
+  type DelegationCueChoice {
+    "needsCue | scored"
+    stage: String!
+    cueOptions: [DelegationCueOption!]
+    result: DelegationSubmitResult
+  }
+
+  type DelegationSequenceRoundResult {
+    "advice | recorded | scored"
+    stage: String!
+    "Present only when stage is 'advice' — this round's advice, absent before its own estimate is committed."
+    advice: Float
+    result: DelegationSubmitResult
+  }
+
+  type DelegationCriterionMean {
+    criterion: String!
+    mean: Float
+    count: Int!
+  }
+
+  type DelegationProgress {
+    contentVersion: String!
+    rubricVersion: String!
+    locale: String!
+    reviewStatus: String!
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    totalAttempts: Int!
+    criterionMeans: [DelegationCriterionMean!]!
+    "The headline (spec §6): mean WOA on trust-cued items minus mean WOA on keep-cued items."
+    relianceDiscrimination: Float
+    "Always shown beside underReliance, in one bordered pair, and never summed anywhere."
+    overReliance: Float
+    underReliance: Float
+    netGainFromAdvice: Float
+    "Mean |WOA - 0.5| on uncued items. Should be small — confident deviation with no grounds."
+    anchoringOnUncuedItems: Float
+    "Brier score over stated confidence against own initial accuracy — the component the literature says is trainable."
+    selfAssessmentCalibration: Float
+    "Withheld (null) until the baseline probe completes, or 12 scored items if it was skipped — an anchor delivered early cannot be withdrawn."
+    populationMeanWoa: Float
+    ownMeanWoa: Float
+  }
+
+  input DelegationDispositionInput {
+    pieceId: String!
+    "give | keep"
+    disposition: String!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -1345,6 +1497,11 @@ export const typeDefs = gql`
     verificationModules: [VerificationModule!]!
     "Verification Lab: per-criterion trend, strict composite, ritual rate, discrimination, cost ratio."
     verificationProgress: VerificationProgress!
+
+    "Delegation Lab: the six modules with this learner's state on each. No rung — this tool has none."
+    delegationModules: [DelegationModule!]!
+    "Delegation Lab: reliance discrimination, over/under reliance (never summed), net gain, anchoring, self-assessment calibration."
+    delegationProgress: DelegationProgress!
 
     "Feelings & Needs: the tool home's state — enough to route into the frame or the loop."
     feelingsNeedsState: FeelingsNeedsState!
@@ -1711,6 +1868,59 @@ export const typeDefs = gql`
       confidence: Int!
       residualRisk: String!
     ): VerificationRealWorkResult!
+
+    """
+    Delegation Lab: open an attempt and serve the next item. No rung — every
+    item practises the same way regardless of module. Returns null when the
+    pool is spent.
+    """
+    startDelegationItem(mode: SkillMode!, moduleKey: String, probeId: ID): DelegationServedItem
+
+    """
+    Commit the initial estimate and confidence together, server-stamped, and
+    receive the advice in return — the one call where it first exists on the
+    client. Rejected if this attempt already has one, or if the item is a
+    split or sequence kind that doesn't take a plain estimate.
+    """
+    commitDelegationEstimate(attemptId: ID!, value: Float!, confidence: Int!): DelegationAdvice!
+
+    """
+    Commit the revised estimate. The initial value is not sent back — the
+    client already has it, and this call never needs to reveal it again.
+    Scores immediately except on a cue item, which returns "needsCue" and
+    waits for selectDelegationCue. recoverabilityMove only matters on a
+    stakes item's high-stakes half; harmless elsewhere.
+    """
+    commitDelegationRevision(
+      attemptId: ID!
+      value: Float!
+      recoverabilityMove: Boolean
+      timeZoneOffsetMinutes: Int
+    ): DelegationCueChoice!
+
+    "cue items only: which cue the learner used, after the revision. Scores the attempt."
+    selectDelegationCue(attemptId: ID!, cueId: String!, timeZoneOffsetMinutes: Int): DelegationSubmitResult!
+
+    "split items only: which piece to hand over and which to keep. Scores the attempt — no estimate step precedes this."
+    commitDelegationSplit(
+      attemptId: ID!
+      dispositions: [DelegationDispositionInput!]!
+      timeZoneOffsetMinutes: Int
+    ): DelegationSubmitResult!
+
+    """
+    g6-drift only: one round of the sequence. phase "estimate" returns that
+    round's advice; phase "revision" scores the whole sequence once round
+    G6_ROUNDS-1 lands, and otherwise just records the round.
+    """
+    commitSequenceRound(
+      attemptId: ID!
+      roundIndex: Int!
+      value: Float!
+      phase: String!
+      confidence: Int
+      timeZoneOffsetMinutes: Int
+    ): DelegationSequenceRoundResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future

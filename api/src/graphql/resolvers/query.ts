@@ -4,6 +4,7 @@ import { getModules, getProgress } from "../../services/skills/evidenceSession";
 import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
 import { getDecompositionModules, getDecompositionProgress } from "../../services/skills/decomposition/decompositionSession";
 import { getVerificationModules, getVerificationProgress } from "../../services/skills/verification/verificationSession";
+import { getDelegationModules, getDelegationProgress } from "../../services/skills/delegation/delegationSession";
 import { getPlan } from "../../services/skills/planning";
 import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
@@ -289,13 +290,14 @@ export const queryResolvers = {
   // fields (moduleKey, title, state, ...) are the same shape Clarity's and
   // Decomposition's modules already carry, so this is a plain merge, not a cast.
   skillDueReviews: requireAuth(async (_, __, ctx) => {
-    const [evidenceModules, clarityModules, decompositionModules, verificationModules] = await Promise.all([
+    const [evidenceModules, clarityModules, decompositionModules, verificationModules, delegationModules] = await Promise.all([
       getModules(ctx.prisma, ctx.user.id, ctx.locale),
       getClarityModules(ctx.prisma, ctx.user.id, ctx.locale),
       getDecompositionModules(ctx.prisma, ctx.user.id, ctx.locale),
       getVerificationModules(ctx.prisma, ctx.user.id, ctx.locale),
+      getDelegationModules(ctx.prisma, ctx.user.id, ctx.locale),
     ]);
-    return [...evidenceModules, ...clarityModules, ...decompositionModules, ...verificationModules].filter(
+    return [...evidenceModules, ...clarityModules, ...decompositionModules, ...verificationModules, ...delegationModules].filter(
       (m: any) => m.state === "due_review"
     );
   }),
@@ -329,6 +331,10 @@ export const queryResolvers = {
   verificationModules: requireAuth((_, __, ctx) => getVerificationModules(ctx.prisma, ctx.user.id, ctx.locale)),
 
   verificationProgress: requireAuth((_, __, ctx) => getVerificationProgress(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  delegationModules: requireAuth((_, __, ctx) => getDelegationModules(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  delegationProgress: requireAuth((_, __, ctx) => getDelegationProgress(ctx.prisma, ctx.user.id, ctx.locale)),
 
   // `ctx.locale` is the language the request arrived in (Accept-Language), which
   // is what the authored content is served in. Not stored per user: see
