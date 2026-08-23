@@ -353,6 +353,7 @@ enum SkillKey {
   evidence
   decomposition
   verification
+  delegation
 }
 
 enum SkillModuleState {
