@@ -58,6 +58,20 @@ describe("recall (s3-resolution) full flow", () => {
   });
 });
 
+describe("recall (s3-resolution) — the answer key must match the request's own locale", () => {
+  it("scores a correct Persian answer correct, not wrong against the English key (D-46)", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user, "fa");
+    const served = await mutationResolvers.startMonitoringItem(null, { mode: "module", moduleKey: "s3-resolution", probeId: null }, ctx);
+    expect(served.item.question).toBe("پایتخت فرانسه کجاست؟");
+
+    await mutationResolvers.commitMonitoringPrediction(null, { attemptId: served.attemptId, level: "confident" }, ctx);
+    const outcome = await mutationResolvers.submitMonitoringAnswer(null, { attemptId: served.attemptId, text: "پاریس" }, ctx);
+    expect(outcome.stage).toBe("scored");
+    expect(outcome.result.score.predictionSample.outcome).toBe(1);
+  });
+});
+
 describe("pair (s1-access) full flow — a half never scores alone", () => {
   it("scores the unassisted half only after both an answer and a rating", async () => {
     const user = await createTestUser();

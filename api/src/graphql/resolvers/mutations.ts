@@ -1356,7 +1356,7 @@ mutations.commitMonitoringPrediction = requireAuth(async (_, { attemptId, level 
 );
 
 mutations.submitMonitoringAnswer = requireAuth(async (_, { attemptId, text, timeZoneOffsetMinutes }: any, ctx) =>
-  submitMonitoringAnswer(ctx.prisma, ctx.user.id, attemptId, text, timeZoneOffsetMinutes ?? 0)
+  submitMonitoringAnswer(ctx.prisma, ctx.user.id, attemptId, text, ctx.locale, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.commitMonitoringRating = requireAuth(async (_, { attemptId, phase, value, timeZoneOffsetMinutes }: any, ctx) =>

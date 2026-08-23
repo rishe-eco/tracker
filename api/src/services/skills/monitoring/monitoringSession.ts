@@ -214,6 +214,7 @@ export async function submitMonitoringAnswer(
   userId: string,
   attemptId: string,
   text: string,
+  locale: Locale,
   timeZoneOffsetMinutes = 0
 ): Promise<MonitoringAnswerResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
@@ -225,7 +226,12 @@ export async function submitMonitoringAnswer(
   if (!hasEvent(attempt, "prediction_committed")) throw new MonitoringSequenceError("Commit a prediction before answering.");
   if (hasEvent(attempt, "answer_submitted")) throw new MonitoringSequenceError("An answer is already submitted for this attempt.");
 
-  const { pack } = await loadPack(prisma, userId, "en");
+  // D-46: the answer key must be matched in whatever locale the learner is
+  // actually typing in, not a hardcoded "en" — a Persian-typed correct answer
+  // was silently scored wrong against the English answerVariants, inverting
+  // resolution for every fa learner with no symptom (exactly the failure
+  // mode build plan §4.2 warns this file exists to prevent).
+  const { pack } = await loadPack(prisma, userId, locale);
   const fullItem = findItem(pack.items, attempt.itemId);
   const correct = matchAnswer(text, fullItem.surface.answerVariants ?? [], fullItem.surface.requiredTokens);
 

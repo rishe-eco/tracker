@@ -6,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { useApi } from "~/api/useApi";
 import { GET_DUE_SKILL_PROBES, SKIP_SKILL_ASSESSMENT, START_SKILL_PROBE } from "~/api/queries";
 
-type SkillKey = "evidence" | "clarity" | "decomposition" | "verification" | "delegation";
+type SkillKey = "evidence" | "clarity" | "decomposition" | "verification" | "delegation" | "monitoring";
 type Timepoint = "baseline" | "post" | "delayed";
 
 /**

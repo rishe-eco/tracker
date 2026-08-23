@@ -2193,6 +2193,205 @@ export const SUBMIT_DELEGATION_REAL_WORK = `
   }
 `;
 
+export const GET_MONITORING_MODULES = `
+  query MonitoringModules {
+    monitoringModules {
+      moduleKey
+      title
+      concept
+      model
+      state
+      currentStep
+      masteredAt
+      nextReviewAt
+    }
+  }
+`;
+
+export const GET_MONITORING_PROGRESS = `
+  query MonitoringProgress {
+    monitoringProgress {
+      contentVersion
+      rubricVersion
+      locale
+      reviewStatus
+      hasBaseline
+      assessmentSkipped
+      totalAttempts
+      criterionMeans {
+        criterion
+        mean
+        count
+      }
+      resolutionSampleCount
+      resolution
+      performance
+      bias
+      postAiInflation
+      postAiInflationReady
+      influenceDiscrimination
+      probeReady
+      probeBlockers
+      probes {
+        timepoint
+        formId
+        completedAt
+        comparable
+      }
+    }
+  }
+`;
+
+export const START_MONITORING_ITEM = `
+  mutation StartMonitoringItem($mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startMonitoringItem(mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
+      attemptId
+      item {
+        itemId
+        moduleKey
+        difficulty
+        kind
+        question
+        explainPrompt
+        authoredExplanation
+        pairId
+        pairHalf
+        turns {
+          turnId
+          role
+          text
+        }
+        checkpoints {
+          checkpointId
+          text
+        }
+        countermeasureOptions {
+          optionId
+          label
+        }
+      }
+    }
+  }
+`;
+
+export const COMMIT_MONITORING_PREDICTION = `
+  mutation CommitMonitoringPrediction($attemptId: ID!, $level: String!) {
+    commitMonitoringPrediction(attemptId: $attemptId, level: $level) {
+      ok
+    }
+  }
+`;
+
+const MONITORING_SUBMIT_RESULT_FIELDS = `
+  attemptId
+  score {
+    criteria {
+      id
+      level
+      scoredBy
+      evidence
+    }
+    total
+    scoredCount
+    predictionSample {
+      prediction
+      outcome
+    }
+    ratingSample {
+      pairId
+      pairHalf
+      rating
+    }
+    deflation {
+      before
+      after
+    }
+    influenceResult {
+      hits
+      falseAlarms
+      plantedTotal
+      misses
+    }
+    checkRate {
+      firstThird
+      lastThird
+      decay
+    }
+  }
+  moduleState
+  masteryUnmet {
+    code
+    count
+    required
+    minTotal
+  }
+`;
+
+export const SUBMIT_MONITORING_ANSWER = `
+  mutation SubmitMonitoringAnswer($attemptId: ID!, $text: String!, $timeZoneOffsetMinutes: Int) {
+    submitMonitoringAnswer(attemptId: $attemptId, text: $text, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      stage
+      result {
+        ${MONITORING_SUBMIT_RESULT_FIELDS}
+      }
+    }
+  }
+`;
+
+export const COMMIT_MONITORING_RATING = `
+  mutation CommitMonitoringRating($attemptId: ID!, $phase: String!, $value: Int!, $timeZoneOffsetMinutes: Int) {
+    commitMonitoringRating(attemptId: $attemptId, phase: $phase, value: $value, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      stage
+      result {
+        ${MONITORING_SUBMIT_RESULT_FIELDS}
+      }
+    }
+  }
+`;
+
+export const COMMIT_MONITORING_EXPLANATION = `
+  mutation CommitMonitoringExplanation($attemptId: ID!, $text: String!) {
+    commitMonitoringExplanation(attemptId: $attemptId, text: $text) {
+      steps {
+        stepId
+        label
+      }
+    }
+  }
+`;
+
+export const SELECT_MONITORING_STEPS = `
+  mutation SelectMonitoringSteps($attemptId: ID!, $stepIds: [String!]!, $timeZoneOffsetMinutes: Int) {
+    selectMonitoringSteps(attemptId: $attemptId, stepIds: $stepIds, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${MONITORING_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const MARK_MONITORING_INFLUENCE = `
+  mutation MarkMonitoringInfluence($attemptId: ID!, $marks: [MonitoringInfluenceMarkInput!]!, $timeZoneOffsetMinutes: Int) {
+    markMonitoringInfluence(attemptId: $attemptId, marks: $marks, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${MONITORING_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const MARK_MONITORING_CHECKPOINT = `
+  mutation MarkMonitoringCheckpoint($attemptId: ID!, $checkpointId: String!, $checked: Boolean!) {
+    markMonitoringCheckpoint(attemptId: $attemptId, checkpointId: $checkpointId, checked: $checked) {
+      ok
+    }
+  }
+`;
+
+export const SELECT_MONITORING_COUNTERMEASURE = `
+  mutation SelectMonitoringCountermeasure($attemptId: ID!, $optionId: String!, $timeZoneOffsetMinutes: Int) {
+    selectMonitoringCountermeasure(attemptId: $attemptId, optionId: $optionId, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${MONITORING_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `

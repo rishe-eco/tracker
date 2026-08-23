@@ -1889,5 +1889,121 @@
         "couldNotAttach": "Could not attach that. Try again."
       }
     }
+  },
+  "monitoring": {
+    "title": "Monitoring Lab",
+    "subtitle": "Training self-monitoring: noticing your own state while something is actively shaping it. Every item collects a claim you make about yourself, then measures it against what actually happened.",
+    "startSitting": "Start a sitting",
+    "startFirstSitting": "Start your first sitting",
+    "modulesTitle": "Modules",
+    "modulesSubtitle": "Six, each training one criterion of the rubric. You don't have to do them in order.",
+    "practiceModule": "Practise",
+    "conceptLabel": "The idea",
+    "exampleLabel": "What it looks like",
+    "rubricTitle": "The rubric",
+    "rubricHint": "Kept on screen the whole time. A single item only trains one of these six lines — the rest read \"not scored\" on that item, which is expected, not a gap.",
+    "unscored": "not scored",
+    "unscoredHint": "This item's module doesn't train this criterion on this attempt — either it's a different module's item, or this criterion is measured across a window of items rather than one at a time.",
+    "backToLab": "Back to Monitoring Lab",
+    "exhaustedTitle": "No items left here",
+    "exhaustedBody": "Every item in this pool has been used. More arrive with the next content pass.",
+    "metrics": {
+      "resolution": "Resolution (γ)",
+      "performance": "Performance",
+      "bias": "Bias",
+      "influenceDiscrimination": "Influence discrimination",
+      "postAiInflation": "Post-AI inflation",
+      "notMeasurable": "not measurable from this set"
+    },
+    "aiLiteracyFinding": {
+      "attached": "People who use an LLM tend to score higher on reasoning tasks and consistently overestimate their success — and the most AI-literate users overestimate the most. That number above is yours.",
+      "near_zero": "That same research finding is why this number matters — and yours is close to zero. Most people's isn't. That's worth noticing, not just when the number is damning."
+    },
+    "rubric": {
+      "S1": { "label": "Access separated from possession" },
+      "S2": { "label": "Understanding tested, not felt" },
+      "S3": { "label": "Resolution" },
+      "S4": { "label": "Agreement discounted" },
+      "S5": { "label": "Influence located" },
+      "S6": { "label": "Structural check" }
+    },
+    "moduleName": {
+      "s1-access": "Yours, or the tool's?",
+      "s2-explain": "Say it with the answer closed",
+      "s3-resolution": "Which of these did I get wrong?",
+      "s4-agreement": "It agreed with me. So what?",
+      "s5-anchor": "What did this conversation put in my head?",
+      "s6-complacency": "Am I still checking?"
+    },
+    "intro": {
+      "step1Title": "The artifact is a prediction",
+      "step1Body": "Every item here collects a claim you make about yourself — that you'll get something right, that you understand something, that an agreement didn't sway you — and only then measures it. This is the one tool in the engine that measures a gap about you, not about the world.",
+      "step2Title": "The prediction locks in before the answer exists",
+      "step2Body": "You commit first. The answer field doesn't exist on screen until you have — otherwise a prediction made with the answer already visible isn't a prediction.",
+      "step3Title": "Two numbers, never shown apart",
+      "step3Body": "Resolution — can you tell which of your answers are wrong — is confounded with plain performance wherever guessing is possible. So it's always shown next to your performance, never alone.",
+      "step4Title": "Explaining is the check reading never is",
+      "step4Body": "Rating how well you understand something, then trying to explain it, reliably drops your own rating — often one or two points on a ten-point scale. Watching that drop happen to your own number is the lesson; nothing here scores the drop itself.",
+      "step5Title": "Agreement is not evidence",
+      "step5Body": "Chatbots agree with people far more than another person would, and that agreement carries no information about whether you're right. One module trains noticing that; a different tool (Verification Lab) trains what to do about it.",
+      "step6Title": "The fix for losing focus can't be \"pay more attention\"",
+      "step6Body": "Complacency under repeated, mostly-reliable automation shows up in novices and experts alike, and isn't fixed by trying harder. The module about it scores a structural check — one that fires on its own — higher than a resolution to be more careful."
+    },
+    "questionLabel": "The question",
+    "predictLabel": "Before you answer — will you get this right?",
+    "predictionLevel": {
+      "no_idea": "no idea",
+      "probably_not": "probably not",
+      "probably": "probably",
+      "confident": "confident"
+    },
+    "commitPrediction": "Commit",
+    "answerNotYetVisible": "The answer field doesn't exist until you commit — not hidden, absent.",
+    "answerPlaceholder": "Your answer…",
+    "commitAnswer": "Submit answer",
+    "ratingLabel": "How well do you understand this? (0–10)",
+    "commitRating": "Commit",
+    "explainPromptLabel": "Explain this",
+    "ratingBeforeLabel": "Before explaining — how well do you understand this? (0–10)",
+    "explainPlaceholder": "Explain it in your own words, step by step…",
+    "commitExplanation": "Submit explanation",
+    "ratingAfterLabel": "Now — how well do you understand this? (0–10)",
+    "selectStepsLabel": "Which of these did your explanation actually cover?",
+    "commitSteps": "Commit",
+    "transcriptLabel": "Read the conversation, then mark anything that moved you",
+    "transcript": {
+      "movedWhatPlaceholder": "What did this change?",
+      "instructions": "Click a turn to mark it, then say what it moved. Leave everything unmarked if nothing here influenced you.",
+      "commit": "Commit marks"
+    },
+    "checkpointsLabel": "Review these quickly — check whichever ones you want to verify",
+    "doneReviewing": "Done reviewing",
+    "countermeasureLabel": "Pick what you'd do differently next time",
+    "resultLabel": "Result",
+    "evidenceLabel": "Why it scored this way",
+    "perCriterion": "Criterion by criterion",
+    "masteryRemaining": "Still needed to finish this module",
+    "nextItem": "Next item",
+    "influenceSummary": "{{hits}} of {{total}} planted influence(s) found, {{falseAlarms}} false alarm(s).",
+    "deflation": {
+      "before": "before",
+      "after": "after",
+      "droppedFact": "Dropped {{points}} point(s) once you tried to explain it.",
+      "heldFact": "Held steady after explaining it."
+    },
+    "errors": {
+      "couldNotLoad": "Monitoring Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "couldNotStart": "Could not start an item. Try again.",
+      "couldNotCommit": "Could not save that. Try again."
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} attempts done",
+      "days": "practised on {{done}} of the {{required}} separate days required",
+      "resolution": "Resolution in this module needs to reach above {{required}}",
+      "bias": "Bias in this module needs to come within {{required}} of zero",
+      "inflation": "Post-AI inflation on this module's matched pairs needs to come down to {{required}} or below",
+      "keyMatch": "{{done}} of {{required}} recent attempts fully matching the key",
+      "cleanFalseAlarm": "A clean-transcript false alarm in this module's recent window has to clear before mastery"
+    }
   }
 }
