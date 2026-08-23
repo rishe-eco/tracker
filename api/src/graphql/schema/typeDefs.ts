@@ -541,8 +541,8 @@ export const typeDefs = gql`
     code: String!
     "Where the learner is now, when the requirement is a count."
     count: Int
-    "What the requirement asks for."
-    required: Int
+    "What the requirement asks for. Float rather than Int: every other tool's thresholds are counts, but Delegation Lab's mastery gate (discrimination, anchoring, error rates) is fractional."
+    required: Float
     "Whole seconds, for the time-based gate. Null when not yet established."
     seconds: Int
     "Clarity's score bar, where the requirement is N attempts at M+/12."
@@ -1144,6 +1144,8 @@ export const typeDefs = gql`
     isVoid: Boolean!
     "g5-stakes only: true until the sibling half of the pair has also committed."
     pendingPair: Boolean!
+    "The authored truth — present only here, on an already-scored attempt, never on the served item. Null on split and sequence items."
+    truth: Float
   }
 
   type DelegationSubmitResult {

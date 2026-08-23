@@ -64,6 +64,13 @@ export type DelegationScore = {
   pendingPair: boolean;
   /** g1-own only: this attempt's raw (confidence, wasAccurate) pair, for the window-level Brier. */
   g1Sample: { confidence: number; wasAccurate: boolean } | null;
+  /**
+   * The authored truth — never present on the served item, only here, on an
+   * already-scored attempt (build plan §3's ordering rule applies to this
+   * value exactly as it does to advice). Null on split items, which have no
+   * single numeric truth to reveal (types.ts's header note).
+   */
+  truth: number | null;
 };
 
 export type AssembleEstimateInput = {
@@ -154,6 +161,7 @@ export function assembleEstimateScore(input: AssembleEstimateInput): DelegationS
     isVoid,
     pendingPair,
     g1Sample: input.moduleKey === "g1-own" && !isVoid ? { confidence: input.confidence, wasAccurate } : null,
+    truth: input.truth,
   };
 }
 
@@ -179,6 +187,7 @@ export function assembleSplitScore(input: AssembleSplitInput): DelegationScore {
     isVoid: false,
     pendingPair: false,
     g1Sample: null,
+    truth: null,
   };
 }
 
@@ -214,6 +223,8 @@ export function assembleSequenceScore(input: AssembleSequenceInput): DelegationS
     isVoid: false,
     pendingPair: false,
     g1Sample: null,
+    /** No single reveal-worthy truth for a sequence — the reveal (wireframe plate 6) shows the round bars, not a truth pin. */
+    truth: null,
   };
 }
 

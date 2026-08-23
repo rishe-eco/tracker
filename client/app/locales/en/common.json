@@ -1740,5 +1740,118 @@
         "couldNotAttach": "Could not attach that. Try again."
       }
     }
+  },
+  "delegation": {
+    "title": "Delegation Lab",
+    "subtitle": "Training calibrated delegation: knowing when the AI's judgement should lead and when yours should. You estimate first, see advice, and revise — how far you move is the measurement, not a score you're chasing.",
+    "startSitting": "Start a sitting",
+    "startFirstSitting": "Start your first sitting",
+    "nullNote": "Self-assessment calibration and reliance discrimination are shown as two separate lines on purpose, with no arrow drawn between them. The first reliably improves with practice. Whether it changes how you weigh advice is an open question in the research — and this screen shows you the part that moved and the part that didn't, rather than folding both into one number that would always look like progress.",
+    "modulesTitle": "Modules",
+    "modulesSubtitle": "Six, each training one criterion of the rubric. You don't have to do them in order.",
+    "practiceModule": "Practise",
+    "conceptLabel": "The idea",
+    "exampleLabel": "What it looks like",
+    "rubricTitle": "The rubric",
+    "rubricHint": "Kept on screen the whole time. A single item only trains one of these six lines — the rest read \"not scored\" on that item, which is expected, not a gap.",
+    "unscored": "not scored",
+    "unscoredHint": "This item's module doesn't train this criterion. Left out of the total rather than scored zero.",
+    "backToLab": "Back to Delegation Lab",
+    "exhaustedTitle": "No items left here",
+    "exhaustedBody": "Every item in this pool has been used. More arrive with the next content pass.",
+    "metrics": {
+      "discrimination": "Reliance discrimination",
+      "overReliance": "Over-reliance",
+      "underReliance": "Under-reliance",
+      "netGain": "Net gain from advice",
+      "anchoring": "Anchoring (uncued items)",
+      "calibration": "Self-assessment calibration",
+      "populationBaseline": "Your mean WOA / population mean",
+      "populationBaselineWithheld": "Withheld until your baseline sitting completes, or 12 scored items — shown here, never during an item.",
+      "populationBaselineHint": "The published meta-analytic mean weight-of-advice is 0.39. This is context, not a score."
+    },
+    "rubric": {
+      "G1": { "label": "Self-knowledge" },
+      "G2": { "label": "Cue quality" },
+      "G3": { "label": "Proportionate weight" },
+      "G4": { "label": "Partial delegation" },
+      "G5": { "label": "Stakes read" },
+      "G6": { "label": "Stable updating" }
+    },
+    "moduleName": {
+      "g1-own": "Know your own error rate",
+      "g2-instance": "The instance, not the category",
+      "g3-weigh": "Move the right amount",
+      "g4-split": "Delegate the part, not the whole",
+      "g5-stakes": "What does being wrong cost?",
+      "g6-drift": "Update without overreacting"
+    },
+    "intro": {
+      "step1Title": "A place to practise one thing",
+      "step1Body": "Delegation Lab trains knowing when to trust AI advice and when to trust your own judgement. It's self-contained — nothing here touches your goals, projects or calendar unless you ask it to.",
+      "step2Title": "You estimate before you see any advice",
+      "step2Body": "Your guess and your confidence are locked in first. The advice doesn't exist on screen until then — otherwise your revision would just be hindsight.",
+      "step3Title": "Two numbers, never added together",
+      "step3Body": "Over-reliance and under-reliance are shown side by side, always. A single \"reliance\" figure would hide the exact trade the research warns about — fixing one failure by making the other worse.",
+      "step4Title": "There's no target to hit",
+      "step4Body": "Weight of advice is never shown while you're deciding — only afterward. Seeing it live would turn the decision into an exercise in hitting a number instead of actually weighing the advice.",
+      "step5Title": "The capability list, dated and struck through",
+      "step5Body": "\"AI is good at X, bad at Y\" is a snapshot of one model generation. One module shows a list like that from eighteen months ago and which claims already expired — naming the costume works better than warning against it.",
+      "step6Title": "This tool might not work — and says so",
+      "step6Body": "Published research on training this skill mostly comes back negative. If your self-assessment improves here while your actual reliance on advice doesn't move, that's not a failed exercise — it's what the research predicts, and it's shown to you plainly rather than hidden."
+    },
+    "askLabel": "The question",
+    "estimateTitle": "Your estimate, and how sure you are",
+    "confidenceLabel": "Confidence",
+    "commitEstimate": "Commit",
+    "adviceNotYetVisible": "The advice doesn't exist until you commit — not hidden, absent.",
+    "revisionTitle": "Now — move as far as you think it deserves",
+    "youSaid": "You said",
+    "assistantSays": "The assistant says",
+    "revisionHint": "Your first answer stays on screen. How far you move from it is the measurement.",
+    "recoverabilityMoveLabel": "I'd check this before acting on it",
+    "commitRevision": "Commit — no edits after",
+    "cueTitle": "What told you how far to move?",
+    "splitTitle": "Which piece would you hand over, and which would you keep?",
+    "give": "hand over",
+    "keep": "keep",
+    "commitSplit": "Commit",
+    "nextRound": "Next round",
+    "resultLabel": "Result",
+    "pendingPairNote": "This half is recorded. The other half of this pair still needs a sitting before this scores.",
+    "evidenceLabel": "Why it scored this way",
+    "perCriterion": "Criterion by criterion",
+    "masteryRemaining": "Still needed to finish this module",
+    "nextItem": "Next item",
+    "sequence": {
+      "round": "Round {{n}} of 3"
+    },
+    "reveal": {
+      "you": "you",
+      "final": "final",
+      "advice": "advice",
+      "truth": "truth",
+      "woaLabel": "WOA",
+      "netGain": "net gain",
+      "voidNote": "Your initial estimate fell outside the plausible range for this item — void, not scored, and never averaged in as a zero.",
+      "overNote": "You moved a long way toward advice that was worse than your own answer.",
+      "underNote": "You barely moved toward advice that was much better than your own answer.",
+      "okNote": "Your movement roughly matched what the advice was worth here."
+    },
+    "errors": {
+      "couldNotLoad": "Delegation Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
+      "couldNotStart": "Could not start an item. Try again.",
+      "couldNotCommit": "Could not save that. Try again."
+    },
+    "mastery": {
+      "attempts": "{{done}} of {{required}} attempts done",
+      "days": "practised on {{done}} of the {{required}} separate days required",
+      "discrimination": "Reliance discrimination in this module needs to reach {{required}}",
+      "anchoring": "Anchoring on uncued items in this module needs to come down to {{required}} or below",
+      "netGain": "Net gain from advice in this module needs to turn positive",
+      "overReliance": "Over-reliance in this module is above {{required}} — has to clear before mastery",
+      "underReliance": "Under-reliance in this module is above {{required}} — has to clear before mastery",
+      "keyMatch": "{{done}} of {{required}} recent attempts fully matching the key"
+    }
   }
 }

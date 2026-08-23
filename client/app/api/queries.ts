@@ -1987,6 +1987,179 @@ export const SUBMIT_VERIFICATION_REAL_WORK = `
   }
 `;
 
+// ── Delegation Lab ───────────────────────────────────────────────────────────
+
+export const GET_DELEGATION_MODULES = `
+  query DelegationModules {
+    delegationModules {
+      moduleKey
+      title
+      concept
+      model
+      state
+      currentStep
+      masteredAt
+      nextReviewAt
+    }
+  }
+`;
+
+export const GET_DELEGATION_PROGRESS = `
+  query DelegationProgress {
+    delegationProgress {
+      contentVersion
+      rubricVersion
+      locale
+      reviewStatus
+      hasBaseline
+      assessmentSkipped
+      totalAttempts
+      criterionMeans {
+        criterion
+        mean
+        count
+      }
+      relianceDiscrimination
+      overReliance
+      underReliance
+      netGainFromAdvice
+      anchoringOnUncuedItems
+      selfAssessmentCalibration
+      populationMeanWoa
+      ownMeanWoa
+    }
+  }
+`;
+
+export const START_DELEGATION_ITEM = `
+  mutation StartDelegationItem($mode: SkillMode!, $moduleKey: String, $probeId: ID) {
+    startDelegationItem(mode: $mode, moduleKey: $moduleKey, probeId: $probeId) {
+      attemptId
+      item {
+        itemId
+        moduleKey
+        difficulty
+        kind
+        ask
+        unitLabel
+        plausibleRange
+        cueOptions {
+          cueId
+          label
+        }
+        splitPieces {
+          pieceId
+          label
+        }
+        stakesPairId
+        roundIndex
+        totalRounds
+      }
+    }
+  }
+`;
+
+export const COMMIT_DELEGATION_ESTIMATE = `
+  mutation CommitDelegationEstimate($attemptId: ID!, $value: Float!, $confidence: Int!) {
+    commitDelegationEstimate(attemptId: $attemptId, value: $value, confidence: $confidence) {
+      advice
+      unitLabel
+    }
+  }
+`;
+
+const DELEGATION_SUBMIT_RESULT_FIELDS = `
+  attemptId
+  score {
+    criteria {
+      id
+      level
+      scoredBy
+      evidence
+    }
+    total
+    scoredCount
+    woaRaw
+    woaClamped
+    benchmark
+    direction
+    netGain
+    adviceQuality
+    isVoid
+    pendingPair
+    truth
+  }
+  moduleState
+  masteryUnmet {
+    code
+    count
+    required
+    minTotal
+  }
+`;
+
+export const COMMIT_DELEGATION_REVISION = `
+  mutation CommitDelegationRevision($attemptId: ID!, $value: Float!, $recoverabilityMove: Boolean, $timeZoneOffsetMinutes: Int) {
+    commitDelegationRevision(
+      attemptId: $attemptId
+      value: $value
+      recoverabilityMove: $recoverabilityMove
+      timeZoneOffsetMinutes: $timeZoneOffsetMinutes
+    ) {
+      stage
+      cueOptions {
+        cueId
+        label
+      }
+      result {
+        ${DELEGATION_SUBMIT_RESULT_FIELDS}
+      }
+    }
+  }
+`;
+
+export const SELECT_DELEGATION_CUE = `
+  mutation SelectDelegationCue($attemptId: ID!, $cueId: String!, $timeZoneOffsetMinutes: Int) {
+    selectDelegationCue(attemptId: $attemptId, cueId: $cueId, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${DELEGATION_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const COMMIT_DELEGATION_SPLIT = `
+  mutation CommitDelegationSplit($attemptId: ID!, $dispositions: [DelegationDispositionInput!]!, $timeZoneOffsetMinutes: Int) {
+    commitDelegationSplit(attemptId: $attemptId, dispositions: $dispositions, timeZoneOffsetMinutes: $timeZoneOffsetMinutes) {
+      ${DELEGATION_SUBMIT_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const COMMIT_SEQUENCE_ROUND = `
+  mutation CommitSequenceRound(
+    $attemptId: ID!
+    $roundIndex: Int!
+    $value: Float!
+    $phase: String!
+    $confidence: Int
+    $timeZoneOffsetMinutes: Int
+  ) {
+    commitSequenceRound(
+      attemptId: $attemptId
+      roundIndex: $roundIndex
+      value: $value
+      phase: $phase
+      confidence: $confidence
+      timeZoneOffsetMinutes: $timeZoneOffsetMinutes
+    ) {
+      stage
+      advice
+      result {
+        ${DELEGATION_SUBMIT_RESULT_FIELDS}
+      }
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `
