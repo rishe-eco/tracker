@@ -40,6 +40,7 @@ import {
   isProbeReady as isVerificationProbeReady,
   validateVerificationContent,
 } from "../../content/skills/verification/validate";
+import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
 import { ensureProfile } from "./profile";
 import { delayedProbeDueAt, hashSeed } from "./scheduler";
 import { scoreSession, type EvidenceItemScore } from "./scoring";
@@ -73,6 +74,10 @@ const MODULE_KEYS: Record<SkillKey, readonly string[]> = {
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
   verification: VERIFICATION_MODULE_KEYS,
+  // Not yet registered with the rest of this file — that's build plan Phase 5.
+  // Only listed here so this Record stays exhaustive as soon as `delegation`
+  // exists in the shared SkillKey union (Phase 1).
+  delegation: DELEGATION_MODULE_KEYS,
 };
 
 const FORMS: ProbeForm[] = ["A", "B", "C"];

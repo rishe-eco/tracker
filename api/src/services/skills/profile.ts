@@ -11,12 +11,14 @@ import { EVIDENCE_MODULE_KEYS, type Locale, type SkillKey } from "../../content/
 import { CLARITY_MODULE_KEYS } from "../../content/skills/clarity/types";
 import { DECOMPOSITION_MODULE_KEYS } from "../../content/skills/decomposition/types";
 import { VERIFICATION_MODULE_KEYS } from "../../content/skills/verification/types";
+import { DELEGATION_MODULE_KEYS } from "../../content/skills/delegation/types";
 
 const DEFAULT_ORDER: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
   verification: VERIFICATION_MODULE_KEYS,
+  delegation: DELEGATION_MODULE_KEYS,
 };
 
 /**

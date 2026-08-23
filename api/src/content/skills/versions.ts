@@ -17,6 +17,8 @@ import { buildDecompositionPack, ITEM_SPECS as DECOMPOSITION_SPECS_V1 } from "./
 import type { DecompositionItemSpec, DecompositionPack } from "./decomposition/types";
 import { buildVerificationPack, ITEM_SPECS as VERIFICATION_SPECS_V1 } from "./verification/v1";
 import type { VerificationItemSpec, VerificationPack } from "./verification/types";
+import { buildDelegationPack, ITEM_SPECS as DELEGATION_SPECS_V1 } from "./delegation/v1";
+import type { DelegationItemSpec, DelegationPack } from "./delegation/types";
 import type { EvidenceItemSpec, EvidencePack, Locale, SkillKey } from "./types";
 
 /** The version a new learner is enrolled on. */
@@ -26,6 +28,7 @@ export const CURRENT_VERSION: Record<SkillKey, string> = {
   clarity: "clarity/v1",
   decomposition: "decomposition/v1",
   verification: "verification/v1",
+  delegation: "delegation/v1",
 };
 
 export type EvidenceVersion = {
@@ -66,3 +69,14 @@ export const VERIFICATION_VERSIONS: Record<string, VerificationVersion> = {
 };
 
 export const ENROLLABLE_VERIFICATION_VERSIONS = ["verification/v1"];
+
+export type DelegationVersion = {
+  build: (locale: Locale) => DelegationPack;
+  specs: DelegationItemSpec[];
+};
+
+export const DELEGATION_VERSIONS: Record<string, DelegationVersion> = {
+  "delegation/v1": { build: buildDelegationPack, specs: DELEGATION_SPECS_V1 },
+};
+
+export const ENROLLABLE_DELEGATION_VERSIONS = ["delegation/v1"];
