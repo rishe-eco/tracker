@@ -2004,6 +2004,44 @@
       "inflation": "Post-AI inflation on this module's matched pairs needs to come down to {{required}} or below",
       "keyMatch": "{{done}} of {{required}} recent attempts fully matching the key",
       "cleanFalseAlarm": "A clean-transcript false alarm in this module's recent window has to clear before mastery"
+    },
+    "selfAudit": {
+      "entryTitle": "Audit one of your own conversations",
+      "entryBody": "Review a real AI conversation of yours against the four kinds of influence this tool trains — flattery, an anchor, a smuggled premise, an agreement reversal — and write a short note on each. Never scored into your baseline or mastery.",
+      "entryButton": "Start a self-audit",
+      "title": "Session self-audit",
+      "introLabel": "Review your own conversation",
+      "introBody": "Pull up a real AI conversation you've had recently. For each of these, say whether it happened and what you noticed.",
+      "question": {
+        "flattery": "Did anything flatter you or your idea with no basis given?",
+        "anchor": "Did an early number or framing anchor everything that came after it?",
+        "smuggled_premise": "Did anything assume something you never actually agreed to?",
+        "agreement_reversal": "Did it drop or reverse a position just because you pushed back, with nothing new behind it?"
+      },
+      "placeholder": {
+        "flattery": "What happened, or write \"nothing I noticed\"…",
+        "anchor": "What happened, or write \"nothing I noticed\"…",
+        "smuggled_premise": "What happened, or write \"nothing I noticed\"…",
+        "agreement_reversal": "What happened, or write \"nothing I noticed\"…"
+      },
+      "submitButton": "Save this audit",
+      "nothingScoredHere": "Nothing here is scored — there's no key for your own real conversation.",
+      "recordDone": "Self-audit",
+      "recordFlattery": "Flattery",
+      "recordAnchor": "Anchor",
+      "recordSmuggledPremise": "Smuggled premise",
+      "recordAgreementReversal": "Agreement reversal",
+      "saveJournalButton": "Save as journal entry",
+      "attachButton": "Attach to a goal or project",
+      "savedJournal": "Saved as a journal entry.",
+      "savedNote": "Attached as a note.",
+      "noTargets": "No goals or projects yet — add one first.",
+      "errors": {
+        "couldNotStart": "Could not start the self-audit. Try again.",
+        "couldNotSubmit": "Could not save that. Try again.",
+        "couldNotSaveJournal": "Could not save that as a journal entry — you may need a journal first, from the Journals tool.",
+        "couldNotAttach": "Could not attach that. Try again."
+      }
     }
   }
 }

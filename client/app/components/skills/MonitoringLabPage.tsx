@@ -102,6 +102,14 @@ export default function MonitoringLabPage() {
           </Button>
         </div>
 
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm font-medium">{t("monitoring.selfAudit.entryTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t("monitoring.selfAudit.entryBody")}</p>
+          <Button variant="outline" className="mt-3" onClick={() => navigate("/tools/skills/monitoring/self-audit")}>
+            {t("monitoring.selfAudit.entryButton")}
+          </Button>
+        </div>
+
         {progress.reviewStatus === "draft" && <Banner tone="info" text={t("skills.banners.draftLocale")} />}
 
         {!progress.probeReady ? (

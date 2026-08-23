@@ -2392,6 +2392,29 @@ export const SELECT_MONITORING_COUNTERMEASURE = `
   }
 `;
 
+export const START_MONITORING_SELF_AUDIT = `
+  mutation StartMonitoringSelfAudit {
+    startMonitoringSelfAudit {
+      attemptId
+      questionKeys
+    }
+  }
+`;
+
+export const SUBMIT_MONITORING_SELF_AUDIT = `
+  mutation SubmitMonitoringSelfAudit($attemptId: ID!, $answers: MonitoringSelfAuditAnswersInput!) {
+    submitMonitoringSelfAudit(attemptId: $attemptId, answers: $answers) {
+      attemptId
+      record {
+        flattery
+        anchor
+        smuggledPremise
+        agreementReversal
+      }
+    }
+  }
+`;
+
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 export const GET_FEELINGS_NEEDS_STATE = `

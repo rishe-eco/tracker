@@ -57,6 +57,7 @@ import {
   startMonitoringItem,
   submitMonitoringAnswer,
 } from "../../services/skills/monitoring/monitoringSession";
+import { startMonitoringSelfAudit, submitMonitoringSelfAudit } from "../../services/skills/monitoring/selfAudit";
 import {
   applyPlan,
   clearPlan,
@@ -1382,6 +1383,26 @@ mutations.markMonitoringCheckpoint = requireAuth(async (_, { attemptId, checkpoi
 mutations.selectMonitoringCountermeasure = requireAuth(async (_, { attemptId, optionId, timeZoneOffsetMinutes }: any, ctx) =>
   selectMonitoringCountermeasure(ctx.prisma, ctx.user.id, attemptId, optionId, timeZoneOffsetMinutes ?? 0)
 );
+
+mutations.startMonitoringSelfAudit = requireAuth(async (_, __, ctx) => startMonitoringSelfAudit(ctx.prisma, ctx.user.id, ctx.locale));
+
+mutations.submitMonitoringSelfAudit = requireAuth(async (_, { attemptId, answers }: any, ctx) => {
+  const result = await submitMonitoringSelfAudit(ctx.prisma, ctx.user.id, attemptId, {
+    flattery: answers.flattery,
+    anchor: answers.anchor,
+    smuggled_premise: answers.smuggledPremise,
+    agreement_reversal: answers.agreementReversal,
+  });
+  return {
+    attemptId: result.attemptId,
+    record: {
+      flattery: result.record.flattery,
+      anchor: result.record.anchor,
+      smuggledPremise: result.record.smuggled_premise,
+      agreementReversal: result.record.agreement_reversal,
+    },
+  };
+});
 
 mutations.planSkillSchedule = requireAuth(
   async (_, { skillKey, startDate, sessionsPerWeek, timeOfDay, sessionsPerModule }: any, ctx) => {

@@ -1434,6 +1434,41 @@ export const typeDefs = gql`
     movedWhat: String!
   }
 
+  # ── Monitoring Lab: session self-audit (open practice) ────────────────────
+  #
+  # The retention feature: the learner reviews one of their own real AI
+  # conversations against the four influence types this tool's transcripts
+  # are built from, and writes a short note on each. mode: open_practice —
+  # never scored into mastery or probes (build plan Phase 6). Nothing is
+  # written into Tracker directly — save the returned record yourself via
+  # addQuickEntry or addNote, mirroring Delegation's and Verification's
+  # real-work records.
+
+  type MonitoringSelfAuditServedItem {
+    attemptId: ID!
+    "flattery | anchor | smuggled_premise | agreement_reversal, in this fixed order every time."
+    questionKeys: [String!]!
+  }
+
+  type MonitoringSelfAuditRecord {
+    flattery: String!
+    anchor: String!
+    smuggledPremise: String!
+    agreementReversal: String!
+  }
+
+  type MonitoringSelfAuditResult {
+    attemptId: ID!
+    record: MonitoringSelfAuditRecord!
+  }
+
+  input MonitoringSelfAuditAnswersInput {
+    flattery: String!
+    anchor: String!
+    smuggledPremise: String!
+    agreementReversal: String!
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -2211,6 +2246,15 @@ export const typeDefs = gql`
 
     "longset items only: which countermeasure the learner would use next time. Scores the attempt."
     selectMonitoringCountermeasure(attemptId: ID!, optionId: String!, timeZoneOffsetMinutes: Int): MonitoringSubmitResult!
+
+    """
+    Session self-audit: open an attempt for reviewing one of the learner's own
+    real AI conversations. mode: open_practice — never scored.
+    """
+    startMonitoringSelfAudit: MonitoringSelfAuditServedItem!
+
+    "Complete the self-audit with a short note on each of the four influence types."
+    submitMonitoringSelfAudit(attemptId: ID!, answers: MonitoringSelfAuditAnswersInput!): MonitoringSelfAuditResult!
 
     """
     Write module sittings into the calendar. Re-runnable: it replaces the future
