@@ -62,6 +62,24 @@ export default function ToolsHomePage() {
               {t("toolsHome.openDecompositionLab")}
             </Button>
           </div>
+          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
+            <p className="text-sm">{t("toolsHome.verificationLabTrains")}</p>
+            <Button className="mt-auto" onClick={() => navigate("/tools/skills/verification")}>
+              {t("toolsHome.openVerificationLab")}
+            </Button>
+          </div>
+          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
+            <p className="text-sm">{t("toolsHome.delegationLabTrains")}</p>
+            <Button className="mt-auto" onClick={() => navigate("/tools/skills/delegation")}>
+              {t("toolsHome.openDelegationLab")}
+            </Button>
+          </div>
+          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
+            <p className="text-sm">{t("toolsHome.monitoringLabTrains")}</p>
+            <Button className="mt-auto" onClick={() => navigate("/tools/skills/monitoring")}>
+              {t("toolsHome.openMonitoringLab")}
+            </Button>
+          </div>
         </div>
       </section>
 

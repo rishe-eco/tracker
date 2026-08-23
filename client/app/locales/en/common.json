@@ -376,7 +376,13 @@
     "evidenceLabTrains": "Checking what an AI tells you — working out whether a confident answer is actually right.",
     "clarityLabTrains": "Saying precisely what you want — writing a request someone can act on.",
     "openDecompositionLab": "Open Decomposition Lab",
-    "decompositionLabTrains": "Breaking a messy problem into pieces you can actually check."
+    "decompositionLabTrains": "Breaking a messy problem into pieces you can actually check.",
+    "openVerificationLab": "Open Verification Lab",
+    "verificationLabTrains": "Checking a claim against an independent source before trusting it — not just judging whether it sounds right.",
+    "openDelegationLab": "Open Delegation Lab",
+    "delegationLabTrains": "Knowing when to trust an AI's judgement and when to trust your own.",
+    "openMonitoringLab": "Open Monitoring Lab",
+    "monitoringLabTrains": "Noticing your own state while something is actively shaping it — whether you actually understand, and whether agreement means anything."
   },
   "learn": {
     "feelingsNeeds": {
