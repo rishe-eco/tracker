@@ -354,6 +354,7 @@ enum SkillKey {
   decomposition
   verification
   delegation
+  monitoring
 }
 
 enum SkillModuleState {
