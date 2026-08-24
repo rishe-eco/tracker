@@ -1546,6 +1546,7 @@ export const SUBMIT_CLARITY_ATTEMPT = `
       delta
       reveal
       revealIsAboutItemText
+      diagnosisIsAboutItemText
       moduleState
       masteryUnmet {
         code
@@ -2311,11 +2312,21 @@ const MONITORING_SUBMIT_RESULT_FIELDS = `
       falseAlarms
       plantedTotal
       misses
+      plantedTurns {
+        turnId
+        type
+        found
+      }
     }
     checkRate {
       firstThird
       lastThird
       decay
+    }
+    answerOutcome {
+      yourAnswer
+      correct
+      acceptedAnswer
     }
   }
   moduleState

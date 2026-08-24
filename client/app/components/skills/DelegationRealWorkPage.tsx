@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { FileText, Lock } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -226,7 +226,19 @@ export default function DelegationRealWorkPage() {
                     {!targets ? (
                       <p className="text-xs text-muted-foreground">{t("skills.errors.retry")}</p>
                     ) : targets.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">{t("delegation.realWork.noTargets")}</p>
+                      // A fresh account lands here with the picker
+                      // correctly empty and nothing to do about it.
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">{t("delegation.realWork.noTargets")}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm">
+                            <Link to="/activities/goal">{t("delegation.realWork.createGoal")}</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline">
+                            <Link to="/tools/skills/delegation">{t("delegation.realWork.practiseInstead")}</Link>
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {targets.map((tg) => (

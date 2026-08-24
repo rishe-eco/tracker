@@ -50,7 +50,7 @@ type SubmitResult = {
     woaRaw: number | null;
     woaClamped: number | null;
     benchmark: number | null;
-    direction: "over" | "under" | "ok";
+    direction: "over" | "under" | "costly" | "ok";
     netGain: number | null;
     adviceQuality: string | null;
     isVoid: boolean;
@@ -70,6 +70,26 @@ function woaFor(initial: number, advice: number, final: number): number | null {
 type Stage = "estimate" | "revision" | "cue" | "split" | "sequence" | "result";
 
 const G6_ROUNDS = 3;
+
+
+/**
+ * Persian and Arabic-Indic numerals, and the Persian decimal separator.
+ *
+ * The field used to be `<input type="number">`, which silently discards
+ * anything a Persian keyboard produces: typing `۱۱۰۰` left the value empty
+ * with no error and no way to tell why (persona review pass 3, S-7). It is a
+ * text field now, and this is the only place a typed estimate becomes a
+ * number — the same fold the Monitoring answer matcher does, for the same
+ * reason.
+ */
+function toNumber(raw: string): number {
+  const ascii = raw
+    .replace(/[۰-۹٠-٩]/g, (d) => String(d.codePointAt(0)! & 0x0f))
+    .replace(/[٫،]/g, ".")
+    .replace(/[٬\s,]/g, "")
+    .trim();
+  return Number(ascii);
+}
 
 export default function DelegationSessionPage() {
   const { t } = useTranslation();
@@ -162,7 +182,7 @@ export default function DelegationSessionPage() {
     setBusy(true);
     const data = await call({
       query: COMMIT_DELEGATION_ESTIMATE,
-      variables: { attemptId: served.attemptId, value: Number(initialValue), confidence },
+      variables: { attemptId: served.attemptId, value: toNumber(initialValue), confidence },
     });
     setBusy(false);
     if (!data?.commitDelegationEstimate) return setError(t("delegation.errors.couldNotCommit"));
@@ -178,7 +198,7 @@ export default function DelegationSessionPage() {
       query: COMMIT_DELEGATION_REVISION,
       variables: {
         attemptId: served.attemptId,
-        value: Number(revisionValue),
+        value: toNumber(revisionValue),
         recoverabilityMove: served.item.kind === "stakes" ? recoverabilityMove : null,
         timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
       },
@@ -236,7 +256,7 @@ export default function DelegationSessionPage() {
     setBusy(true);
     const data = await call({
       query: COMMIT_SEQUENCE_ROUND,
-      variables: { attemptId: served.attemptId, roundIndex, value: Number(initialValue), phase: "estimate" },
+      variables: { attemptId: served.attemptId, roundIndex, value: toNumber(initialValue), phase: "estimate" },
     });
     setBusy(false);
     if (!data?.commitSequenceRound) return setError(t("delegation.errors.couldNotCommit"));
@@ -252,7 +272,7 @@ export default function DelegationSessionPage() {
       variables: {
         attemptId: served.attemptId,
         roundIndex,
-        value: Number(revisionValue),
+        value: toNumber(revisionValue),
         phase: "revision",
         timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
       },
@@ -262,7 +282,7 @@ export default function DelegationSessionPage() {
 
     setRoundHistory((prev) => [
       ...prev,
-      { roundIndex, initial: Number(initialValue), advice, final: Number(revisionValue), isSeededError: roundIndex === 1 },
+      { roundIndex, initial: toNumber(initialValue), advice, final: toNumber(revisionValue), isSeededError: roundIndex === 1 },
     ]);
 
     const outcome = data.commitSequenceRound;
@@ -352,7 +372,8 @@ export default function DelegationSessionPage() {
             <section className="space-y-3 rounded-lg border-2 border-primary/40 bg-card p-5">
               <Label text={t("delegation.estimateTitle")} />
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={initialValue}
                 onChange={(e) => setInitialValue(e.target.value)}
                 placeholder={unitLabel ? `— ${unitLabel}` : "—"}
@@ -393,7 +414,7 @@ export default function DelegationSessionPage() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">{t("delegation.revisionHint")}</p>
-              <Input type="number" value={revisionValue} onChange={(e) => setRevisionValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
+              <Input type="text" inputMode="decimal" value={revisionValue} onChange={(e) => setRevisionValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
 
               {item.kind === "stakes" && (
                 <label className="flex items-center gap-2 text-xs">
@@ -474,7 +495,7 @@ export default function DelegationSessionPage() {
               <Label text={t("delegation.sequence.round", { n: roundIndex + 1 })} />
               {roundPhase === "estimate" ? (
                 <>
-                  <Input type="number" value={initialValue} onChange={(e) => setInitialValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
+                  <Input type="text" inputMode="decimal" value={initialValue} onChange={(e) => setInitialValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
                   <div className="flex items-center gap-3 border-t pt-3">
                     <Button onClick={() => void commitRoundEstimate()} disabled={busy || !initialValue.trim()}>
                       {t("delegation.commitEstimate")}
@@ -497,7 +518,7 @@ export default function DelegationSessionPage() {
                       </div>
                     </div>
                   </div>
-                  <Input type="number" value={revisionValue} onChange={(e) => setRevisionValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
+                  <Input type="text" inputMode="decimal" value={revisionValue} onChange={(e) => setRevisionValue(e.target.value)} placeholder={unitLabel ? `— ${unitLabel}` : "—"} autoComplete="off" />
                   <div className="flex items-center gap-3 border-t pt-3">
                     <Button onClick={() => void commitRoundRevision()} disabled={busy || !revisionValue.trim()}>
                       {roundIndex === G6_ROUNDS - 1 ? t("delegation.commitRevision") : t("delegation.nextRound")}
@@ -514,8 +535,8 @@ export default function DelegationSessionPage() {
               <ResultPanel
                 result={result}
                 item={item}
-                initial={initialValue ? Number(initialValue) : null}
-                final={revisionValue ? Number(revisionValue) : null}
+                initial={initialValue ? toNumber(initialValue) : null}
+                final={revisionValue ? toNumber(revisionValue) : null}
                 advice={advice}
                 unitLabel={unitLabel}
                 roundHistory={roundHistory}

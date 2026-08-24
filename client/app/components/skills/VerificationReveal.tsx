@@ -36,7 +36,15 @@ export default function VerificationReveal({
 }) {
   const { t } = useTranslation();
   const labelOf = (checkId: string) => bench.find((b) => b.checkId === checkId)?.label ?? checkId;
-  const tone = ritualState === "all-could-fail" ? "good" : ritualState === "some-could-fail" ? "neutral" : "warn";
+  // Ritual-first is the design (spec §9): the learner reads what their checks
+  // could have caught before they read whether they were right. What it must
+  // not do is *look* like a pass. A wrong verdict under a clean ritual used to
+  // open a green banner reading "Every check you ran could have failed." —
+  // the strongest positive on the page, on a failed attempt (persona review
+  // pass 3). The ritual line still leads; the verdict now sits with it, and a
+  // wrong verdict holds the tone down on its own.
+  const ritualTone = ritualState === "all-could-fail" ? "good" : ritualState === "some-could-fail" ? "neutral" : "warn";
+  const tone = verdictCorrect ? ritualTone : "warn";
 
   return (
     <div className="space-y-4">
@@ -50,6 +58,9 @@ export default function VerificationReveal({
         }`}
       >
         <p className="font-medium">{ritualLine}</p>
+        <p className="mt-1 text-xs">
+          {verdictCorrect ? t("verification.reveal.verdictMatched") : t("verification.reveal.verdictMismatched")}
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

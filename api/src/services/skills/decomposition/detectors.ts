@@ -16,6 +16,8 @@
  *    honest where a grammar would be a pretence.
  */
 
+import { decompositionEvidence as ev } from "../../../content/skills/decomposition/v1/evidence";
+import { pluralKey } from "../evidenceText";
 import type { Locale } from "../../../content/skills/decomposition/types";
 
 export type DetectorLevel = 0 | 1 | 2;
@@ -59,22 +61,20 @@ export function scoreWholeStatement(input: WholeStatementInput): D1Result {
   if (!statement || input.pieceExistedFirst) {
     return {
       level: 0,
-      evidence: input.pieceExistedFirst
-        ? "A piece was added before the whole was stated."
-        : "No statement of the undivided problem.",
+      evidence: ev(input.locale, input.pieceExistedFirst ? "d1.pieceFirst" : "d1.noStatement"),
     };
   }
 
   const isNearCopy = tokenOverlap(statement, input.itemPrompt) >= NEAR_COPY_THRESHOLD;
   if (isNearCopy) {
-    return { level: 1, evidence: "The statement closely restates the prompt rather than reframing it." };
+    return { level: 1, evidence: ev(input.locale, "d1.nearCopy") };
   }
 
   const doneWhenBounded = doneWhen.length > 0 && isBounded(doneWhen, input.locale);
-  if (!doneWhen) return { level: 1, evidence: "No done condition was given for the whole." };
-  if (!doneWhenBounded) return { level: 1, evidence: "The done condition is present but not bounded — no date, count, or state-change verb." };
+  if (!doneWhen) return { level: 1, evidence: ev(input.locale, "d1.noDoneWhen") };
+  if (!doneWhenBounded) return { level: 1, evidence: ev(input.locale, "d1.unbounded") };
 
-  return { level: 2, evidence: `Stated first, bounded: "${doneWhen}".` };
+  return { level: 2, evidence: ev(input.locale, "d1.ok", { doneWhen }) };
 }
 
 // ─── D4: `doneWhen` boundedness ────────────────────────────────────────────
@@ -92,10 +92,33 @@ const EN_STATE_CHANGE_VERBS = [
   "renewed", "mailed", "filed", "packed", "listed", "registered",
 ];
 
-const FA_STATE_CHANGE_VERBS = [
+const FA_STATE_CHANGE_VERBS_POSITIVE = [
   "رزرو شد", "لغو شد", "امضا شد", "ارسال شد", "پرداخت شد", "تأیید شد", "تایید شد",
   "تحویل داده شد", "ثبت شد", "دریافت شد", "برگردانده شد", "منتشر شد", "تمدید شد",
   "نصب شد", "پست شد", "بسته‌بندی شد", "لیست شد", "جابه‌جا شد", "جابجا شد", "تمام شد",
+];
+
+/**
+ * The same verbs negated.
+ *
+ * "همه‌ی جعبه‌ها باز نشده" — no box is still packed — is exactly as bounded and
+ * exactly as checkable as the positive form, but the list held only positive
+ * past forms, so a negated Persian done-condition could never match and the
+ * item scored D1 1/2 for a condition that was fine (persona review pass 3,
+ * S-10). This is a lexicon gap, not a Unicode one: the matching in this file
+ * was already correct.
+ *
+ * Derived from the positive list rather than written out, so a verb added
+ * above cannot be forgotten here. `شد` (was) becomes `نشد` (was not) and its
+ * perfect and subjunctive forms — the three a done-condition actually uses.
+ */
+const FA_NEGATED_TAILS = ["نشد", "نشده", "نباشه"];
+
+const FA_STATE_CHANGE_VERBS = [
+  ...FA_STATE_CHANGE_VERBS_POSITIVE,
+  ...FA_STATE_CHANGE_VERBS_POSITIVE.flatMap((phrase) =>
+    FA_NEGATED_TAILS.map((tail) => phrase.replace(/شد$/, tail))
+  ),
 ];
 
 /** Weekday or an explicit deadline preposition + date, e.g. "by the 12th", "before Friday". */
@@ -155,15 +178,23 @@ export function scoreD4FreeAuthoring(leaves: LeafForD4[], locale: Locale): D1Res
   const unbounded = leaves.filter((l) => !isBounded(l.doneWhen, locale));
   if (unbounded.length > 0) {
     faults += unbounded.length >= 2 ? 2 : 1;
-    findings.push(`${unbounded.length} leaf/leaves with no bounded done condition.`);
+    findings.push(
+      ev(locale, pluralKey(unbounded.length, "d4.unboundedLeavesOne", "d4.unboundedLeavesMany"), {
+        count: unbounded.length,
+      })
+    );
   }
 
   const shattered = leaves.filter((l) => l.splitAnAtomicPiece);
   if (shattered.length > 0) {
     faults += 1;
-    findings.push(`${shattered.length} piece(s) split that the key marks atomic.`);
+    findings.push(
+      ev(locale, pluralKey(shattered.length, "d4.shatteredOne", "d4.shatteredMany"), {
+        count: shattered.length,
+      })
+    );
   }
 
   const level: DetectorLevel = faults === 0 ? 2 : faults === 1 ? 1 : 0;
-  return { level, evidence: findings.length ? findings.join(" ") : "Every leaf has a bounded done condition." };
+  return { level, evidence: findings.length ? findings.join(" ") : ev(locale, "d4.allBounded") };
 }

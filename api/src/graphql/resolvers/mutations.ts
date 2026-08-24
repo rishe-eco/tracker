@@ -1361,7 +1361,7 @@ mutations.submitMonitoringAnswer = requireAuth(async (_, { attemptId, text, time
 );
 
 mutations.commitMonitoringRating = requireAuth(async (_, { attemptId, phase, value, timeZoneOffsetMinutes }: any, ctx) =>
-  commitMonitoringRating(ctx.prisma, ctx.user.id, attemptId, phase, value, timeZoneOffsetMinutes ?? 0)
+  commitMonitoringRating(ctx.prisma, ctx.user.id, attemptId, phase, value, ctx.locale, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.commitMonitoringExplanation = requireAuth(async (_, { attemptId, text }: any, ctx) =>
@@ -1369,11 +1369,11 @@ mutations.commitMonitoringExplanation = requireAuth(async (_, { attemptId, text 
 );
 
 mutations.selectMonitoringSteps = requireAuth(async (_, { attemptId, stepIds, timeZoneOffsetMinutes }: any, ctx) =>
-  selectMonitoringSteps(ctx.prisma, ctx.user.id, attemptId, stepIds, timeZoneOffsetMinutes ?? 0)
+  selectMonitoringSteps(ctx.prisma, ctx.user.id, attemptId, stepIds, ctx.locale, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.markMonitoringInfluence = requireAuth(async (_, { attemptId, marks, timeZoneOffsetMinutes }: any, ctx) =>
-  markMonitoringInfluence(ctx.prisma, ctx.user.id, attemptId, marks, timeZoneOffsetMinutes ?? 0)
+  markMonitoringInfluence(ctx.prisma, ctx.user.id, attemptId, marks, ctx.locale, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.markMonitoringCheckpoint = requireAuth(async (_, { attemptId, checkpointId, checked }: any, ctx) =>
@@ -1381,7 +1381,7 @@ mutations.markMonitoringCheckpoint = requireAuth(async (_, { attemptId, checkpoi
 );
 
 mutations.selectMonitoringCountermeasure = requireAuth(async (_, { attemptId, optionId, timeZoneOffsetMinutes }: any, ctx) =>
-  selectMonitoringCountermeasure(ctx.prisma, ctx.user.id, attemptId, optionId, timeZoneOffsetMinutes ?? 0)
+  selectMonitoringCountermeasure(ctx.prisma, ctx.user.id, attemptId, optionId, ctx.locale, timeZoneOffsetMinutes ?? 0)
 );
 
 mutations.startMonitoringSelfAudit = requireAuth(async (_, __, ctx) => startMonitoringSelfAudit(ctx.prisma, ctx.user.id, ctx.locale));

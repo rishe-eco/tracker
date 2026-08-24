@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import RubricPips from "./RubricPips";
 
 /**
  * The six rubric criteria, on screen.
@@ -54,11 +55,11 @@ export default function RubricRail({ scores, detectorCriteria, readerAvailable =
               )}
             </span>
             {score ? (
-              <Pips level={score.level} />
+              <RubricPips level={score.level} unscoredLabel={t("clarity.unscored")} unscoredHint={t("clarity.unscoredHint")} />
             ) : needsReader ? (
               <span className="text-[10px] text-muted-foreground">{t("clarity.needsReaderShort")}</span>
             ) : (
-              <Pips level={undefined} />
+              <RubricPips level={undefined} unscoredLabel={t("clarity.unscored")} unscoredHint={t("clarity.unscoredHint")} />
             )}
           </li>
         );
@@ -72,25 +73,3 @@ export default function RubricRail({ scores, detectorCriteria, readerAvailable =
  * an unscored criterion is an absence of data, not a failure, and the two must
  * not look alike.
  */
-function Pips({ level }: { level: number | null | undefined }) {
-  const { t } = useTranslation();
-  if (level === null) {
-    return (
-      <span className="text-[10px] text-muted-foreground" title={t("clarity.unscoredHint")}>
-        {t("clarity.unscored")}
-      </span>
-    );
-  }
-  return (
-    <span className="flex gap-1" aria-label={level === undefined ? undefined : `${level} of 2`}>
-      {[0, 1].map((i) => (
-        <span
-          key={i}
-          className={`h-2.5 w-2.5 rounded-[2px] border ${
-            level !== undefined && i < level ? "border-primary bg-primary" : "border-muted-foreground/40"
-          }`}
-        />
-      ))}
-    </span>
-  );
-}

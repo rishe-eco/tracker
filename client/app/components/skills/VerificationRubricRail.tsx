@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import RubricPips from "./RubricPips";
 
 export const VERIFICATION_CRITERIA = ["V1", "V2", "V3", "V4", "V5", "V6"] as const;
 export type VerificationCriterion = (typeof VERIFICATION_CRITERIA)[number];
@@ -28,9 +29,19 @@ export default function VerificationRubricRail({ scores, compact }: Props) {
             <span className="font-mono text-[11px] text-muted-foreground">{id}</span>
             <span className="min-w-0 truncate text-xs">
               {t(`verification.rubric.${id}.label`)}
-              {!compact && score && <span className="ms-1.5 text-[11px] text-muted-foreground">{score.evidence}</span>}
+              {!compact && (
+                <span className="ms-1.5 text-[11px] text-muted-foreground">
+                  {/* Before an attempt there is no evidence to show, and the
+                      rail stood there as six bare labels — the standing
+                      reference for a lab whose vocabulary is the hard part.
+                      The gloss holds that slot until a criterion actually
+                      scores; an unscored row keeps the gloss rather than
+                      repeating "not this item's module" six times. */}
+                  {score && score.level !== null ? score.evidence : t(`verification.rubric.${id}.test`)}
+                </span>
+              )}
             </span>
-            <Pips level={score ? score.level : undefined} />
+            <RubricPips level={score ? score.level : undefined} unscoredLabel={t("verification.unscored")} unscoredHint={t("verification.unscoredHint")} />
           </li>
         );
       })}
@@ -39,25 +50,3 @@ export default function VerificationRubricRail({ scores, compact }: Props) {
 }
 
 /** `null` renders as "not scored on this rung" — an inapplicable or ceiling-blocked criterion is never a silent zero. */
-function Pips({ level }: { level: number | null | undefined }) {
-  const { t } = useTranslation();
-  if (level === null) {
-    return (
-      <span className="text-[10px] text-muted-foreground" title={t("verification.unscoredHint")}>
-        {t("verification.unscored")}
-      </span>
-    );
-  }
-  return (
-    <span className="flex gap-1" aria-label={level === undefined ? undefined : `${level} of 2`}>
-      {[0, 1].map((i) => (
-        <span
-          key={i}
-          className={`h-2.5 w-2.5 rounded-[2px] border ${
-            level !== undefined && i < level ? "border-primary bg-primary" : "border-muted-foreground/40"
-          }`}
-        />
-      ))}
-    </span>
-  );
-}

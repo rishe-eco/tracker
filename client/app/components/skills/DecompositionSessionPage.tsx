@@ -530,14 +530,18 @@ function ResultPanel({ result, itemType, wholeStatement, submittedLabels, onRevi
             <Label text={t("decomposition.total")} />
             <p className="text-2xl font-semibold tabular-nums">{score.scoredCount === 0 ? "—" : `${score.total} / ${maxPossible}`}</p>
             <p className="text-[11px] text-muted-foreground">
-              {score.scoredCount === 0 ? t("decomposition.nothingScored") : t("decomposition.ofCriteria", { scored: score.scoredCount, total: 6 })}
+              {score.scoredCount === 0 ? t("decomposition.nothingScored") : t("decomposition.ofCriteria", { scored: score.scoredCount, total: 6, max: maxPossible })}
             </p>
           </div>
           <div className="rounded-md border bg-background/60 p-3">
             <Label text={t("decomposition.overDecomposedLabel")} />
             <p className="text-2xl font-semibold tabular-nums">{result.delta == null ? "—" : result.delta > 0 ? `+${result.delta}` : String(result.delta)}</p>
             <p className="text-[11px] text-muted-foreground">
-              {itemType === "control" ? (score.overDecomposed ? t("decomposition.overDecomposedYes") : t("decomposition.overDecomposedNo")) : t("decomposition.deltaHint")}
+              {itemType === "control"
+                ? score.overDecomposed
+                  ? t("decomposition.overDecomposedYes")
+                  : t("decomposition.overDecomposedNo")
+                : t(result.delta == null ? "decomposition.deltaHint" : "decomposition.deltaSetHint")}
             </p>
           </div>
         </div>

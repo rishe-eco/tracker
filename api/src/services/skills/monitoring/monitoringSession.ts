@@ -54,6 +54,7 @@ import {
   assembleTranscriptScore,
   type MonitoringScore,
 } from "./scoring";
+import { monitoringEvidence as ev } from "../../../content/skills/monitoring/v1/evidence";
 import { evaluateAccessMastery, evaluateKeyedMastery, evaluateResolutionMastery } from "./mastery";
 
 const SKILL = "monitoring" as const;
@@ -248,7 +249,7 @@ export async function submitMonitoringAnswer(
 
   const score: MonitoringScore = {
     moduleKey: "s3-resolution",
-    criteria: allUnscored(),
+    criteria: allUnscored(locale),
     total: 0,
     scoredCount: 0,
     predictionSample: { prediction, outcome: correct ? 1 : 0 },
@@ -256,6 +257,7 @@ export async function submitMonitoringAnswer(
     deflation: null,
     influenceResult: null,
     checkRate: null,
+    answerOutcome: answerOutcomeFor(fullItem, text, correct),
   };
 
   await persistAttempt(prisma, attempt, score, { text, correct, prediction });
@@ -263,8 +265,30 @@ export async function submitMonitoringAnswer(
   return { stage: "scored", result };
 }
 
-function allUnscored(): MonitoringScore["criteria"] {
-  return (["S1", "S2", "S3", "S4", "S5", "S6"] as const).map((id) => ({ id, level: null, scoredBy: "unscored" as const, evidence: "Not this item's module." }));
+/**
+ * The outcome block for an answered item. `answerVariants[0]` is the
+ * canonical form of the key — the content validator requires at least one
+ * variant on every recall/pair item, so this is never empty in practice.
+ */
+function answerOutcomeFor(
+  fullItem: { surface: { answerVariants?: string[] } },
+  text: string,
+  correct: boolean
+): MonitoringScore["answerOutcome"] {
+  return {
+    yourAnswer: text,
+    correct,
+    acceptedAnswer: fullItem.surface.answerVariants?.[0] ?? "",
+  };
+}
+
+function allUnscored(locale: Locale): MonitoringScore["criteria"] {
+  return (["S1", "S2", "S3", "S4", "S5", "S6"] as const).map((id) => ({
+    id,
+    level: null,
+    scoredBy: "unscored" as const,
+    evidence: ev(locale, "notThisModule"),
+  }));
 }
 
 // ─── pair rating (s1, both halves) ──────────────────────────────────────────
@@ -277,6 +301,7 @@ export async function commitMonitoringRating(
   attemptId: string,
   phase: "before" | "after",
   value: number,
+  locale: Locale,
   timeZoneOffsetMinutes = 0
 ): Promise<MonitoringRatingResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
@@ -306,11 +331,20 @@ export async function commitMonitoringRating(
   const predictionEvent = eventsOfKind(attempt, "prediction_committed")[0];
   const answerEvent = eventsOfKind(attempt, "answer_submitted")[0];
   const prediction = payloadOf<{ level: PredictionLevel }>(predictionEvent)?.level ?? null;
-  const correct = payloadOf<{ correct: boolean }>(answerEvent)?.correct ?? null;
+  const answerPayload = payloadOf<{ text: string; correct: boolean }>(answerEvent);
+  const correct = answerPayload?.correct ?? null;
+
+  // Only the unassisted half answers anything; the assisted half reads the
+  // authored explanation and rates it, so it has no outcome to reveal.
+  let answerOutcome: MonitoringScore["answerOutcome"] = null;
+  if (answerPayload) {
+    const { pack } = await loadPack(prisma, userId, locale);
+    answerOutcome = answerOutcomeFor(findItem(pack.items, attempt.itemId), answerPayload.text, answerPayload.correct);
+  }
 
   const score: MonitoringScore = {
     moduleKey: "s1-access",
-    criteria: allUnscored(),
+    criteria: allUnscored(locale),
     total: 0,
     scoredCount: 0,
     predictionSample: prediction !== null && correct !== null ? { prediction, outcome: correct ? 1 : 0 } : null,
@@ -318,6 +352,7 @@ export async function commitMonitoringRating(
     deflation: null,
     influenceResult: null,
     checkRate: null,
+    answerOutcome,
   };
 
   await persistAttempt(prisma, attempt, score, { rating: value, prediction, correct });
@@ -355,6 +390,7 @@ export async function selectMonitoringSteps(
   userId: string,
   attemptId: string,
   stepIds: string[],
+  locale: Locale,
   timeZoneOffsetMinutes = 0
 ): Promise<MonitoringSubmitResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
@@ -372,7 +408,7 @@ export async function selectMonitoringSteps(
   const after = payloadOf<{ value: number }>(eventsOfKind(attempt, "rating_committed_after")[0])?.value;
   if (before === undefined || after === undefined) throw new MonitoringSequenceError("Missing a before/after rating.");
 
-  const score = assembleExplainScore(before, after, stepIds, item.causalSteps ?? []);
+  const score = assembleExplainScore(before, after, stepIds, item.causalSteps ?? [], locale);
   await persistAttempt(prisma, attempt, score, { before, after, stepIds });
   return finishAttempt(prisma, userId, attempt.id, "s2-explain", attempt.mode, timeZoneOffsetMinutes);
 }
@@ -386,6 +422,7 @@ export async function markMonitoringInfluence(
   userId: string,
   attemptId: string,
   marks: InfluenceMark[],
+  locale: Locale,
   timeZoneOffsetMinutes = 0
 ): Promise<MonitoringSubmitResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
@@ -395,7 +432,8 @@ export async function markMonitoringInfluence(
 
   await stamp(prisma, attempt, "influence_marked", { marks });
 
-  const plantedTurnIds = (item.planted ?? []).map((p) => p.turnId);
+  const planted = item.planted ?? [];
+  const plantedTurnIds = planted.map((p) => p.turnId);
   const markedTurnIds = marks.map((m) => m.turnId);
   const everyHitNamed = markedTurnIds
     .filter((id) => plantedTurnIds.includes(id))
@@ -404,9 +442,10 @@ export async function markMonitoringInfluence(
   const score = assembleTranscriptScore({
     moduleKey: item.moduleKey as "s4-agreement" | "s5-anchor",
     isCleanControl: !!item.isCleanControl,
-    plantedTurnIds,
+    planted,
     markedTurnIds,
     everyHitNamed,
+    locale,
   });
 
   await persistAttempt(prisma, attempt, score, { marks });
@@ -431,6 +470,7 @@ export async function selectMonitoringCountermeasure(
   userId: string,
   attemptId: string,
   optionId: string,
+  locale: Locale,
   timeZoneOffsetMinutes = 0
 ): Promise<MonitoringSubmitResult> {
   const attempt = await loadOpenAttempt(prisma, userId, attemptId);
@@ -446,7 +486,7 @@ export async function selectMonitoringCountermeasure(
   const checked = checkpoints.map((c) => checkedById.get(c.checkpointId) ?? false);
   const decay = checkRateDecay(checked);
 
-  const score = assembleLongsetScore(optionId, item.countermeasures ?? [], COUNTERMEASURE_HAS_TRIGGER, decay);
+  const score = assembleLongsetScore(optionId, item.countermeasures ?? [], COUNTERMEASURE_HAS_TRIGGER, decay, locale);
   await persistAttempt(prisma, attempt, score, { optionId, checked });
   return finishAttempt(prisma, userId, attempt.id, "s6-complacency", attempt.mode, timeZoneOffsetMinutes);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ITEM_SPEC_BY_ID } from "../content/skills/decomposition/v1";
+import { isBounded } from "../services/skills/decomposition/detectors";
 import {
   assembleDecompositionScore,
   atCriterion,
@@ -341,5 +342,22 @@ describe("atCriterion", () => {
     expect(
       atCriterion({ score, moduleKey: "d1-frame", itemType: "arrangement", dayKey: "x", unscaffolded: true, ownCriterion: "D1" })
     ).toBe(false);
+  });
+});
+
+describe("isBounded — Persian negation (persona review pass 3, S-10)", () => {
+  it("accepts the positive past form", () => {
+    expect(isBounded("وقتی قرارداد امضا شد", "fa")).toBe(true);
+  });
+
+  it("accepts the same verb negated — as bounded and as checkable", () => {
+    expect(isBounded("وقتی هیچ جعبه‌ای باز نشده", "fa")).toBe(false); // not in the lexicon at all
+    expect(isBounded("وقتی قرارداد امضا نشد", "fa")).toBe(true);
+    expect(isBounded("وقتی فاکتور ثبت نشده", "fa")).toBe(true);
+    expect(isBounded("تا وقتی فاکتور ثبت نباشه", "fa")).toBe(true);
+  });
+
+  it("still reports absence for a genuinely unbounded condition", () => {
+    expect(isBounded("وقتی کارها روبه‌راه شدن", "fa")).toBe(false);
   });
 });

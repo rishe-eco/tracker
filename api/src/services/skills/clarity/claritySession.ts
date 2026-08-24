@@ -306,6 +306,19 @@ export type ClaritySubmitResult = {
    * would otherwise read as being about their text.
    */
   revealIsAboutItemText: boolean;
+  /**
+   * True when `diagnosis` was marked against the text the *item* shipped
+   * rather than against what the learner wrote.
+   *
+   * On a revision item those are two different texts on one screen: the
+   * diagnosis is graded against the weak draft's authored faults, while the
+   * criteria beside it score the learner's rewrite. Both are correct, and with
+   * nothing saying so "Missed R3" read as contradicting "R3 not scored"
+   * (persona review pass 3, S-5a). This is derived from the same expression
+   * that picks the key, in `diagnosisKeyFor`, so the label on the screen
+   * cannot drift away from the grading behind it.
+   */
+  diagnosisIsAboutItemText: boolean;
   moduleState: string;
   masteryUnmet: MasteryGap[];
   atCriterion: boolean;
@@ -396,6 +409,7 @@ export async function submitClarityAttempt(
     delta,
     reveal: item.surface.reveal,
     revealIsAboutItemText: item.type !== "elicitation",
+    diagnosisIsAboutItemText: diagnosisIsAboutItemTextFor(item),
     moduleState: moduleUpdate.state,
     masteryUnmet: moduleUpdate.unmetCriteria,
     atCriterion: atCriterion(score, item.moduleKey),
@@ -552,7 +566,17 @@ function findItem(items: PackItem[], itemId: string): PackItem {
  * after seeing what a reader did with it, so the key is that text's own score.
  */
 function diagnosisKeyFor(item: PackItem, score: ClarityScore): DiagnosisKey {
-  return item.type === "revision" ? keyFromSeededFaults(item.seededFaults) : keyFromScore(score);
+  return diagnosisIsAboutItemTextFor(item) ? keyFromSeededFaults(item.seededFaults) : keyFromScore(score);
+}
+
+/**
+ * The one predicate behind both the key above and the `diagnosisIsAboutItemText`
+ * flag on the result. Kept as a named function rather than repeated, because
+ * the screen labels the two texts using this and mislabelling them is the
+ * defect (S-5a) rather than a cosmetic risk.
+ */
+function diagnosisIsAboutItemTextFor(item: PackItem): boolean {
+  return item.type === "revision";
 }
 
 function readTagged(events: { kind: string; payload: string | null }[]): CriterionId[] | null {

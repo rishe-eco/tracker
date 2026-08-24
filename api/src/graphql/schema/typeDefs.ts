@@ -577,6 +577,8 @@ export const typeDefs = gql`
     scores, where unlabelled it reads as being about their text.
     """
     revealIsAboutItemText: Boolean!
+    "True when the diagnosis was marked against the text the item shipped rather than against what the learner wrote. On a revision item the diagnosis and the criteria beside it are about two different texts; the screen has to say which is which."
+    diagnosisIsAboutItemText: Boolean!
     moduleState: String!
     masteryUnmet: [MasteryGap!]!
     atCriterion: Boolean!
@@ -1339,6 +1341,15 @@ export const typeDefs = gql`
     falseAlarms: Int!
     plantedTotal: Int!
     misses: Int!
+    "The answer key: which turns carried a planted influence, what kind each was, and whether this learner marked it. Present only on a scored attempt — never on the served item, where it would destroy the instrument. Empty on a clean control."
+    plantedTurns: [MonitoringPlantedTurn!]!
+  }
+
+  type MonitoringPlantedTurn {
+    turnId: String!
+    "flattery | anchor | smuggled_premise | agreement_reversal — a closed enum, so the client names it in either locale without authored prose crossing the wire."
+    type: String!
+    found: Boolean!
   }
 
   "Descriptive only, never scored (build plan §4.5) — never aggregated across sessions either."
@@ -1362,6 +1373,16 @@ export const typeDefs = gql`
     influenceResult: MonitoringInfluenceResult
     "longset only — descriptive, never scored."
     checkRate: MonitoringCheckRate
+    "recall (s3) and the answered half of a pair (s1) — the outcome, not a score. S1/S3 are window-level and carry no per-attempt level, so this is the only thing a single sitting has to reveal. Never present on a served item."
+    answerOutcome: MonitoringAnswerOutcome
+  }
+
+  type MonitoringAnswerOutcome {
+    "Exactly what the learner typed."
+    yourAnswer: String!
+    correct: Boolean!
+    "The canonical accepted answer — revealed here and nowhere earlier."
+    acceptedAnswer: String!
   }
 
   type MonitoringSubmitResult {

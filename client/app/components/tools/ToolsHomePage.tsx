@@ -39,12 +39,17 @@ export default function ToolsHomePage() {
           <h2 className="text-lg font-semibold">{t("toolsHome.skillsTitle")}</h2>
           <p className="text-sm text-muted-foreground">{t("toolsHome.skillsDescription")}</p>
         </div>
-        {/* One row per lab, each saying which of the two skills it trains. Two
-            bare buttons under a sentence naming both skills left the reader to
-            work out which was which — and the buttons were in the opposite
-            order to the sentence. */}
+        {/* One row per lab, each saying which skill it trains. Two bare buttons
+            under a sentence naming both skills left the reader to work out
+            which was which — and the buttons were in the opposite order to the
+            sentence. Six rows and no recommendation is the same problem one
+            size up, so Evidence Lab is marked as the way in: it is the only
+            lab that needs no vocabulary from any of the others. */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
+          <div className="flex flex-col items-start gap-2 rounded-md border border-primary/50 bg-primary/[0.06] p-4">
+            <span className="rounded-full border border-primary/50 bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              {t("toolsHome.startHere")}
+            </span>
             <p className="text-sm">{t("toolsHome.evidenceLabTrains")}</p>
             <Button className="mt-auto" onClick={() => navigate("/tools/skills/evidence")}>
               {t("toolsHome.openEvidenceLab")}

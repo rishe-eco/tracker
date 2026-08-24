@@ -86,7 +86,10 @@ export function scoreStableUpdating(dropRatio: number | null): 0 | 1 | 2 | null 
 /** `overReliance`/`underReliance` are always returned together and never summed — see `types.ts` in the client and spec §6. */
 export type RelianceRates = { overReliance: number | null; underReliance: number | null };
 
-export function relianceRates(directions: ("over" | "under" | "ok")[]): RelianceRates {
+// `costly` counts toward neither rate: it is a below-threshold move that lost
+// accuracy, which the reveal names honestly but mastery has never gated on
+// (before it existed those attempts were "ok" and were not counted either).
+export function relianceRates(directions: ("over" | "under" | "costly" | "ok")[]): RelianceRates {
   if (directions.length === 0) return { overReliance: null, underReliance: null };
   const over = directions.filter((d) => d === "over").length;
   const under = directions.filter((d) => d === "under").length;

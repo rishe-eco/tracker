@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_DECOMPOSITION_MODULES, GET_DECOMPOSITION_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import DecompositionRubricRail from "./DecompositionRubricRail";
+import HowASittingWorks from "./HowASittingWorks";
 import SkillProbeBanner from "./SkillProbeBanner";
 
 type DecompositionModule = {
@@ -135,6 +136,13 @@ export default function DecompositionLabPage() {
             onSkipped={() => void load()}
           />
         )}
+
+        <HowASittingWorks
+          ns="decomposition.how"
+          steps={["state", "breadth", "bound", "depend", "reveal"]}
+          catchKey="catch"
+          defaultOpen={!started}
+        />
 
         {started && (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

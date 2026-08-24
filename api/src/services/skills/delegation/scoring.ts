@@ -20,6 +20,8 @@
  */
 
 import type { CueDirection, CueOption, DelegationCriterionId, DelegationModuleKey } from "../../../content/skills/delegation/types";
+import type { Locale } from "../../../content/skills/types";
+import { delegationEvidence as ev } from "../../../content/skills/delegation/v1/evidence";
 import { adviceQualityFor, dropRatioFor, netGainFor, scoreStableUpdating, scoreStakesPair, type StakesPairInput } from "./metrics";
 import { benchmarkFor, computeWoa, relianceDirection, scoreProportionateWeight, type CueDirectionLike, type RelianceDirection } from "./woa";
 
@@ -40,9 +42,11 @@ const CRITERION_BY_MODULE: Record<DelegationModuleKey, DelegationCriterionId> = 
   "g6-drift": "G6",
 };
 
-function emptyCriteria(populated?: DelegationCriterionScore): DelegationCriterionScore[] {
+function emptyCriteria(locale: Locale, populated?: DelegationCriterionScore): DelegationCriterionScore[] {
   return ALL_CRITERIA.map((id) =>
-    populated && populated.id === id ? populated : { id, level: null, scoredBy: "unscored", evidence: "Not this item's module." }
+    populated && populated.id === id
+      ? populated
+      : { id, level: null, scoredBy: "unscored", evidence: ev(locale, "notThisModule") }
   );
 }
 
@@ -86,14 +90,16 @@ export type AssembleEstimateInput = {
   cueSelection?: { selectedCueId: string; correct: boolean; level: 0 | 1 | 2 };
   /** "stakes" items only. */
   stakes?: { role: "low" | "high"; recoverabilityMove: boolean; siblingWoaClamped: number | null; siblingRecoverabilityMove: boolean };
+  locale: Locale;
 };
 
 /** Covers `estimate`, `cue`, and `stakes` kinds — every JAS-shaped item. */
 export function assembleEstimateScore(input: AssembleEstimateInput): DelegationScore {
+  const { locale } = input;
   const isVoid = input.initial < input.plausibleRange[0] || input.initial > input.plausibleRange[1];
   const { raw, clamped } = computeWoa(input.initial, input.advice, input.final);
   const benchmark = benchmarkFor(input.cueDirection);
-  const direction = relianceDirection(clamped, input.initial, input.advice, input.truth);
+  const direction = relianceDirection(clamped, input.initial, input.advice, input.truth, input.final);
   const netGain = isVoid ? null : netGainFor(input.initial, input.final, input.truth);
   const adviceQuality = isVoid ? null : adviceQualityFor(input.initial, input.advice, input.truth);
   const wasAccurate = !isVoid && Math.abs(input.initial - input.truth) < Math.abs((input.plausibleRange[0] + input.plausibleRange[1]) / 2 - input.truth);
@@ -108,24 +114,22 @@ export function assembleEstimateScore(input: AssembleEstimateInput): DelegationS
       level,
       scoredBy: "computed",
       evidence: isVoid
-        ? "Estimate fell outside the plausible range — void, not scored."
+        ? ev(locale, "g3.void")
         : clamped === null
-          ? "Advice equalled your initial estimate — weight of advice is undefined for this item."
-          : `WOA ${clamped.toFixed(2)} against a benchmark of ${benchmark.toFixed(2)}.`,
+          ? ev(locale, "g3.undefined")
+          : ev(locale, "g3.woa", { woa: clamped.toFixed(2), benchmark: benchmark.toFixed(2) }),
     };
   } else if (input.moduleKey === "g2-instance" && input.cueSelection) {
     populated = {
       id: "G2",
       level: input.cueSelection.level,
       scoredBy: "key",
-      evidence: input.cueSelection.correct
-        ? "The cue you picked bears on relative competence, or correctly reported none exists."
-        : "The cue you picked was a category claim, or missed an instance cue that existed.",
+      evidence: ev(locale, input.cueSelection.correct ? "g2.correct" : "g2.wrong"),
     };
   } else if (input.moduleKey === "g5-stakes" && input.stakes) {
     if (input.stakes.siblingWoaClamped === null) {
       pendingPair = true;
-      populated = { id: "G5", level: null, scoredBy: "unscored", evidence: "Waiting on the other half of this pair." };
+      populated = { id: "G5", level: null, scoredBy: "unscored", evidence: ev(locale, "g5.pending") };
     } else {
       const pairInput: StakesPairInput =
         input.stakes.role === "high"
@@ -136,12 +140,7 @@ export function assembleEstimateScore(input: AssembleEstimateInput): DelegationS
         id: "G5",
         level,
         scoredBy: "key+computed",
-        evidence:
-          level === 2
-            ? "Reliance was either reduced under high stakes, or kept and made recoverable."
-            : level === 0
-              ? "Reliance was unchanged under high stakes, with no recoverability move recorded."
-              : "Some change, but below the pair's threshold, and no recoverability move recorded.",
+        evidence: ev(locale, level === 2 ? "g5.good" : level === 0 ? "g5.none" : "g5.partial"),
       };
     }
   }
@@ -149,7 +148,7 @@ export function assembleEstimateScore(input: AssembleEstimateInput): DelegationS
 
   return {
     moduleKey: input.moduleKey,
-    criteria: emptyCriteria(populated),
+    criteria: emptyCriteria(locale, populated),
     total: populated?.level ?? 0,
     scoredCount: populated?.level !== null && populated?.level !== undefined ? 1 : 0,
     woaRaw: raw,
@@ -168,14 +167,22 @@ export function assembleEstimateScore(input: AssembleEstimateInput): DelegationS
 export type AssembleSplitInput = {
   moduleKey: "g4-split";
   level: 0 | 1 | 2;
-  evidence: string;
+  locale: Locale;
 };
 
 export function assembleSplitScore(input: AssembleSplitInput): DelegationScore {
-  const populated: DelegationCriterionScore = { id: "G4", level: input.level, scoredBy: "key", evidence: input.evidence };
+  const populated: DelegationCriterionScore = {
+    id: "G4",
+    level: input.level,
+    scoredBy: "key",
+    evidence: ev(
+      input.locale,
+      input.level === 2 ? "g4.correct" : input.level === 0 ? "g4.wholeTask" : "g4.inverted"
+    ),
+  };
   return {
     moduleKey: input.moduleKey,
-    criteria: emptyCriteria(populated),
+    criteria: emptyCriteria(input.locale, populated),
     total: input.level,
     scoredCount: 1,
     woaRaw: null,
@@ -195,6 +202,7 @@ export type AssembleSequenceInput = {
   moduleKey: "g6-drift";
   round1Woa: number | null;
   round3Woa: number | null;
+  locale: Locale;
 };
 
 export function assembleSequenceScore(input: AssembleSequenceInput): DelegationScore {
@@ -206,12 +214,12 @@ export function assembleSequenceScore(input: AssembleSequenceInput): DelegationS
     scoredBy: "computed",
     evidence:
       dropRatio === null
-        ? "Round 1's weighting was too close to zero for a drop ratio to mean anything."
-        : `Drop ratio ${dropRatio.toFixed(2)} (round 3 weighting / round 1 weighting).`,
+        ? ev(input.locale, "g6.tooCloseToZero")
+        : ev(input.locale, "g6.dropRatio", { ratio: dropRatio.toFixed(2) }),
   };
   return {
     moduleKey: input.moduleKey,
-    criteria: emptyCriteria(populated),
+    criteria: emptyCriteria(input.locale, populated),
     total: level ?? 0,
     scoredCount: level !== null ? 1 : 0,
     woaRaw: input.round3Woa,

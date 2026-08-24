@@ -12,6 +12,8 @@ import type {
   Verdict,
 } from "../../../content/skills/verification/types";
 import { VERIFICATION_CRITERIA, cheapestSufficientCost } from "../../../content/skills/verification/types";
+import type { Locale } from "../../../content/skills/types";
+import { verificationEvidence as ev } from "../../../content/skills/verification/v1/evidence";
 import type { MasteryGap } from "../mastery";
 import { scoreHonestClosure, scoreIndependence, scoreLocalisation, scoreOracleNamed } from "./detectors";
 import { costFor, ritualStateFor, scoreCostLevel, type RitualState } from "./metrics";
@@ -56,6 +58,7 @@ export type AssembleVerificationInput = {
   elementId: string | null;
   residualRisk: string;
   answerText: string;
+  locale: Locale;
 };
 
 /**
@@ -69,7 +72,7 @@ export type AssembleVerificationInput = {
  * treats both criteria as binary, applied one level down into V3 itself.
  */
 export function assembleVerificationScore(input: AssembleVerificationInput): VerificationScore {
-  const { item } = input;
+  const { item, locale } = input;
   const selected = item.bench.filter((b) => input.selectedCheckIds.includes(b.checkId));
   const isVoid = !input.verdict;
 
@@ -83,9 +86,16 @@ export function assembleVerificationScore(input: AssembleVerificationInput): Ver
     profile: item.profile,
     verdict: input.verdict,
     keyVerdict: item.keyVerdict,
+    locale,
   });
 
-  const v2 = scoreIndependence({ selected, profile: item.profile, verdict: input.verdict, keyVerdict: item.keyVerdict });
+  const v2 = scoreIndependence({
+    selected,
+    profile: item.profile,
+    verdict: input.verdict,
+    keyVerdict: item.keyVerdict,
+    locale,
+  });
 
   const { costSpent, costRatio } = costFor(item.bench, input.selectedCheckIds);
   const v4Level = scoreCostLevel(costRatio, input.rung, item.notWorthChecking, selected.length > 0);
@@ -95,6 +105,7 @@ export function assembleVerificationScore(input: AssembleVerificationInput): Ver
     chosenElementId: input.elementId,
     verdict: input.verdict,
     keyVerdict: item.keyVerdict,
+    locale,
   });
 
   const v6 = scoreHonestClosure({
@@ -102,6 +113,7 @@ export function assembleVerificationScore(input: AssembleVerificationInput): Ver
     keyVerdict: item.keyVerdict,
     residualRisk: input.residualRisk,
     answerText: input.answerText,
+    locale,
   });
 
   const criteria: VerificationCriterionScore[] = [
@@ -111,14 +123,16 @@ export function assembleVerificationScore(input: AssembleVerificationInput): Ver
       id: "V3",
       level: v3Level,
       scoredBy: "key",
-      evidence:
+      evidence: ev(
+        locale,
         ritualState === "none-run"
-          ? "You committed without running a check."
+          ? "v3.noneRun"
           : ritualState === "none-could-fail"
-            ? "None of your checks could have failed. You reached this verdict without evidence for it."
+            ? "v3.noneCouldFail"
             : ritualState === "all-could-fail"
-              ? "Every check you ran could have failed."
-              : "At least one of your checks could have failed.",
+              ? "v3.allCouldFail"
+              : "v3.someCouldFail"
+      ),
     },
     {
       id: "V4",
@@ -126,16 +140,16 @@ export function assembleVerificationScore(input: AssembleVerificationInput): Ver
       scoredBy: v4Level === null ? "unscored" : "key+instrumentation",
       evidence:
         v4Level === null
-          ? "Not scored on this rung — you're under a cost ceiling."
+          ? ev(locale, "v4.underCeiling")
           : costRatio === null
-            ? "No discriminating check was available to rate cost against."
-            : `Cost ratio ${costRatio.toFixed(2)}x the cheapest sufficient check.`,
+            ? ev(locale, "v4.noDiscriminating")
+            : ev(locale, "v4.ratio", { ratio: costRatio.toFixed(2) }),
     },
     {
       id: "V5",
       level: v5?.level ?? null,
       scoredBy: v5 === null ? "unscored" : "key",
-      evidence: v5?.evidence ?? "No fault to locate on a control item.",
+      evidence: v5?.evidence ?? ev(locale, "v5.control"),
     },
     { id: "V6", level: v6.level, scoredBy: "key+instrumentation", evidence: v6.evidence },
   ];

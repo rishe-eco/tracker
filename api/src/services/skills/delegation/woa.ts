@@ -47,20 +47,39 @@ export function scoreProportionateWeight(clampedWoa: number | null, benchmark: n
   return 0;
 }
 
-/** Direction, for the reveal's two distinct failure copies (spec §10) — never collapsed into one "your weighting was off" message. */
-export type RelianceDirection = "over" | "under" | "ok";
+/** Direction, for the reveal's distinct failure copies (spec §10) — never collapsed into one "your weighting was off" message. */
+export type RelianceDirection = "over" | "under" | "costly" | "ok";
 
 /**
  * Over-reliance: moved substantially toward advice that was worse than the
  * learner's own estimate. Under-reliance: barely moved toward advice that
  * was much better. Build plan §4.3's population-level thresholds, applied
  * per item for the reveal's copy.
+ *
+ * **`costly` is a fourth bucket added after persona review pass 3.** The two
+ * thresholds above are population-level and deliberately wide, and between
+ * them sat a real case the reveal called "ok": e.g. own 1100, advice 1150,
+ * final 1120, truth 1105 — WOA 0.40, so under the over-reliance bar, but the
+ * move went toward worse advice and lost 10 units of accuracy. The reveal
+ * printed "your movement roughly matched what the advice was worth here"
+ * directly beside `net gain -10`, which is the screen contradicting itself.
+ * `costly` is defined by outcome rather than by a threshold — the final
+ * answer is further from the truth than the initial one, i.e. net gain is
+ * negative — so `ok` now means what it says. `over` and `under` keep the
+ * build plan's thresholds untouched and still take precedence.
  */
-export function relianceDirection(clampedWoa: number | null, initial: number, advice: number, truth: number): RelianceDirection {
+export function relianceDirection(
+  clampedWoa: number | null,
+  initial: number,
+  advice: number,
+  truth: number,
+  final: number
+): RelianceDirection {
   if (clampedWoa === null) return "ok";
   const initialError = Math.abs(initial - truth);
   const adviceError = Math.abs(advice - truth);
   if (clampedWoa > 0.5 && adviceError > initialError) return "over";
   if (clampedWoa < 0.25 && adviceError < initialError / 2) return "under";
+  if (Math.abs(final - truth) > initialError) return "costly";
   return "ok";
 }

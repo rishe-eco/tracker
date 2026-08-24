@@ -564,7 +564,7 @@ function ResultPanel({ result, bench, revealed, predictedCostSeconds, onNext, on
           <Label text={t("verification.total")} />
           <p className="text-2xl font-semibold tabular-nums">{score.scoredCount === 0 ? "—" : `${score.total} / ${maxPossible}`}</p>
           <p className="text-[11px] text-muted-foreground">
-            {t("verification.ofCriteria", { scored: score.scoredCount, total: 6 })}
+            {t("verification.ofCriteria", { scored: score.scoredCount, total: 6, max: maxPossible })}
           </p>
         </div>
 

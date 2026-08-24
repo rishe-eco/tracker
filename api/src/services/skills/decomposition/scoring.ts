@@ -29,7 +29,15 @@ import { DECOMPOSITION_CRITERIA } from "../../../content/skills/decomposition/ty
 import type { MasteryGap } from "../mastery";
 import { scoreD4FreeAuthoring, scoreWholeStatement } from "./detectors";
 import { breadthFirstIndex, granularityDiscrimination, isOverDecomposedControl, type NodeAddedPayload, type RubricLevel } from "./metrics";
-import { scoreArrangement, scoreControl, scoreRepairFix, type KeyedCriterionResult, type KeyedScores } from "./keyScoring";
+import {
+  bfiEvidence,
+  scoreArrangement,
+  scoreControl,
+  scoreRepairFix,
+  type KeyedCriterionResult,
+  type KeyedScores,
+} from "./keyScoring";
+import { decompositionEvidence as ev } from "../../../content/skills/decomposition/v1/evidence";
 
 export type SubmittedNode = {
   id: string;
@@ -97,7 +105,7 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
   const isVoid = !structure.whole.statement.trim() && nodes.length === 0;
 
   const d1 = isVoid
-    ? { level: 0 as RubricLevel, evidence: "Nothing submitted." }
+    ? { level: 0 as RubricLevel, evidence: ev(locale, "nothingSubmitted") }
     : scoreWholeStatement({
         statement: structure.whole.statement,
         doneWhen: structure.whole.doneWhen,
@@ -119,14 +127,14 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
   let bfi: number | null = null;
 
   if (isVoid) {
-    d2 = d3 = d4 = d5 = d6 = { level: null, evidence: "Nothing submitted." };
+    d2 = d3 = d4 = d5 = d6 = { level: null, evidence: ev(locale, "nothingSubmitted") };
   } else if (item.type === "arrangement") {
-    const scored: KeyedScores = scoreArrangement(nodes, dependsOn, input.addEventsInOrder, item.key);
+    const scored: KeyedScores = scoreArrangement(nodes, dependsOn, input.addEventsInOrder, item.key, locale);
     ({ d2, d3, d4, d5, d6 } = scored);
     bfi = scored.d2.bfi;
     coverage = { found: scored.d6.found, required: scored.d6.required };
   } else if (item.type === "control") {
-    const scored: KeyedScores = scoreControl(nodes.length);
+    const scored: KeyedScores = scoreControl(nodes.length, locale);
     ({ d2, d3, d4, d5, d6 } = scored);
   } else if (item.type === "repair") {
     // A fix that only edits/removes pre-seeded pieces — never adding a fresh
@@ -135,11 +143,11 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
     // applicable, and since mastery requires *no* criterion at 0, that would
     // make every edit-in-place repair permanently ineligible.
     if (input.addEventsInOrder.length === 0) {
-      d2 = { level: null, evidence: "Nothing was added during the fix — there is no authoring order to judge." };
+      d2 = { level: null, evidence: ev(locale, "d2.noAuthoringOrder") };
       bfi = null;
     } else {
       const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
-      d2 = { level: bf.level, evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.` };
+      d2 = { level: bf.level, evidence: bfiEvidence(locale, bf.bfi) };
       bfi = bf.bfi;
     }
     const fault = item.seededFault ?? "overlap";
@@ -151,7 +159,7 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
     // D3/D5/D6 need matching free text to the key's concepts, which is a
     // judge's job (see the file header note on D5).
     const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
-    d2 = { level: bf.level, evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.` };
+    d2 = { level: bf.level, evidence: bfiEvidence(locale, bf.bfi) };
     bfi = bf.bfi;
     d4 = scoreD4FreeAuthoring(
       leaves.map((l) => ({ id: l.id, doneWhen: l.doneWhen, splitAnAtomicPiece: false })),
@@ -159,7 +167,7 @@ export function assembleDecompositionScore(input: AssembleInput): DecompositionS
     );
     // Phase 6 branches here on input.judgeAvailable; until then every
     // breakdown item degrades to self-diagnosis against the revealed key.
-    const unscored = { level: null as null, evidence: "Free-authored text needs a judge to match against the key; self-diagnose against the revealed key instead." };
+    const unscored = { level: null as null, evidence: ev(locale, "needsJudge") };
     d3 = unscored;
     d5 = unscored;
     d6 = unscored;
@@ -219,7 +227,7 @@ export function assembleRealWorkScore(input: AssembleRealWorkInput): Decompositi
   const isVoid = !structure.whole.statement.trim() && nodes.length === 0;
 
   const d1 = isVoid
-    ? { level: 0 as RubricLevel, evidence: "Nothing submitted." }
+    ? { level: 0 as RubricLevel, evidence: ev(locale, "nothingSubmitted") }
     : scoreWholeStatement({
         statement: structure.whole.statement,
         doneWhen: structure.whole.doneWhen,
@@ -231,16 +239,13 @@ export function assembleRealWorkScore(input: AssembleRealWorkInput): Decompositi
   const finalDepth1Ids = new Set(nodes.filter((n) => n.parentId === null).map((n) => n.id));
   const leaves = leavesOf(nodes);
 
-  let d2: KeyedCriterionResult = { level: null, evidence: "Nothing submitted." };
-  let d4: KeyedCriterionResult = { level: null, evidence: "Nothing submitted." };
+  let d2: KeyedCriterionResult = { level: null, evidence: ev(locale, "nothingSubmitted") };
+  let d4: KeyedCriterionResult = { level: null, evidence: ev(locale, "nothingSubmitted") };
   let bfi: number | null = null;
 
   if (!isVoid) {
     const bf = breadthFirstIndex(input.addEventsInOrder, finalDepth1Ids);
-    d2 = {
-      level: bf.level,
-      evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.`,
-    };
+    d2 = { level: bf.level, evidence: bfiEvidence(locale, bf.bfi) };
     bfi = bf.bfi;
     d4 = scoreD4FreeAuthoring(
       leaves.map((l) => ({ id: l.id, doneWhen: l.doneWhen, splitAnAtomicPiece: false })),
@@ -248,7 +253,7 @@ export function assembleRealWorkScore(input: AssembleRealWorkInput): Decompositi
     );
   }
 
-  const noKey = "There is no authored key for real material — this criterion can't be scored outside the modules.";
+  const noKey = ev(locale, "noKey");
 
   const criteria: DecompositionCriterionScore[] = [
     { id: "D1", level: isVoid ? 0 : d1.level, scoredBy: "detector", evidence: d1.evidence },

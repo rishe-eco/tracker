@@ -84,6 +84,7 @@ describe("assembleVerificationScore", () => {
   it("strict composite requires V1=2, V3=2 and a matching verdict", () => {
     const score = assembleVerificationScore({
       item,
+      locale: "en" as const,
       rung: "unassisted",
       oracleText: "Add the figures myself and compare to the stated total.",
       oracleNamedBeforeAnyCheck: true,
@@ -100,6 +101,7 @@ describe("assembleVerificationScore", () => {
   it("V4 is null (unscored) on the assisted rung even when overspent", () => {
     const score = assembleVerificationScore({
       item,
+      locale: "en" as const,
       rung: "assisted",
       oracleText: "check the sum",
       oracleNamedBeforeAnyCheck: true,
@@ -117,6 +119,7 @@ describe("assembleVerificationScore", () => {
     const controlItem = { ...item, profile: "CORRECT" as const, failingElementId: null, keyVerdict: "supported" as const };
     const score = assembleVerificationScore({
       item: controlItem,
+      locale: "en" as const,
       rung: "unassisted",
       oracleText: "recompute",
       oracleNamedBeforeAnyCheck: true,

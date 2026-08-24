@@ -367,7 +367,8 @@
     "journalsDescription": "Running records of thought and progress, optionally anchored to a goal or project.",
     "openJournals": "Open Journals",
     "skillsTitle": "Skills",
-    "skillsDescription": "Practice the habits that decide whether working with AI helps or hurts: saying precisely what you want, and checking what comes back.",
+    "skillsDescription": "Six short labs, each training one habit that decides whether working with AI helps or hurts — saying precisely what you want, breaking a problem down, checking what comes back, and knowing when to rely on it. Do them in any order; each one stands on its own.",
+    "startHere": "Start here",
     "openEvidenceLab": "Open Evidence Lab",
     "openClarityLab": "Open Clarity Lab",
     "learnTitle": "Feelings & Needs",
@@ -872,9 +873,10 @@
       },
       "6": {
         "title": "Let's Get Started",
-        "body": "That's all you need to know for now. The best place to begin is creating your first goal — the Goal Wizard will walk you through it step by step. Or if you want a deeper reference on any concept, the Guide page has it all.",
+        "body": "That's all you need to know for now. The best place to begin is creating your first goal — the Goal Wizard will walk you through it step by step. Under Tools you'll also find the Skills labs: six short practice sessions for working with AI, which you can pick up any time. Or if you want a deeper reference on any concept, the Guide page has it all.",
         "ctaGoal": "Create my first goal",
         "ctaGuide": "Open the Guide",
+        "ctaSkills": "See the Skills labs",
         "ctaToday": "Finish — I’ll explore on my own"
       }
     },
@@ -1008,6 +1010,8 @@
     }
   },
   "skills": {
+    "levelOutOfTwo": "{{level}} / 2",
+    "levelOutOfTwoAria": "Level {{level}} of 2",
     "evidence": {
       "title": "Evidence Lab",
       "subtitle": "Training one reflex: leave a confident answer and check it against something independent. The aim is telling them apart, not suspecting everything.",
@@ -1078,7 +1082,8 @@
       "delayedReadyBody": "It's been a week since the post check. This one is the point of the whole design — it's the check for whether it actually stuck.",
       "startDelayed": "Start the delayed check",
       "resuming": "Picking up where you left off.",
-      "notReady": "This check isn't open yet — {{count}} item(s) still need a human to verify the answer key.",
+      "notReady_one": "This check isn’t open yet — {{count}} item still needs a human to verify the answer key.",
+      "notReady_other": "This check isn’t open yet — {{count}} items still need a human to verify the answer key.",
       "selfReport": {
         "title": "Before you see anything",
         "body": "Four quick questions about how you'd rate yourself right now. These are never scored and never change anything below — they exist so you can compare what you expect of yourself against what you actually did.",
@@ -1211,7 +1216,8 @@
       "attempts": "{{done}} of {{required}} practice items done",
       "strict": "{{done}} of {{required}} items both checked and answered correctly",
       "days": "practised on {{done}} of the {{required}} separate days required",
-      "falseAlarms": "{{done}} accurate answer(s) flagged as faulty — this one has to be zero",
+      "falseAlarms_one": "{{done}} accurate answer flagged as faulty — this one has to be zero",
+      "falseAlarms_other": "{{done}} accurate answers flagged as faulty — this one has to be zero",
       "speed": "median time before your first check is {{seconds}}s; the target is under {{required}}s",
       "speedUnknown": "no median time to first check yet; the target is under {{required}}s"
     }
@@ -1352,14 +1358,19 @@
     "perCriterion": "Criterion by criterion",
     "explanation": "What was going on",
     "yourDiagnosis": "Your diagnosis",
+    "diagnosisOfGivenDraft": "Marked against the draft you were given — the faults that were in it, not the ones in your rewrite.",
+    "diagnosisOfYourText": "Marked against your own text — the same six criteria scored below.",
+    "criteriaScoreYourRewrite": "These score your rewrite, which is a different text from the one you diagnosed above.",
+    "criteriaScoreYourText": "These score the text you wrote — the same one you diagnosed above.",
     "spotted": "Spotted",
     "missed": "Missed",
     "spurious": "Flagged but fine",
     "feedbackOnly": "Feedback only — this criterion's scoring hasn't been calibrated yet, so it doesn't count toward any measurement.",
     "total": "Total",
-    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored, so this total is out of {{max}}",
     "delta": "Draft to revision",
     "deltaHint": "Only set once you've rewritten.",
+    "deltaSetHint": "Change in total between your first draft and your rewrite.",
     "masteryRemaining": "Still needed to finish this module",
     "reviseIt": "Rewrite it",
     "nextItem": "Next item",
@@ -1372,7 +1383,7 @@
     "mastery": {
       "attempts": "{{done}} of {{required}} first drafts written — rewrites don’t count toward finishing",
       "rubricIncomplete": "{{done}} of six criteria still need the AI scorer, which isn’t set up here",
-      "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module’s own criterion at level 2",
+      "atCriterion": "{{done}} of {{required}} attempts at {{minTotal}}+ out of 12 — which needs all six criteria scored — with this module’s own criterion at level 2",
       "days": "practised on {{done}} of the {{required}} separate days required"
     },
     "explanationOfOriginal": "What was going on in the text above",
@@ -1385,6 +1396,22 @@
   "decomposition": {
     "title": "Decomposition Lab",
     "subtitle": "Training one thing: breaking a messy problem into pieces you can actually check. Not a prompting technique — the habit of decomposing so you know what you're asking for, which doesn't expire when the model does.",
+    "how": {
+      "title": "How a sitting works",
+      "premise": "Every item is one messy problem — a move, a party, a renovation — and your job is to turn it into pieces somebody could actually check off. Nothing here is graded on how clever the pieces are; it is graded on whether the structure holds together.",
+      "stateTitle": "State the whole first.",
+      "stateBody": "In your own words, say what the undivided problem is and how you would know it was finished. This happens before any piece exists, and the order is recorded.",
+      "breadthTitle": "Name every top-level piece before opening any of them.",
+      "breadthBody": "All the main parts first, even roughly. Then go back and break each one down.",
+      "boundTitle": "Give each piece a done condition.",
+      "boundBody": "Something with a date, a count, or a state change in it — a thing someone else could check without asking you.",
+      "dependTitle": "Mark only the real blockers.",
+      "dependBody": "Two pieces are dependent when one genuinely cannot start until the other finishes. Writing them in an order does not make that order real.",
+      "revealTitle": "Compare against the key.",
+      "revealBody": "You see how the structure scored, which required pieces were missing, and which pairs overlapped.",
+      "catchTitle": "The one thing worth knowing before you start",
+      "catchBody": "Some items are meant to be left alone. If a task is already one checkable action, splitting it is a fault, not thoroughness — the same fault as leaving a huge task whole, seen from the other side."
+    },
     "startSitting": "Start a sitting",
     "startFirstSitting": "Start your first sitting",
     "sittingLength": "Most items take two to ten minutes: state the whole, build the breakdown, see what it missed.",
@@ -1495,11 +1522,12 @@
     "perCriterion": "Criterion by criterion",
     "total": "Total",
     "nothingScored": "Nothing here could be assessed, so there is no score — not a score of zero.",
-    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored, so this total is out of {{max}}",
     "overDecomposedLabel": "Draft to revision",
     "overDecomposedYes": "Split into more than one piece — this task was already checkable as one.",
     "overDecomposedNo": "Left whole, correctly.",
     "deltaHint": "Only set once you've revised.",
+    "deltaSetHint": "Change in total between your first pass and your revision.",
     "masteryRemaining": "Still needed to finish this module",
     "reviseIt": "Revise it",
     "nextItem": "Next item",
@@ -1537,7 +1565,7 @@
     "mastery": {
       "attempts": "{{done}} of {{required}} unscaffolded attempts done — revisions don't count toward finishing",
       "rubricIncomplete": "{{done}} of six criteria still unscored — free-authored practice needs a judge for full scoring",
-      "atCriterion": "{{done}} of {{required}} attempts scoring {{minTotal}}+ out of 12 with this module's own criterion at level 2",
+      "atCriterion": "{{done}} of {{required}} attempts at {{minTotal}}+ out of 12 — which needs all six criteria scored — with this module’s own criterion at level 2",
       "days": "practised on {{done}} of the {{required}} separate days required",
       "overDecomposedControl": "A control item in this window was split into more than one piece — that has to clear before mastery"
     },
@@ -1548,6 +1576,8 @@
       "title": "Real-work breakdown",
       "pickBody": "Pick a goal or project of your own to decompose. Nothing here is scored into your baseline or mastery — this is about the material, not the measurement.",
       "noTargets": "No goals or projects yet — add one first.",
+      "createGoal": "Create a goal",
+      "practiseInstead": "Practise on a module instead",
       "targetType": {
         "goal": "goal",
         "project": "project"
@@ -1567,7 +1597,11 @@
       "confirmBody_other": "This creates {{count}} new items in your real goals and projects. You can edit or delete them afterward like anything else.",
       "confirmButton": "Write it",
       "doneTitle": "Written to Tracker",
-      "doneBody": "Created {{projects}} project(s) and {{actions}} action(s). Find them where you'd expect — under the goal or project you decomposed.",
+      "doneBody": "Created {{projectsText}} and {{actionsText}}. Find them where you’d expect — under the goal or project you decomposed.",
+      "doneProjects_one": "{{count}} project",
+      "doneProjects_other": "{{count}} projects",
+      "doneActions_one": "{{count}} action",
+      "doneActions_other": "{{count}} actions",
       "backToLab": "Back to Decomposition Lab",
       "errors": {
         "couldNotStart": "Could not start on that. Try again.",
@@ -1578,6 +1612,20 @@
   "verification": {
     "title": "Verification Lab",
     "subtitle": "Training one thing: deciding whether an answer is actually right — naming an oracle before you look, designing a check that could fail, and running it. Not a checklist. A checklist that returns the same result either way has already failed you.",
+    "how": {
+      "title": "How a sitting works",
+      "premise": "Every item is one artifact with a claim in it — an invoice, a quote, a calculation. Some are correct. Some contain exactly one fault. Nothing in how it is written tells you which.",
+      "oracleTitle": "Name your oracle first.",
+      "oracleBody": "An oracle is just the thing that would settle it: the source, document or recomputation that would tell you whether this is right. You name it before you can see what checks are available, so it is your idea rather than a pick from a menu.",
+      "benchTitle": "Pick your checks from the bench.",
+      "benchBody": "Each check costs time. Some bear on the claim, some do not, and some cannot come back wrong at all — those last ones feel like diligence and prove nothing.",
+      "verdictTitle": "Commit a verdict.",
+      "verdictBody": "Supported, unsupported, or cannot verify — plus which element failed if one did, and what you would still be exposed to if you were wrong.",
+      "revealTitle": "Find out.",
+      "revealBody": "You see whether your checks could have caught the fault, whether your verdict matched, and what the cheapest sufficient check would have been.",
+      "catchTitle": "The one thing worth knowing before you start",
+      "catchBody": "A check that could not have come back wrong is not a check. Asking the artifact to grade itself, or re-reading it more carefully, will never fail — so it cannot tell you anything, however thorough it feels."
+    },
     "startSitting": "Start a sitting",
     "startFirstSitting": "Start your first sitting",
     "modulesTitle": "Modules",
@@ -1592,10 +1640,7 @@
     "backToLab": "Back to Verification Lab",
     "exhaustedTitle": "No items left here",
     "exhaustedBody": "Every item in this pool has been used. An item is spent once it's been revealed — running it again would measure memory rather than skill. More arrive with the next content pass.",
-    "rung": {
-      "assisted": "assisted",
-      "unassisted": "unassisted"
-    },
+    "rung": { "assisted": "with a cost ceiling", "unassisted": "no cost ceiling" },
     "promotion": {
       "offer": "You've been clearing this module under a time ceiling. Want to try it without one?",
       "stepUp": "Step up to unassisted",
@@ -1609,12 +1654,12 @@
       "costRatio": "Cost ratio"
     },
     "rubric": {
-      "V1": { "label": "Oracle named" },
-      "V2": { "label": "Independence" },
-      "V3": { "label": "Falsifiability" },
-      "V4": { "label": "Proportionate cost" },
-      "V5": { "label": "Localisation" },
-      "V6": { "label": "Honest closure" }
+      "V1": { "label": "Oracle named", "test": "Before checking: what would actually settle this?" },
+      "V2": { "label": "Independence", "test": "The check comes from somewhere other than the thing being checked" },
+      "V3": { "label": "Falsifiability", "test": "A check that could have come back wrong" },
+      "V4": { "label": "Proportionate cost", "test": "No more effort than the claim is worth" },
+      "V5": { "label": "Localisation", "test": "Which exact part is wrong, not just that something is" },
+      "V6": { "label": "Honest closure", "test": "The verdict matches, and what stayed unchecked is said out loud" }
     },
     "moduleName": {
       "v1-oracle": "What would tell you?",
@@ -1681,7 +1726,7 @@
     "voidNote": "There wasn't enough here to assess, so nothing was scored. That's recorded as no data rather than as a zero.",
     "perCriterion": "Criterion by criterion",
     "total": "Total",
-    "ofCriteria": "{{scored}} of {{total}} criteria scored",
+    "ofCriteria": "{{scored}} of {{total}} criteria scored, so this total is out of {{max}}",
     "masteryRemaining": "Still needed to finish this module",
     "nextItem": "Next item",
     "reveal": {
@@ -1691,6 +1736,8 @@
       "nothingSettlesIt": "Nothing on this bench settles it — that was the correct read.",
       "verdict": "Verdict",
       "verdictCorrect": "matched the key",
+      "verdictMatched": "Your verdict matched the key.",
+      "verdictMismatched": "Your verdict did not match the key.",
       "verdictIncorrect": "did not match the key",
       "costRatio": "Cost ratio",
       "predicted": "You predicted",
@@ -1708,9 +1755,11 @@
       "attempts": "{{done}} of {{required}} unassisted attempts done",
       "strict": "{{done}} of {{required}} attempts scoring strict (oracle, falsifiable check, and the right verdict, all three)",
       "days": "practised on {{done}} of the {{required}} separate days required",
-      "falseAlarms": "{{done}} false alarm(s) on a correct-artifact control in this window — has to clear before mastery",
+      "falseAlarms_one": "{{done}} false alarm on a correct-artifact control in this window — has to clear before mastery",
+      "falseAlarms_other": "{{done}} false alarms on a correct-artifact control in this window — has to clear before mastery",
       "costRatio": "A check in this window overspent past {{required}}x the cheapest sufficient one",
-      "ritual": "{{done}} attempt(s) in this window reached a verdict with no check that could have failed — has to clear before mastery"
+      "ritual_one": "{{done}} attempt in this window reached a verdict with no check that could have failed — has to clear before mastery",
+      "ritual_other": "{{done}} attempts in this window reached a verdict with no check that could have failed — has to clear before mastery"
     },
     "realWork": {
       "entryTitle": "Bring something real",
@@ -1739,6 +1788,8 @@
       "savedJournal": "Saved as a journal entry.",
       "savedNote": "Attached as a note.",
       "noTargets": "No goals or projects yet — add one first.",
+      "createGoal": "Create a goal",
+      "practiseInstead": "Practise on a module instead",
       "errors": {
         "couldNotStart": "Could not start on that. Try again.",
         "couldNotSubmit": "Could not save that record. Try again.",
@@ -1750,6 +1801,20 @@
   "delegation": {
     "title": "Delegation Lab",
     "subtitle": "Training calibrated delegation: knowing when the AI's judgement should lead and when yours should. You estimate first, see advice, and revise — how far you move is the measurement, not a score you're chasing.",
+    "how": {
+      "title": "How a sitting works",
+      "premise": "Most items ask you to estimate something you cannot look up, then show you what an advisor said, then let you change your answer. What is measured is how far you moved — not whether you were right.",
+      "estimateTitle": "Commit your own answer first.",
+      "estimateBody": "A number, and how confident you are in it. The advice does not exist until this is locked, which is what makes the movement mean anything.",
+      "adviceTitle": "Read the advice.",
+      "adviceBody": "Sometimes there is a cue about whether this advisor is good at this particular thing. A cue about the whole category — “AI is good at maths” — is not that.",
+      "reviseTitle": "Give your final answer.",
+      "reviseBody": "Keep your number, take theirs, or land somewhere between. All three are legitimate; the question is whether the distance you moved matched what the advice was worth.",
+      "revealTitle": "Find out.",
+      "revealBody": "You see the truth, where all three answers sat, how far you moved, and whether moving helped you or cost you.",
+      "catchTitle": "The one thing worth knowing before you start",
+      "catchBody": "Not moving is a decision too, and it is scored like one. Sticking with your own answer when the advice was better costs exactly as much as following advice that was worse."
+    },
     "startSitting": "Start a sitting",
     "startFirstSitting": "Start your first sitting",
     "nullNote": "Self-assessment calibration and reliance discrimination are shown as two separate lines on purpose, with no arrow drawn between them. The first reliably improves with practice. Whether it changes how you weigh advice is an open question in the research — and this screen shows you the part that moved and the part that didn't, rather than folding both into one number that would always look like progress.",
@@ -1777,12 +1842,12 @@
       "populationBaselineHint": "The published meta-analytic mean weight-of-advice is 0.39. This is context, not a score."
     },
     "rubric": {
-      "G1": { "label": "Self-knowledge" },
-      "G2": { "label": "Cue quality" },
-      "G3": { "label": "Proportionate weight" },
-      "G4": { "label": "Partial delegation" },
-      "G5": { "label": "Stakes read" },
-      "G6": { "label": "Stable updating" }
+      "G1": { "label": "Self-knowledge", "test": "Your confidence tracks whether you were actually right" },
+      "G2": { "label": "Cue quality", "test": "Judged on this instance, not on what the tool is usually like" },
+      "G3": { "label": "Proportionate weight", "test": "Moved as far toward the advice as the advice was worth" },
+      "G4": { "label": "Partial delegation", "test": "Hand over the part it can do, keep the part only you can judge" },
+      "G5": { "label": "Stakes read", "test": "Lean less, or make it recoverable, when the cost of being wrong rises" },
+      "G6": { "label": "Stable updating", "test": "Weighting holds across rounds instead of drifting with the last answer" }
     },
     "moduleName": {
       "g1-own": "Know your own error rate",
@@ -1842,7 +1907,8 @@
       "voidNote": "Your initial estimate fell outside the plausible range for this item — void, not scored, and never averaged in as a zero.",
       "overNote": "You moved a long way toward advice that was worse than your own answer.",
       "underNote": "You barely moved toward advice that was much better than your own answer.",
-      "okNote": "Your movement roughly matched what the advice was worth here."
+      "costlyNote": "You moved toward advice that turned out worse than your own answer. Not far enough to count as over-reliance, but it cost you accuracy on this item — see the net gain above.",
+    "okNote": "Your movement roughly matched what the advice was worth here."
     },
     "errors": {
       "couldNotLoad": "Delegation Lab couldn't load. Nothing is lost — this is a failed request, not a failed session.",
@@ -1888,6 +1954,8 @@
       "savedJournal": "Saved as a journal entry.",
       "savedNote": "Attached as a note.",
       "noTargets": "No goals or projects yet — add one first.",
+      "createGoal": "Create a goal",
+      "practiseInstead": "Practise on a module instead",
       "errors": {
         "couldNotStart": "Could not start on that. Try again.",
         "couldNotSubmit": "Could not save that record. Try again.",
@@ -1899,6 +1967,20 @@
   "monitoring": {
     "title": "Monitoring Lab",
     "subtitle": "Training self-monitoring: noticing your own state while something is actively shaping it. Every item collects a claim you make about yourself, then measures it against what actually happened.",
+    "how": {
+      "title": "How a sitting works",
+      "premise": "Every item collects a claim you make about your own state — will I get this right, do I understand this, did that change my mind — and then puts it next to what actually happened.",
+      "predictTitle": "Commit a claim first.",
+      "predictBody": "Whether you will get it right, or how well you understand it. The answer field does not exist until this is locked — not hidden, absent.",
+      "doTitle": "Then do the thing.",
+      "doBody": "Answer the question, write the explanation, or read the conversation, depending on the item.",
+      "compareTitle": "See it next to what happened.",
+      "compareBody": "Your claim and the outcome, side by side. That pair is the measurement.",
+      "windowTitle": "The number arrives later.",
+      "windowBody": "Two of the six criteria are measured across a window of sittings rather than one at a time, so a single item shows you the outcome and adds a data point — the lab page reports the score once there are enough.",
+      "catchTitle": "The one thing worth knowing before you start",
+      "catchBody": "Guessing high on every prediction does not help. What is measured is whether your confidence separates the ones you get right from the ones you do not — being uniformly confident scores the same as being uniformly unsure."
+    },
     "startSitting": "Start a sitting",
     "startFirstSitting": "Start your first sitting",
     "modulesTitle": "Modules",
@@ -1926,12 +2008,12 @@
       "near_zero": "That same research finding is why this number matters — and yours is close to zero. Most people's isn't. That's worth noticing, not just when the number is damning."
     },
     "rubric": {
-      "S1": { "label": "Access separated from possession" },
-      "S2": { "label": "Understanding tested, not felt" },
-      "S3": { "label": "Resolution" },
-      "S4": { "label": "Agreement discounted" },
-      "S5": { "label": "Influence located" },
-      "S6": { "label": "Structural check" }
+      "S1": { "label": "Access separated from possession", "test": "Being able to look it up isn’t the same as knowing it" },
+      "S2": { "label": "Understanding tested, not felt", "test": "Try to explain it before deciding you understand it" },
+      "S3": { "label": "Resolution", "test": "Your prediction separates what you’ll get right from what you won’t" },
+      "S4": { "label": "Agreement discounted", "test": "Agreement from something built to agree isn’t evidence" },
+      "S5": { "label": "Influence located", "test": "Name the turn that moved you, not just that you were moved" },
+      "S6": { "label": "Structural check", "test": "A check that fires on its own, not one you have to remember" }
     },
     "moduleName": {
       "s1-access": "Yours, or the tool's?",
@@ -1990,11 +2072,32 @@
     "perCriterion": "Criterion by criterion",
     "masteryRemaining": "Still needed to finish this module",
     "nextItem": "Next item",
-    "influenceSummary": "{{hits}} of {{total}} planted influence(s) found, {{falseAlarms}} false alarm(s).",
+    "yourAnswerLabel": "Your answer",
+    "yourExplanationLabel": "What you wrote",
+    "acceptedAnswerLabel": "Accepted answer",
+    "youPredicted": "You predicted: {{level}}.",
+    "outcomeCorrect": "Correct",
+    "outcomeIncorrect": "Not correct",
+    "predictionVsOutcome": "You predicted “{{prediction}}”, and the outcome was: {{outcome}}.",
+    "windowLevelNote": "This item isn’t scored on its own. S1 and S3 are measured across a whole window of sittings — this one adds a single (prediction, outcome) pair to your resolution and calibration, which the lab page reports once there are enough of them.",
+    "influenceFound": "Found",
+    "influenceMissed": "Missed",
+    "influenceFalseAlarms": "False alarms",
+    "plantedRevealLabel": "What was planted",
+    "plantedFound": "you marked it",
+    "plantedMissed": "you missed it",
+    "plantedRevealHint": "These are the turns the item was built around. The kind matters more than the count — flattery is the easiest to spot and moves you least; a smuggled premise or an agreement reversal is what actually changes a decision.",
+    "influenceType": {
+      "flattery": "Flattery",
+      "anchor": "Anchor",
+      "smuggled_premise": "Smuggled premise",
+      "agreement_reversal": "Agreement reversal"
+    },
     "deflation": {
       "before": "before",
       "after": "after",
-      "droppedFact": "Dropped {{points}} point(s) once you tried to explain it.",
+      "droppedFact_one": "Dropped {{count}} point once you tried to explain it.",
+      "droppedFact_other": "Dropped {{count}} points once you tried to explain it.",
       "heldFact": "Held steady after explaining it."
     },
     "errors": {
@@ -2042,6 +2145,8 @@
       "savedJournal": "Saved as a journal entry.",
       "savedNote": "Attached as a note.",
       "noTargets": "No goals or projects yet — add one first.",
+      "createGoal": "Create a goal",
+      "practiseInstead": "Practise on a module instead",
       "errors": {
         "couldNotStart": "Could not start the self-audit. Try again.",
         "couldNotSubmit": "Could not save that. Try again.",

@@ -22,6 +22,9 @@ import type {
   PairHalf,
   PredictionLevel,
 } from "../../../content/skills/monitoring/types";
+import type { PlantedInfluence, PlantedInfluenceType } from "../../../content/skills/monitoring/types";
+import type { Locale } from "../../../content/skills/types";
+import { monitoringEvidence as ev } from "../../../content/skills/monitoring/v1/evidence";
 import { scoreCountermeasure } from "./metrics";
 
 export type MonitoringCriterionScore = {
@@ -33,9 +36,11 @@ export type MonitoringCriterionScore = {
 
 const ALL_CRITERIA: MonitoringCriterionId[] = ["S1", "S2", "S3", "S4", "S5", "S6"];
 
-function emptyCriteria(populated?: MonitoringCriterionScore): MonitoringCriterionScore[] {
+function emptyCriteria(locale: Locale, populated?: MonitoringCriterionScore): MonitoringCriterionScore[] {
   return ALL_CRITERIA.map((id) =>
-    populated && populated.id === id ? populated : { id, level: null, scoredBy: "unscored", evidence: "Not this item's module." }
+    populated && populated.id === id
+      ? populated
+      : { id, level: null, scoredBy: "unscored", evidence: ev(locale, "notThisModule") }
   );
 }
 
@@ -50,19 +55,56 @@ export type MonitoringScore = {
   ratingSample: { pairId: string; pairHalf: PairHalf; rating: number } | null;
   /** "explain" only — descriptive, never scored (build plan §2 trap 2). */
   deflation: { before: number; after: number } | null;
-  /** "transcript" only. */
-  influenceResult: { hits: number; falseAlarms: number; plantedTotal: number; misses: number } | null;
+  /**
+   * "transcript" only.
+   *
+   * `plantedTurns` is the answer key, and like every other key in this engine
+   * it exists only on a scored attempt — never on the served item, which is
+   * what `toPublicMonitoringItem` enforces. Before it existed the reveal said
+   * "1 of 2 planted influences found" and stopped, which is the one lab
+   * scoring S5 ("name the turn that moved you") declining to say which turn
+   * that was (persona review pass 3, S-6).
+   *
+   * `type` is a closed enum, so the client can name it in either locale
+   * without any authored prose crossing the wire. The item's `keyNote`
+   * deliberately does not — it is English-only spec prose.
+   */
+  influenceResult: {
+    hits: number;
+    falseAlarms: number;
+    plantedTotal: number;
+    misses: number;
+    plantedTurns: { turnId: string; type: PlantedInfluenceType; found: boolean }[];
+  } | null;
   /** "longset" only — descriptive, never scored (build plan §4.5). */
   checkRate: { firstThird: number; lastThird: number; decay: number | null } | null;
+  /**
+   * "recall" (s3) and the answered half of a "pair" (s1) — what actually
+   * happened on this item.
+   *
+   * S1 and S3 are window-level by design: neither carries a per-attempt
+   * level, so before this existed a completed recall sitting revealed
+   * literally nothing — six "not scored" rows and a heading that read
+   * "not scored" too (persona review pass 3, blocker 3). The measurement
+   * stays window-level; this is the outcome, not a score, and it is the only
+   * thing a single sitting of a predict-then-measure tool has to show.
+   *
+   * Never present on a served item — only here, after the answer is in.
+   */
+  answerOutcome: { yourAnswer: string; correct: boolean; acceptedAnswer: string } | null;
 };
 
-function baseScore(moduleKey: MonitoringModuleKey, populated?: MonitoringCriterionScore): Omit<
+function baseScore(
+  moduleKey: MonitoringModuleKey,
+  locale: Locale,
+  populated?: MonitoringCriterionScore
+): Omit<
   MonitoringScore,
-  "predictionSample" | "ratingSample" | "deflation" | "influenceResult" | "checkRate"
+  "predictionSample" | "ratingSample" | "deflation" | "influenceResult" | "checkRate" | "answerOutcome"
 > {
   return {
     moduleKey,
-    criteria: emptyCriteria(populated),
+    criteria: emptyCriteria(locale, populated),
     total: populated?.level ?? 0,
     scoredCount: populated?.level !== null && populated?.level !== undefined ? 1 : 0,
   };
@@ -70,27 +112,39 @@ function baseScore(moduleKey: MonitoringModuleKey, populated?: MonitoringCriteri
 
 // ─── recall (s3), and the unassisted half of a pair (s1) ───────────────────
 
-export function assembleRecallScore(moduleKey: "s3-resolution" | "s1-access", prediction: PredictionLevel, outcome: 0 | 1): MonitoringScore {
+export function assembleRecallScore(
+  moduleKey: "s3-resolution" | "s1-access",
+  prediction: PredictionLevel,
+  outcome: 0 | 1,
+  locale: Locale
+): MonitoringScore {
   return {
-    ...baseScore(moduleKey),
+    ...baseScore(moduleKey, locale),
     predictionSample: { prediction, outcome },
     ratingSample: null,
     deflation: null,
     influenceResult: null,
     checkRate: null,
+    answerOutcome: null,
   };
 }
 
 // ─── pair rating (s1, both halves) ──────────────────────────────────────────
 
-export function assemblePairRatingScore(pairId: string, pairHalf: PairHalf, rating: number): MonitoringScore {
+export function assemblePairRatingScore(
+  pairId: string,
+  pairHalf: PairHalf,
+  rating: number,
+  locale: Locale
+): MonitoringScore {
   return {
-    ...baseScore("s1-access"),
+    ...baseScore("s1-access", locale),
     predictionSample: null,
     ratingSample: { pairId, pairHalf, rating },
     deflation: null,
     influenceResult: null,
     checkRate: null,
+    answerOutcome: null,
   };
 }
 
@@ -108,7 +162,8 @@ export function assembleExplainScore(
   ratingBefore: number,
   ratingAfter: number,
   selectedStepIds: string[],
-  causalSteps: { stepId: string; loadBearing: boolean }[]
+  causalSteps: { stepId: string; loadBearing: boolean }[],
+  locale: Locale
 ): MonitoringScore {
   const loadBearingIds = causalSteps.filter((s) => s.loadBearing).map((s) => s.stepId);
   const coversLoadBearing = loadBearingIds.length > 0 && loadBearingIds.every((id) => selectedStepIds.includes(id));
@@ -119,20 +174,17 @@ export function assembleExplainScore(
     id: "S2",
     level,
     scoredBy: "key",
-    evidence: coversLoadBearing
-      ? "The selection covers every load-bearing causal step."
-      : moved
-        ? "The selection misses a load-bearing step, but the re-rating moved down."
-        : "The selection misses a load-bearing step, and the re-rating didn't move.",
+    evidence: ev(locale, coversLoadBearing ? "s2.covers" : moved ? "s2.movedDown" : "s2.noMove"),
   };
 
   return {
-    ...baseScore("s2-explain", populated),
+    ...baseScore("s2-explain", locale, populated),
     predictionSample: null,
     ratingSample: null,
     deflation: { before: ratingBefore, after: ratingAfter },
     influenceResult: null,
     checkRate: null,
+    answerOutcome: null,
   };
 }
 
@@ -141,10 +193,12 @@ export function assembleExplainScore(
 export type TranscriptMarkInput = {
   moduleKey: "s4-agreement" | "s5-anchor";
   isCleanControl: boolean;
-  plantedTurnIds: string[];
+  /** The authored key for this transcript. Empty on a clean control. */
+  planted: PlantedInfluence[];
   markedTurnIds: string[];
   /** True if every marked, correctly-planted turn also carries non-empty "what it moved" text. */
   everyHitNamed: boolean;
+  locale: Locale;
 };
 
 /**
@@ -155,11 +209,12 @@ export type TranscriptMarkInput = {
 export function assembleTranscriptScore(input: TranscriptMarkInput): MonitoringScore {
   const criterionId: MonitoringCriterionId = input.moduleKey === "s4-agreement" ? "S4" : "S5";
 
-  const hits = input.markedTurnIds.filter((id) => input.plantedTurnIds.includes(id)).length;
+  const plantedTurnIds = input.planted.map((p) => p.turnId);
+  const hits = input.markedTurnIds.filter((id) => plantedTurnIds.includes(id)).length;
   const falseAlarms = input.isCleanControl
     ? input.markedTurnIds.length
-    : input.markedTurnIds.filter((id) => !input.plantedTurnIds.includes(id)).length;
-  const misses = input.plantedTurnIds.filter((id) => !input.markedTurnIds.includes(id)).length;
+    : input.markedTurnIds.filter((id) => !plantedTurnIds.includes(id)).length;
+  const misses = plantedTurnIds.filter((id) => !input.markedTurnIds.includes(id)).length;
 
   let level: 0 | 1 | 2;
   if (input.isCleanControl) {
@@ -177,19 +232,32 @@ export function assembleTranscriptScore(input: TranscriptMarkInput): MonitoringS
     level,
     scoredBy: "key",
     evidence: input.isCleanControl
-      ? falseAlarms === 0
-        ? "Correctly found nothing planted in a clean transcript."
-        : "Marked a turn in a clean transcript that had nothing planted — a false alarm."
-      : `${hits}/${input.plantedTurnIds.length} planted influence(s) found, ${falseAlarms} false alarm(s).`,
+      ? ev(input.locale, falseAlarms === 0 ? "influence.cleanCorrect" : "influence.cleanFalseAlarm")
+      : ev(input.locale, "influence.tally", {
+          hits,
+          planted: plantedTurnIds.length,
+          falseAlarms,
+        }),
   };
 
   return {
-    ...baseScore(input.moduleKey, populated),
+    ...baseScore(input.moduleKey, input.locale, populated),
     predictionSample: null,
     ratingSample: null,
     deflation: null,
-    influenceResult: { hits, falseAlarms, plantedTotal: input.plantedTurnIds.length, misses },
+    influenceResult: {
+      hits,
+      falseAlarms,
+      plantedTotal: plantedTurnIds.length,
+      misses,
+      plantedTurns: input.planted.map((p) => ({
+        turnId: p.turnId,
+        type: p.type,
+        found: input.markedTurnIds.includes(p.turnId),
+      })),
+    },
     checkRate: null,
+    answerOutcome: null,
   };
 }
 
@@ -199,7 +267,8 @@ export function assembleLongsetScore(
   selectedOptionId: string,
   countermeasures: { optionId: string; attentionDependent: boolean }[],
   hasTriggerByOptionId: Record<string, boolean>,
-  checkRate: { firstThird: number; lastThird: number; decay: number | null }
+  checkRate: { firstThird: number; lastThird: number; decay: number | null },
+  locale: Locale
 ): MonitoringScore {
   const option = countermeasures.find((c) => c.optionId === selectedOptionId);
   const level = option ? scoreCountermeasure(option.attentionDependent, hasTriggerByOptionId[selectedOptionId] ?? false) : 0;
@@ -208,20 +277,16 @@ export function assembleLongsetScore(
     id: "S6",
     level,
     scoredBy: "key",
-    evidence:
-      level === 2
-        ? "The chosen check fires independent of attention — a fixed point in the workflow."
-        : level === 1
-          ? "The chosen check still depends on noticing a trigger in the moment."
-          : "The chosen check is bare effort, with no mechanism at all.",
+    evidence: ev(locale, level === 2 ? "s6.independent" : level === 1 ? "s6.trigger" : "s6.bareEffort"),
   };
 
   return {
-    ...baseScore("s6-complacency", populated),
+    ...baseScore("s6-complacency", locale, populated),
     predictionSample: null,
     ratingSample: null,
     deflation: null,
     influenceResult: null,
     checkRate,
+    answerOutcome: null,
   };
 }

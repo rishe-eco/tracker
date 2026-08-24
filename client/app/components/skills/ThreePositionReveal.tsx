@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-export type RelianceDirection = "over" | "under" | "ok";
+export type RelianceDirection = "over" | "under" | "costly" | "ok";
 
 type Props = {
   initial: number;
@@ -49,7 +49,7 @@ export default function ThreePositionReveal({ initial, final, advice, truth, uni
       <div dir="ltr" className="relative h-16 select-none">
         <div className="absolute inset-x-0 top-7 h-0.5 rounded bg-border" />
         <div
-          className={`absolute top-6 h-1.5 rounded-full opacity-60 ${direction === "over" ? "bg-amber-500" : "bg-primary/60"}`}
+          className={`absolute top-6 h-1.5 rounded-full opacity-60 ${direction === "over" || direction === "costly" ? "bg-amber-500" : "bg-primary/60"}`}
           style={{ left: `${moveLeft}%`, width: `${moveWidth}%` }}
         />
         <Pin pct={pct(initial)} tone="you" labelUp label={`${t("delegation.reveal.you")} ${fmt(initial)}`} />
@@ -72,6 +72,7 @@ export default function ThreePositionReveal({ initial, final, advice, truth, uni
         <p className={`rounded-md border p-3 text-sm ${direction === "ok" ? "bg-muted/40" : "border-amber-500/40 bg-amber-500/10"}`}>
           {direction === "over" && t("delegation.reveal.overNote")}
           {direction === "under" && t("delegation.reveal.underNote")}
+          {direction === "costly" && t("delegation.reveal.costlyNote")}
           {direction === "ok" && t("delegation.reveal.okNote")}
           {woaRaw !== null && (
             <span className="ms-1 font-mono text-xs text-muted-foreground">

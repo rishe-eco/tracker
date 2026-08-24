@@ -42,10 +42,13 @@ export default function MasteryGapList({
 }
 
 function describe(t: (k: string, o?: any) => string, ns: string, gap: MasteryGap): string {
-  // `done` rather than `count`: i18next reads a `count` option as a plural
-  // selector and goes looking for `_one`/`_other` variants of the key.
+  // `done` carries the number into the sentence; `count` is passed alongside
+  // purely as i18next's plural selector. A key with no `_one`/`_other` variant
+  // falls back to its bare form, so only the gates that actually need to agree
+  // a noun — "1 false alarm" vs "2 false alarms" — declare the variants.
   const values = {
     done: gap.count ?? 0,
+    count: gap.count ?? 0,
     required: gap.required ?? 0,
     seconds: gap.seconds ?? 0,
     minTotal: gap.minTotal ?? 0,

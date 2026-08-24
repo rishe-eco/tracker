@@ -22,7 +22,7 @@ export default function DeflationDisplay({ before, after }: { before: number; af
         <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{t("monitoring.deflation.after")}</p>
       </div>
       <p className="ms-2 max-w-[16rem] text-sm text-muted-foreground">
-        {after < before ? t("monitoring.deflation.droppedFact", { points: before - after }) : t("monitoring.deflation.heldFact")}
+        {after < before ? t("monitoring.deflation.droppedFact", { count: before - after }) : t("monitoring.deflation.heldFact")}
       </p>
     </div>
   );

@@ -54,17 +54,32 @@ describe("relianceDirection", () => {
   it("flags over-reliance: moved substantially toward advice that was worse", () => {
     // initial 1955, advice 1958, truth 1952 — advice is worse than initial.
     const { clamped } = computeWoa(1955, 1958, 1957);
-    expect(relianceDirection(clamped, 1955, 1958, 1952)).toBe("over");
+    expect(relianceDirection(clamped, 1955, 1958, 1952, 1957)).toBe("over");
   });
 
   it("flags under-reliance: barely moved toward advice that was much better", () => {
     // initial 900, advice 1240, truth 1270 — advice is much better than initial.
     const { clamped } = computeWoa(900, 1240, 950);
-    expect(relianceDirection(clamped, 900, 1240, 1270)).toBe("under");
+    expect(relianceDirection(clamped, 900, 1240, 1270, 950)).toBe("under");
   });
 
   it("is ok otherwise", () => {
     const { clamped } = computeWoa(900, 1000, 950);
-    expect(relianceDirection(clamped, 900, 1000, 950)).toBe("ok");
+    expect(relianceDirection(clamped, 900, 1000, 950, 950)).toBe("ok");
+  });
+
+  it("flags a costly move that sits under the over-reliance threshold", () => {
+    // own 1100, advice 1150, final 1120, truth 1105 — WOA 0.40, net gain -10.
+    // Under the 0.5 bar, so not "over", but it still lost accuracy: the
+    // reveal must not call this a well-matched movement.
+    const { clamped } = computeWoa(1100, 1150, 1120);
+    expect(clamped).toBeCloseTo(0.4, 5);
+    expect(relianceDirection(clamped, 1100, 1150, 1105, 1120)).toBe("costly");
+  });
+
+  it("stays ok when the move toward worse advice still landed no further out", () => {
+    // final lands exactly as far from the truth as the initial estimate did.
+    const { clamped } = computeWoa(100, 120, 110);
+    expect(relianceDirection(clamped, 100, 120, 105, 110)).toBe("ok");
   });
 });

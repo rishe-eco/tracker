@@ -10,6 +10,8 @@
  */
 
 import type { DecompositionKey, FaultTag, Locale } from "../../../content/skills/decomposition/types";
+import { decompositionEvidence as ev } from "../../../content/skills/decomposition/v1/evidence";
+import { pluralKey } from "../evidenceText";
 import { isBounded } from "./detectors";
 import {
   breadthFirstIndex,
@@ -51,12 +53,69 @@ function isMonolithDecoy(id: string): boolean {
   return id.startsWith("monolith_");
 }
 
+// ─── Shared evidence phrasing ──────────────────────────────────────────────
+// Four criteria say the same thing from three call sites each (arrangement,
+// repair fix, real work). Building the line once per criterion is what keeps
+// the `en`/`fa` tables in step with the code that reads them.
+
+/** Persian uses its own comma; joining with an ASCII one reads as a typo. */
+function listSeparator(locale: Locale): string {
+  return locale === "fa" ? "، " : ", ";
+}
+
+/** D2, everywhere. */
+export function bfiEvidence(locale: Locale, bfi: number | null): string {
+  return bfi == null ? ev(locale, "d2.tooFewTop") : ev(locale, "d2.bfi", { bfi: bfi.toFixed(2) });
+}
+
+/** D3. `phase` distinguishes "you placed both" from "both are still there after your fix". */
+export function overlapEvidence(
+  locale: Locale,
+  violatedPairs: [string, string][] | string[][],
+  phase: "placed" | "present"
+): string {
+  if (!violatedPairs.length) {
+    return ev(locale, phase === "placed" ? "d3.noOverlapPlaced" : "d3.noOverlapPresent");
+  }
+  const pairs = violatedPairs.map((p) => p.join(" + ")).join(listSeparator(locale));
+  const key =
+    phase === "placed"
+      ? pluralKey(violatedPairs.length, "d3.overlapPlacedOne", "d3.overlapPlacedMany")
+      : pluralKey(violatedPairs.length, "d3.stillOverlapOne", "d3.stillOverlapMany");
+  return ev(locale, key, { pairs });
+}
+
+/** D5. */
+export function dependencyEvidence(
+  locale: Locale,
+  dependency: { missingOrInverted: unknown[]; falselyOrdered: unknown[] },
+  phase: "placed" | "present"
+): string {
+  const wrong = dependency.missingOrInverted.length > 0 || dependency.falselyOrdered.length > 0;
+  if (!wrong) return ev(locale, "d5.match");
+  return ev(locale, phase === "placed" ? "d5.mismatchPlaced" : "d5.mismatchFix");
+}
+
+/** D6. */
+export function coverageEvidence(
+  locale: Locale,
+  coverage: { missing: string[]; required: number }
+): string {
+  if (coverage.missing.length) {
+    return ev(locale, "d6.missing", { missing: coverage.missing.join(listSeparator(locale)) });
+  }
+  return ev(locale, pluralKey(coverage.required, "d6.allPresentOne", "d6.allPresentMany"), {
+    required: coverage.required,
+  });
+}
+
 /** Arrangement items: pieces come from a palette, so placement is a direct id match. */
 export function scoreArrangement(
   nodes: SubmittedNode[],
   dependsOn: SubmittedEdge[],
   addEventsInOrder: NodeAddedPayload[],
-  key: DecompositionKey
+  key: DecompositionKey,
+  locale: Locale
 ): KeyedScores {
   const placedIds = new Set(nodes.map((n) => n.id));
   const finalDepth1Ids = new Set(nodes.filter((n) => n.parentId === null).map((n) => n.id));
@@ -77,15 +136,23 @@ export function scoreArrangement(
 
   const monolithPlaced = [...placedIds].some(isMonolithDecoy);
   const d4: KeyedCriterionResult = monolithPlaced
-    ? { level: 0, evidence: "The monolith option was placed instead of the right-sized pieces." }
-    : { level: 2, evidence: "The monolith option was not placed." };
+    ? { level: 0, evidence: ev(locale, "d4.monolithPlaced") }
+    : { level: 2, evidence: ev(locale, "d4.monolithAvoided") };
 
   return {
-    d2: { level: bf.level, bfi: bf.bfi, evidence: bf.bfi == null ? "Fewer than two top-level pieces." : `Breadth-first index ${bf.bfi.toFixed(2)}.` },
-    d3: { level: overlap.level, evidence: overlap.violatedPairs.length ? `Overlapping pair(s) both placed: ${overlap.violatedPairs.map((p) => p.join(" + ")).join(", ")}.` : "No overlapping pair both placed." },
+    d2: { level: bf.level, bfi: bf.bfi, evidence: bfiEvidence(locale, bf.bfi) },
+    d3: {
+      level: overlap.level,
+      evidence: overlapEvidence(locale, overlap.violatedPairs, "placed"),
+    },
     d4,
-    d5: { level: dependency.level, evidence: dependency.missingOrInverted.length || dependency.falselyOrdered.length ? "A required blocking relation was missing/inverted, or an independent pair was falsely ordered." : "Dependencies match the key." },
-    d6: { level: coverage.level, found: coverage.found, required: coverage.required, evidence: coverage.missing.length ? `Missing: ${coverage.missing.join(", ")}.` : `All ${coverage.required} required pieces present.` },
+    d5: { level: dependency.level, evidence: dependencyEvidence(locale, dependency, "placed") },
+    d6: {
+      level: coverage.level,
+      found: coverage.found,
+      required: coverage.required,
+      evidence: coverageEvidence(locale, coverage),
+    },
   };
 }
 
@@ -95,16 +162,16 @@ export function scoreArrangement(
  * exists at all (build plan §4.5). The others are vacuous with an empty key:
  * nothing to overlap, no dependency to mark, nothing required to cover.
  */
-export function scoreControl(nodeCount: number): KeyedScores {
+export function scoreControl(nodeCount: number, locale: Locale): KeyedScores {
   const overDecomposed = isOverDecomposedControl(nodeCount);
   return {
-    d2: { level: null, bfi: null, evidence: "Not applicable to a control item." },
-    d3: { level: 2, evidence: "Nothing to overlap." },
+    d2: { level: null, bfi: null, evidence: ev(locale, "d2.controlNotApplicable") },
+    d3: { level: 2, evidence: ev(locale, "d3.controlNothing") },
     d4: overDecomposed
-      ? { level: 0, evidence: `Split into ${nodeCount} pieces; this task was already one checkable piece.` }
-      : { level: 2, evidence: "Left whole, as the task already was." },
-    d5: { level: 2, evidence: "No dependency to mark." },
-    d6: { level: 2, found: 0, required: 0, evidence: "Nothing required beyond the whole itself." },
+      ? { level: 0, evidence: ev(locale, "d4.controlSplit", { count: nodeCount }) }
+      : { level: 2, evidence: ev(locale, "d4.controlWhole") },
+    d5: { level: 2, evidence: ev(locale, "d5.controlNone") },
+    d6: { level: 2, found: 0, required: 0, evidence: ev(locale, "d6.controlNone") },
   };
 }
 
@@ -123,18 +190,27 @@ export function scoreD4RepairGranularity(
 ): KeyedCriterionResult {
   const unbounded = leaves.filter((l) => !isBounded(l.doneWhen, locale)).length;
 
+  const unboundedEvidence = () =>
+    ev(locale, pluralKey(unbounded, "d4.unboundedLeavesOne", "d4.unboundedLeavesMany"), {
+      count: unbounded,
+    });
+
   if (fault === "monolith") {
-    if (finalNodeCount <= 1) return { level: 0, evidence: "Still a single unsplit piece." };
-    if (unbounded >= 2) return { level: 0, evidence: `${unbounded} leaves with no bounded done condition.` };
-    if (unbounded === 1) return { level: 1, evidence: "One leaf with no bounded done condition." };
-    return { level: 2, evidence: "Split into checkable pieces." };
+    if (finalNodeCount <= 1) return { level: 0, evidence: ev(locale, "d4.repairStillSingle") };
+    if (unbounded >= 2) return { level: 0, evidence: unboundedEvidence() };
+    if (unbounded === 1) return { level: 1, evidence: unboundedEvidence() };
+    return { level: 2, evidence: ev(locale, "d4.repairSplitOk") };
   }
 
   // premature_split
-  if (finalNodeCount >= 4) return { level: 0, evidence: `Still ${finalNodeCount} pieces for one atomic action.` };
-  if (finalNodeCount > 1) return { level: 1, evidence: `Merged to ${finalNodeCount} pieces; one atomic action needs one.` };
-  if (unbounded >= 1) return { level: 1, evidence: "Merged to one piece, but its done condition isn't bounded." };
-  return { level: 2, evidence: "Merged back into one checkable piece." };
+  if (finalNodeCount >= 4) {
+    return { level: 0, evidence: ev(locale, "d4.repairStillMany", { count: finalNodeCount }) };
+  }
+  if (finalNodeCount > 1) {
+    return { level: 1, evidence: ev(locale, "d4.repairMergedPartly", { count: finalNodeCount }) };
+  }
+  if (unbounded >= 1) return { level: 1, evidence: ev(locale, "d4.repairMergedUnbounded") };
+  return { level: 2, evidence: ev(locale, "d4.repairMergedOk") };
 }
 
 /**
@@ -163,12 +239,20 @@ export function scoreRepairFix(
 
   const d4 = isGranularityFault
     ? scoreD4RepairGranularity(seededFault as "monolith" | "premature_split", nodes.length, leaves, locale)
-    : { level: 2 as RubricLevel, evidence: "Not this item's fault type; boundedness only." };
+    : { level: 2 as RubricLevel, evidence: ev(locale, "d4.repairNotThisFault") };
 
   return {
-    d3: { level: overlap.level, evidence: overlap.violatedPairs.length ? `Overlapping pair(s) still both present: ${overlap.violatedPairs.map((p) => p.join(" + ")).join(", ")}.` : "No overlapping pair both present." },
+    d3: {
+      level: overlap.level,
+      evidence: overlapEvidence(locale, overlap.violatedPairs, "present"),
+    },
     d4,
-    d5: { level: dependency.level, evidence: dependency.missingOrInverted.length || dependency.falselyOrdered.length ? "A blocking relation is still missing/inverted, or an independent pair is falsely ordered." : "Dependencies match the key." },
-    d6: { level: coverage.level, found: coverage.found, required: coverage.required, evidence: coverage.missing.length ? `Missing: ${coverage.missing.join(", ")}.` : `All ${coverage.required} required pieces present.` },
+    d5: { level: dependency.level, evidence: dependencyEvidence(locale, dependency, "present") },
+    d6: {
+      level: coverage.level,
+      found: coverage.found,
+      required: coverage.required,
+      evidence: coverageEvidence(locale, coverage),
+    },
   };
 }

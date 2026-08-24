@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import RubricPips from "./RubricPips";
 
 /**
  * The six rubric criteria, on screen — the Decomposition Lab analogue of
@@ -43,7 +44,7 @@ export default function DecompositionRubricRail({ scores, compact }: Props) {
                 </span>
               )}
             </span>
-            <Pips level={score ? score.level : undefined} />
+            <RubricPips level={score ? score.level : undefined} unscoredLabel={t("decomposition.unscored")} unscoredHint={t("decomposition.unscoredHint")} />
           </li>
         );
       })}
@@ -55,25 +56,3 @@ export default function DecompositionRubricRail({ scores, compact }: Props) {
  * Two pips per criterion. `null` renders as the words "not scored", never an
  * empty two-pip row — an empty row is indistinguishable from a level of 0.
  */
-function Pips({ level }: { level: number | null | undefined }) {
-  const { t } = useTranslation();
-  if (level === null) {
-    return (
-      <span className="text-[10px] text-muted-foreground" title={t("decomposition.unscoredHint")}>
-        {t("decomposition.unscored")}
-      </span>
-    );
-  }
-  return (
-    <span className="flex gap-1" aria-label={level === undefined ? undefined : `${level} of 2`}>
-      {[0, 1].map((i) => (
-        <span
-          key={i}
-          className={`h-2.5 w-2.5 rounded-[2px] border ${
-            level !== undefined && i < level ? "border-primary bg-primary" : "border-muted-foreground/40"
-          }`}
-        />
-      ))}
-    </span>
-  );
-}

@@ -47,6 +47,7 @@ const SCORED = {
   delta: null,
   reveal: "The ask is last, behind three sentences of hedging.",
   revealIsAboutItemText: true,
+  diagnosisIsAboutItemText: true,
   moduleState: "in_progress",
   masteryUnmet: [{ code: "rubricIncomplete" }],
   atCriterion: false,

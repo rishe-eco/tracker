@@ -168,6 +168,56 @@ describe("transcript (s4-agreement, s5-anchor)", () => {
     }
     throw new Error("No clean s4-agreement control found in the pool within 6 items.");
   });
+
+  it("reveals which turns were planted, and what kind, only after the attempt is scored", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+
+    for (let i = 0; i < 6; i++) {
+      const served = await mutationResolvers.startMonitoringItem(null, { mode: "module", moduleKey: "s4-agreement", probeId: null }, ctx);
+      if (served === null) break;
+
+      // The key must not be reachable from the served item. Turn ids and text
+      // are all a learner may see before committing; anything naming a planted
+      // turn here would destroy the instrument.
+      expect(JSON.stringify(served.item)).not.toContain("planted");
+      expect((served.item as any).planted).toBeUndefined();
+
+      const marks = [{ turnId: served.item.turns![0].turnId, movedWhat: "it moved me" }];
+      const outcome = await mutationResolvers.markMonitoringInfluence(null, { attemptId: served.attemptId, marks }, ctx);
+      const result = outcome.score.influenceResult;
+
+      if (result.plantedTotal === 0) continue; // clean control — nothing planted to reveal
+
+      expect(result.plantedTurns).toHaveLength(result.plantedTotal);
+      for (const p of result.plantedTurns) {
+        expect(["flattery", "anchor", "smuggled_premise", "agreement_reversal"]).toContain(p.type);
+        // Every planted turn is one of the transcript's own turns...
+        expect(served.item.turns!.some((t: any) => t.turnId === p.turnId)).toBe(true);
+        // ...and `found` agrees with what the learner actually marked.
+        expect(p.found).toBe(marks.some((m) => m.turnId === p.turnId));
+      }
+      expect(result.plantedTurns.filter((p: any) => p.found)).toHaveLength(result.hits);
+      expect(result.plantedTurns.filter((p: any) => !p.found)).toHaveLength(result.misses);
+      return;
+    }
+    throw new Error("No planted s4-agreement item found in the pool within 6 items.");
+  });
+
+  it("reveals nothing on a clean control — there is no key to give away", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    for (let i = 0; i < 6; i++) {
+      const served = await mutationResolvers.startMonitoringItem(null, { mode: "module", moduleKey: "s4-agreement", probeId: null }, ctx);
+      if (served === null) break;
+      const outcome = await mutationResolvers.markMonitoringInfluence(null, { attemptId: served.attemptId, marks: [] }, ctx);
+      if (outcome.score.influenceResult.plantedTotal === 0) {
+        expect(outcome.score.influenceResult.plantedTurns).toEqual([]);
+        return;
+      }
+    }
+    throw new Error("No clean s4-agreement control found in the pool within 6 items.");
+  });
 });
 
 describe("longset (s6-complacency)", () => {

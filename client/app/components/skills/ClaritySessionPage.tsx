@@ -56,6 +56,7 @@ type Result = {
   delta: number | null;
   reveal: string;
   revealIsAboutItemText: boolean;
+  diagnosisIsAboutItemText: boolean;
   moduleState: string;
   masteryUnmet: MasteryGap[];
   atCriterion: boolean;
@@ -327,11 +328,17 @@ export default function ClaritySessionPage() {
 
             {/* The misread is the stimulus on a revision item, not a reveal —
                 it ships with the pack, which is what lets these run with no
-                model configured. */}
+                model configured. Authored the way a real model answer reads,
+                so it goes through `RichText` like every other authored field:
+                rendered flat it put literal `**` in front of the learner, in
+                the one block that is imitating a reader's actual output.
+                `weakText` above deliberately does not — that one is a verbatim
+                prompt the learner is being asked to critique, and it has to be
+                exactly the characters that were sent. */}
             {item.authoredMisread && (
               <div className="mt-3 rounded-md border border-sky-500/40 bg-sky-500/[0.06] p-3">
                 <Label text={t("clarity.whatTheReaderDid")} />
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{item.authoredMisread}</p>
+                <RichText text={item.authoredMisread} className="text-sm leading-relaxed" />
               </div>
             )}
           </section>
@@ -547,10 +554,20 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
           {t("clarity.voidNote")}
         </p>}
 
-        {result.diagnosis && <DiagnosisRow diagnosis={result.diagnosis} />}
+        {result.diagnosis && (
+          <DiagnosisRow diagnosis={result.diagnosis} aboutItemText={result.diagnosisIsAboutItemText} />
+        )}
 
         <div className="space-y-2">
           <Label text={t("clarity.perCriterion")} />
+          {/* Which text these six lines are about. On a revision item the
+              diagnosis above is graded against the draft the item shipped
+              while these score the learner's rewrite — two correct facts about
+              two different texts, which read as one screen contradicting
+              itself until each said which text it meant (S-5a). */}
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {t(result.diagnosisIsAboutItemText ? "clarity.criteriaScoreYourRewrite" : "clarity.criteriaScoreYourText")}
+          </p>
           {score.criteria.map((c) => (
             <CriterionRow key={c.criterion} score={c} feedbackOnly={result.feedbackOnly.includes(c.criterion)} />
           ))}
@@ -585,7 +602,7 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
             <p className="text-[11px] text-muted-foreground">
               {score.scoredCount === 0
                 ? t("clarity.nothingScored")
-                : t("clarity.ofCriteria", { scored: score.scoredCount, total: 6 })}
+                : t("clarity.ofCriteria", { scored: score.scoredCount, total: 6, max: score.maxPossible })}
             </p>
           </div>
           <div className="rounded-md border bg-background/60 p-3">
@@ -593,7 +610,9 @@ function ResultPanel({ result, itemType, onRevise, onNext, onBack, busy }: Resul
             <p className="text-2xl font-semibold tabular-nums">
               {result.delta == null ? "—" : result.delta > 0 ? `+${result.delta}` : String(result.delta)}
             </p>
-            <p className="text-[11px] text-muted-foreground">{t("clarity.deltaHint")}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {t(result.delta == null ? "clarity.deltaHint" : "clarity.deltaSetHint")}
+            </p>
           </div>
         </div>
 
@@ -666,7 +685,7 @@ function CriterionRow({ score, feedbackOnly }: { score: CriterionScore; feedback
 }
 
 /** Tagged versus what actually failed. The miss is the interesting cell. */
-function DiagnosisRow({ diagnosis }: { diagnosis: Diagnosis }) {
+function DiagnosisRow({ diagnosis, aboutItemText }: { diagnosis: Diagnosis; aboutItemText: boolean }) {
   const { t } = useTranslation();
   // The fourth cell only appears when it has something in it — usually because
   // no AI scorer is configured, so R2/R3/R5 carry no level. Filing those under
@@ -680,6 +699,9 @@ function DiagnosisRow({ diagnosis }: { diagnosis: Diagnosis }) {
   return (
     <div className="rounded-md border bg-background/60 p-3">
       <Label text={t("clarity.yourDiagnosis")} />
+      <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">
+        {t(aboutItemText ? "clarity.diagnosisOfGivenDraft" : "clarity.diagnosisOfYourText")}
+      </p>
       <div className={`grid gap-3 text-xs ${hasUnverifiable ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
         <Cell icon={CheckCircle2} tone="good" label={t("clarity.spotted")} items={diagnosis.correct} />
         <Cell icon={XCircle} tone="warn" label={t("clarity.missed")} items={diagnosis.missed} />

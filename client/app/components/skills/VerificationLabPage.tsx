@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_VERIFICATION_MODULES, GET_VERIFICATION_PROGRESS, SET_VERIFICATION_RUNG } from "~/api/queries";
 import RichText from "./RichText";
 import VerificationRubricRail from "./VerificationRubricRail";
+import HowASittingWorks from "./HowASittingWorks";
 import SkillProbeBanner from "./SkillProbeBanner";
 
 type VerificationModule = {
@@ -135,6 +136,13 @@ export default function VerificationLabPage() {
             onSkipped={() => void load()}
           />
         )}
+
+        <HowASittingWorks
+          ns="verification.how"
+          steps={["oracle", "bench", "verdict", "reveal"]}
+          catchKey="catch"
+          defaultOpen={!started}
+        />
 
         {started && (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

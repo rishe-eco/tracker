@@ -51,8 +51,15 @@ type SubmitResult = {
     predictionSample: { prediction: string; outcome: number } | null;
     ratingSample: { pairId: string; pairHalf: string; rating: number } | null;
     deflation: { before: number; after: number } | null;
-    influenceResult: { hits: number; falseAlarms: number; plantedTotal: number; misses: number } | null;
+    influenceResult: {
+      hits: number;
+      falseAlarms: number;
+      plantedTotal: number;
+      misses: number;
+      plantedTurns: { turnId: string; type: string; found: boolean }[];
+    } | null;
     checkRate: { firstThird: number; lastThird: number; decay: number | null } | null;
+    answerOutcome: { yourAnswer: string; correct: boolean; acceptedAnswer: string } | null;
   };
   moduleState: string;
   masteryUnmet: { code: string; count?: number; required?: number; minTotal?: number }[];
@@ -381,6 +388,11 @@ export default function MonitoringSessionPage() {
             <section className="space-y-3 rounded-lg border-2 border-primary/40 bg-card p-5">
               <Label text={t("monitoring.questionLabel")} />
               <p className="text-sm">{item.question}</p>
+              {predictionLevel && (
+                <p className="text-xs text-muted-foreground">
+                  {t("monitoring.youPredicted", { level: t(`monitoring.predictionLevel.${predictionLevel}`) })}
+                </p>
+              )}
               <div className="border-t pt-3">
                 <input
                   type="text"
@@ -402,8 +414,21 @@ export default function MonitoringSessionPage() {
           {/* ── pair rating (both halves) ─────────────────────────────────── */}
           {stage === "rating" && (
             <section className="space-y-3 rounded-lg border-2 border-primary/40 bg-card p-5">
+              {/* "How well do you understand this?" needs a referent on screen. */}
+              {item.question && (
+                <>
+                  <Label text={t("monitoring.questionLabel")} />
+                  <p className="text-sm">{item.question}</p>
+                </>
+              )}
               {item.pairHalf === "assisted" && item.authoredExplanation && (
                 <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm leading-relaxed">{item.authoredExplanation}</div>
+              )}
+              {item.pairHalf === "unassisted" && answerText.trim() && (
+                <div className="rounded-md border bg-background/60 p-3">
+                  <Label text={t("monitoring.yourAnswerLabel")} />
+                  <p className="text-sm">{answerText}</p>
+                </div>
               )}
               <RatingSlider value={ratingValue} onChange={setRatingValue} label={t("monitoring.ratingLabel")} />
               <div className="flex items-center gap-3 border-t pt-3">
@@ -451,6 +476,14 @@ export default function MonitoringSessionPage() {
           {/* ── explain: rate after — before the steps are ever shown ────────── */}
           {stage === "ratingAfter" && (
             <section className="space-y-3 rounded-lg border-2 border-primary/40 bg-card p-5">
+              <Label text={t("monitoring.explainPromptLabel")} />
+              <p className="text-sm">{item.explainPrompt}</p>
+              {explanationText.trim() && (
+                <div className="rounded-md border bg-background/60 p-3">
+                  <Label text={t("monitoring.yourExplanationLabel")} />
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{explanationText}</p>
+                </div>
+              )}
               <RatingSlider value={ratingValue} onChange={setRatingValue} label={t("monitoring.ratingAfterLabel")} />
               <div className="flex items-center gap-3 border-t pt-3">
                 <Button onClick={() => void submitRatingAfter()} disabled={busy}>
@@ -529,7 +562,13 @@ export default function MonitoringSessionPage() {
           {/* ── result ───────────────────────────────────────────────────────── */}
           {stage === "result" && result && (
             <div ref={resultRef as any} tabIndex={-1}>
-              <ResultPanel result={result} onNext={() => void loadItem()} onBack={() => navigate("/tools/skills/monitoring")} busy={busy} />
+              <ResultPanel
+                result={result}
+                turns={item.turns}
+                onNext={() => void loadItem()}
+                onBack={() => navigate("/tools/skills/monitoring")}
+                busy={busy}
+              />
             </div>
           )}
         </div>
@@ -562,36 +601,136 @@ function RatingSlider({ value, onChange, label }: { value: number; onChange: (v:
   );
 }
 
-type ResultProps = { result: SubmitResult; onNext: () => void; onBack: () => void; busy: boolean };
+/**
+ * What was actually planted, revealed after the attempt is scored.
+ *
+ * Deliberately *not* a mode on `TranscriptAudit`. That component's whole
+ * contract is that a planted turn and a clean turn are visually identical —
+ * asserted in its own test, because any difference there destroys the
+ * instrument. Marking it up "only after commit" would put the styling one
+ * state-management mistake away from the live transcript. This is a separate,
+ * read-only block that never renders during the sitting.
+ *
+ * The influence type is a closed enum named through `t()`, so this reads in
+ * the learner's own language without any authored prose crossing the wire —
+ * the item's `keyNote` is English-only spec text and stays server-side.
+ */
+function PlantedReveal({
+  planted,
+  turns,
+}: {
+  planted: { turnId: string; type: string; found: boolean }[];
+  turns: MonitoringTurn[] | null;
+}) {
+  const { t } = useTranslation();
+  const textOf = (turnId: string) => turns?.find((x) => x.turnId === turnId)?.text ?? null;
 
-function ResultPanel({ result, onNext, onBack, busy }: ResultProps) {
+  return (
+    <div className="space-y-2 rounded-md border bg-background/60 p-3">
+      <Label text={t("monitoring.plantedRevealLabel")} />
+      <ul className="space-y-2.5">
+        {planted.map((p) => (
+          <li key={p.turnId} className="space-y-1">
+            <p className="flex flex-wrap items-center gap-2 text-xs">
+              <span
+                className={`rounded-full border px-2 py-0.5 font-medium ${
+                  p.found ? "border-emerald-500/40 bg-emerald-500/10" : "border-amber-500/40 bg-amber-500/10"
+                }`}
+              >
+                {t(p.found ? "monitoring.plantedFound" : "monitoring.plantedMissed")}
+              </span>
+              <span className="font-medium">{t(`monitoring.influenceType.${p.type}`, { defaultValue: p.type })}</span>
+            </p>
+            {textOf(p.turnId) && (
+              <p className="border-s-2 ps-2.5 text-sm leading-relaxed text-muted-foreground">{textOf(p.turnId)}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{t("monitoring.plantedRevealHint")}</p>
+    </div>
+  );
+}
+
+type ResultProps = {
+  result: SubmitResult;
+  /** For the planted-influence reveal: turn ids alone would name nothing. */
+  turns: MonitoringTurn[] | null;
+  onNext: () => void;
+  onBack: () => void;
+  busy: boolean;
+};
+
+function ResultPanel({ result, turns, onNext, onBack, busy }: ResultProps) {
   const { t } = useTranslation();
   const { score } = result;
   const scoredCriterion = score.criteria.find((c) => c.scoredBy !== "unscored");
+  const outcome = score.answerOutcome;
+
+  // S1 and S3 are window-level: they never carry a per-attempt level, so on a
+  // recall or pair sitting there is no criterion to headline. Saying "not
+  // scored" there reads as "nothing happened" on the one tool whose whole
+  // premise is predict-then-measure — the outcome is the headline instead.
+  const heading = scoredCriterion
+    ? scoredCriterion.level !== null
+      ? `${scoredCriterion.id}: ${scoredCriterion.level} / 2`
+      : `${scoredCriterion.id}: ${t("monitoring.unscored")}`
+    : outcome
+      ? t(outcome.correct ? "monitoring.outcomeCorrect" : "monitoring.outcomeIncorrect")
+      : t("monitoring.unscored");
 
   return (
     <section className="overflow-hidden rounded-lg border-2 border-primary/40 bg-primary/[0.04]">
       <header className="border-b border-inherit px-5 py-3">
         <Label text={t("monitoring.resultLabel")} />
-        <p className="text-base font-semibold">
-          {scoredCriterion
-            ? scoredCriterion.level !== null
-              ? `${scoredCriterion.id}: ${scoredCriterion.level} / 2`
-              : `${scoredCriterion.id}: ${t("monitoring.unscored")}`
-            : t("monitoring.unscored")}
-        </p>
+        <p className="text-base font-semibold">{heading}</p>
       </header>
 
       <div className="space-y-5 p-5">
+        {outcome && (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border bg-background/60 p-3">
+                <Label text={t("monitoring.yourAnswerLabel")} />
+                <p className="text-sm">{outcome.yourAnswer}</p>
+              </div>
+              <div className="rounded-md border bg-background/60 p-3">
+                <Label text={t("monitoring.acceptedAnswerLabel")} />
+                <p className="text-sm">{outcome.acceptedAnswer}</p>
+              </div>
+            </div>
+            {score.predictionSample && (
+              <p className="text-sm">
+                {t("monitoring.predictionVsOutcome", {
+                  prediction: t(`monitoring.predictionLevel.${score.predictionSample.prediction}`),
+                  outcome: t(outcome.correct ? "monitoring.outcomeCorrect" : "monitoring.outcomeIncorrect"),
+                })}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">{t("monitoring.windowLevelNote")}</p>
+          </div>
+        )}
+
         {score.deflation && <DeflationDisplay before={score.deflation.before} after={score.deflation.after} />}
 
+        {score.influenceResult && score.influenceResult.plantedTurns.length > 0 && (
+          <PlantedReveal planted={score.influenceResult.plantedTurns} turns={turns} />
+        )}
+
         {score.influenceResult && (
-          <div className="rounded-md border bg-background/60 p-3 text-sm">
-            {t("monitoring.influenceSummary", {
-              hits: score.influenceResult.hits,
-              total: score.influenceResult.plantedTotal,
-              falseAlarms: score.influenceResult.falseAlarms,
-            })}
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                ["monitoring.influenceFound", `${score.influenceResult.hits} / ${score.influenceResult.plantedTotal}`],
+                ["monitoring.influenceMissed", String(score.influenceResult.misses)],
+                ["monitoring.influenceFalseAlarms", String(score.influenceResult.falseAlarms)],
+              ] as const
+            ).map(([key, value]) => (
+              <div key={key} className="rounded-md border bg-background/60 p-3">
+                <Label text={t(key)} />
+                <p className="font-mono text-sm">{value}</p>
+              </div>
+            ))}
           </div>
         )}
 

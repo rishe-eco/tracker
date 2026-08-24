@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { FileText, Lock, PenLine, UploadCloud } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -209,7 +209,20 @@ export default function DecompositionRealWorkPage() {
           <section className="space-y-4">
             <p className="text-sm text-muted-foreground">{t("decomposition.realWork.pickBody")}</p>
             {!targets || targets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("decomposition.realWork.noTargets")}</p>
+              // Correctly disabled, but a fresh account arrives here with no
+              // way forward and no way to make one — the empty state named the
+              // prerequisite without offering it.
+              <div className="space-y-3 rounded-md border border-dashed p-4">
+                <p className="text-sm text-muted-foreground">{t("decomposition.realWork.noTargets")}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link to="/activities/goal">{t("decomposition.realWork.createGoal")}</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/tools/skills/decomposition">{t("decomposition.realWork.practiseInstead")}</Link>
+                  </Button>
+                </div>
+              </div>
             ) : (
               <ul className="space-y-2">
                 {targets.map((tgt) => (
@@ -362,8 +375,8 @@ export default function DecompositionRealWorkPage() {
             <h2 className="text-lg font-semibold">{t("decomposition.realWork.doneTitle")}</h2>
             <p className="text-sm text-muted-foreground">
               {t("decomposition.realWork.doneBody", {
-                projects: exportResult.createdProjects.length,
-                actions: exportResult.createdActions.length,
+                projectsText: t("decomposition.realWork.doneProjects", { count: exportResult.createdProjects.length }),
+                actionsText: t("decomposition.realWork.doneActions", { count: exportResult.createdActions.length }),
               })}
             </p>
             {exportResult.dependencyEdgesDropped > 0 && (

@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_MONITORING_MODULES, GET_MONITORING_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import MonitoringRubricRail from "./MonitoringRubricRail";
+import HowASittingWorks from "./HowASittingWorks";
 import SkillProbeBanner from "./SkillProbeBanner";
 
 type MonitoringModule = {
@@ -123,6 +124,13 @@ export default function MonitoringLabPage() {
             onSkipped={() => void load()}
           />
         )}
+
+        <HowASittingWorks
+          ns="monitoring.how"
+          steps={["predict", "do", "compare", "window"]}
+          catchKey="catch"
+          defaultOpen={!started}
+        />
 
         {started && (
           <>

@@ -12,11 +12,38 @@
  *
  * Persian: `\b` matches nothing in Persian script, so tokenization uses
  * Unicode property escapes (`[\p{L}\p{M}\p{N}]`, `u` flag) rather than `\w`.
+ *
+ * Persian, part two: NFKC does **not** fold Persian-Indic (U+06F0-U+06F9) or
+ * Arabic-Indic (U+0660-U+0669) digits to ASCII, and it does not unify the
+ * Arabic and Persian forms of kaf and yeh. Both are keyboard-layout
+ * differences rather than meaning differences, so a Persian learner answering
+ * a question with Persian numerals was scored wrong against a Latin-numeral
+ * key, with no symptom -- exactly the silent inversion this file exists to
+ * prevent. Folding them is safe in this file's own terms: neither fold can
+ * turn two *different* answers into the same string, so neither can produce a
+ * false accept.
  */
+
+/** Persian-Indic (U+06F0-U+06F9) and Arabic-Indic (U+0660-U+0669) digits. */
+const INDIC_DIGITS = /[\u06F0-\u06F9\u0660-\u0669]/g;
+
+/** Arabic letter forms a Persian keyboard writes differently. Same letter. */
+const LETTER_VARIANTS = /[\u064A\u0649\u0643]/g;
+const LETTER_VARIANT_MAP: Record<string, string> = {
+  "ي": "ی", // Arabic yeh -> Farsi yeh
+  "ى": "ی", // alef maksura -> Farsi yeh
+  "ك": "ک", // Arabic kaf -> keheh
+};
+
+/** Harakat and tatweel: decoration, never meaning, in the answers we accept. */
+const ARABIC_MARKS = /[\u064B-\u065F\u0670\u0640]/g;
 
 export function normalizeAnswer(s: string): string {
   return s
     .normalize("NFKC")
+    .replace(INDIC_DIGITS, (d) => String(d.codePointAt(0)! & 0x0f))
+    .replace(LETTER_VARIANTS, (c) => LETTER_VARIANT_MAP[c] ?? c)
+    .replace(ARABIC_MARKS, "")
     .toLowerCase()
     .replace(/[\p{P}\p{S}]/gu, "")
     .replace(/\s+/g, " ")

@@ -10,6 +10,7 @@ import { useApi } from "~/api/useApi";
 import { GET_DELEGATION_MODULES, GET_DELEGATION_PROGRESS } from "~/api/queries";
 import RichText from "./RichText";
 import DelegationRubricRail from "./DelegationRubricRail";
+import HowASittingWorks from "./HowASittingWorks";
 import SkillProbeBanner from "./SkillProbeBanner";
 
 type DelegationModule = {
@@ -124,6 +125,13 @@ export default function DelegationLabPage() {
             onSkipped={() => void load()}
           />
         )}
+
+        <HowASittingWorks
+          ns="delegation.how"
+          steps={["estimate", "advice", "revise", "reveal"]}
+          catchKey="catch"
+          defaultOpen={!started}
+        />
 
         {started && (
           <>

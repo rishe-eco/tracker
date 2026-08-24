@@ -437,6 +437,7 @@ async function finalizeVerificationAttempt(
       keyVerdict: item.keyVerdict,
       notWorthChecking: item.notWorthChecking,
     },
+    locale,
     rung: attempt.rung as Rung,
     oracleText: oracle.text,
     oracleNamedBeforeAnyCheck,

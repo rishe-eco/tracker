@@ -40,3 +40,38 @@ describe("matchAnswer — no fuzzy matching (build plan §4.2)", () => {
     expect(matchAnswer("تقریبا 300000 کیلومتر بر ثانیه", [], [["300000"]])).toBe(true);
   });
 });
+
+describe("normalizeAnswer — Persian numerals and keyboard variants", () => {
+  it("folds Persian-Indic digits to ASCII (NFKC does not)", () => {
+    expect(normalizeAnswer("۱۰۰")).toBe("100");
+    expect(normalizeAnswer("۳۰۰۰۰۰")).toBe("300000");
+  });
+
+  it("folds Arabic-Indic digits to ASCII", () => {
+    expect(normalizeAnswer("١٠٠")).toBe("100");
+  });
+
+  it("unifies the Arabic and Persian forms of yeh and kaf", () => {
+    expect(normalizeAnswer("رياضي")).toBe(normalizeAnswer("ریاضی"));
+    expect(normalizeAnswer("كتاب")).toBe(normalizeAnswer("کتاب"));
+  });
+
+  it("drops harakat and tatweel", () => {
+    expect(normalizeAnswer("كِتــاب")).toBe(normalizeAnswer("کتاب"));
+  });
+});
+
+describe("matchAnswer — a Persian learner against a Latin-numeral key", () => {
+  it("matches Persian numerals against an ASCII answer variant", () => {
+    expect(matchAnswer("۱۰۰", ["100", "صد", "100 درجه"])).toBe(true);
+    expect(matchAnswer("۱۰۰ درجه", ["100", "صد", "100 درجه"])).toBe(true);
+  });
+
+  it("matches Persian numerals against an ASCII requiredToken", () => {
+    expect(matchAnswer("تقریبا ۳۰۰۰۰۰ کیلومتر بر ثانیه", [], [["300000"]])).toBe(true);
+  });
+
+  it("still rejects a wrong number written in Persian numerals", () => {
+    expect(matchAnswer("۹۹", ["100"])).toBe(false);
+  });
+});

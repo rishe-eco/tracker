@@ -10,6 +10,8 @@
  */
 
 import type { BenchEntry, FaultProfile, Verdict, VerificationElement } from "../../../content/skills/verification/types";
+import type { Locale } from "../../../content/skills/types";
+import { verificationEvidence as ev } from "../../../content/skills/verification/v1/evidence";
 
 export type RubricLevel = 0 | 1 | 2;
 export type CriterionResult = { level: RubricLevel; evidence: string };
@@ -30,24 +32,26 @@ export function scoreOracleNamed(input: {
   profile: FaultProfile;
   verdict: Verdict;
   keyVerdict: Verdict;
+  locale: Locale;
 }): CriterionResult {
+  const { locale } = input;
   const text = input.oracleText.trim();
   if (!text || !input.namedBeforeAnyCheck) {
-    return { level: 0, evidence: "No oracle named before the first check, or the field was left empty." };
+    return { level: 0, evidence: ev(locale, "v1.none") };
   }
 
   if (input.profile === "NO_ORACLE") {
     if (input.verdict === input.keyVerdict) {
-      return { level: 2, evidence: "An oracle was named, and the learner correctly closed on 'cannot verify' — recognising that nothing here settles it is the oracle move this item asks for." };
+      return { level: 2, evidence: ev(locale, "v1.noOracleItemCorrect") };
     }
-    return { level: 1, evidence: "An oracle was named, but the eventual verdict didn't recognise this claim as unverifiable." };
+    return { level: 1, evidence: ev(locale, "v1.noOracleItemWrong") };
   }
 
   const bearsOnClaim = input.selected.some((c) => c.bearsOnClaim);
   if (bearsOnClaim && text.length >= 8) {
-    return { level: 2, evidence: "An oracle was named before any check, and at least one check actually run bears on the specific claim." };
+    return { level: 2, evidence: ev(locale, "v1.ok") };
   }
-  return { level: 1, evidence: "An oracle was named, but it didn't lead to a check that bears on the specific claim made." };
+  return { level: 1, evidence: ev(locale, "v1.noBearing") };
 }
 
 /**
@@ -63,21 +67,23 @@ export function scoreIndependence(input: {
   profile: FaultProfile;
   verdict: Verdict;
   keyVerdict: Verdict;
+  locale: Locale;
 }): CriterionResult {
+  const { locale } = input;
   if (input.profile === "NO_ORACLE" && input.verdict === input.keyVerdict) {
-    return { level: 2, evidence: "Nothing here is independently checkable, and the verdict says so rather than substituting a dependent check." };
+    return { level: 2, evidence: ev(locale, "v2.noOracleItem") };
   }
 
   const independent = input.selected.filter((c) => c.independent);
   const nonIndependent = input.selected.filter((c) => !c.independent);
 
   if (independent.length === 0) {
-    return { level: 0, evidence: "Every check run derives from the artifact's own source — self-critique, stated confidence, or a re-ask." };
+    return { level: 0, evidence: ev(locale, "v2.none") };
   }
   if (nonIndependent.length === 0) {
-    return { level: 2, evidence: "Every check run is independent of the artifact's source." };
+    return { level: 2, evidence: ev(locale, "v2.all") };
   }
-  return { level: 1, evidence: "At least one independent check was run, but a non-independent one was run alongside it." };
+  return { level: 1, evidence: ev(locale, "v2.mixed") };
 }
 
 /**
@@ -91,16 +97,18 @@ export function scoreLocalisation(input: {
   chosenElementId: string | null;
   verdict: Verdict;
   keyVerdict: Verdict;
+  locale: Locale;
 }): CriterionResult | null {
   if (input.failingElementId === null) return null;
+  const { locale } = input;
 
   if (input.chosenElementId === input.failingElementId) {
-    return { level: 2, evidence: "The specific failing element was named." };
+    return { level: 2, evidence: ev(locale, "v5.exact") };
   }
   if (input.verdict === input.keyVerdict) {
-    return { level: 1, evidence: "The verdict was right, but the wrong element was named as the cause." };
+    return { level: 1, evidence: ev(locale, "v5.wrongElement") };
   }
-  return { level: 0, evidence: "No correct location of the fault." };
+  return { level: 0, evidence: ev(locale, "v5.none") };
 }
 
 /**
@@ -116,9 +124,11 @@ export function scoreHonestClosure(input: {
   keyVerdict: Verdict;
   residualRisk: string;
   answerText: string;
+  locale: Locale;
 }): CriterionResult {
+  const { locale } = input;
   if (input.verdict !== input.keyVerdict) {
-    return { level: 0, evidence: "The verdict does not match the key." };
+    return { level: 0, evidence: ev(locale, "v6.wrongVerdict") };
   }
   const risk = input.residualRisk.trim();
   const isRestatement =
@@ -126,9 +136,9 @@ export function scoreHonestClosure(input: {
     risk.toLowerCase() === input.answerText.trim().toLowerCase() ||
     risk.toLowerCase() === input.verdict.toLowerCase();
   if (risk && !isRestatement) {
-    return { level: 2, evidence: "Verdict matches the key, with what remains unchecked stated." };
+    return { level: 2, evidence: ev(locale, "v6.withResidual") };
   }
-  return { level: 1, evidence: "Verdict matches the key, but no residual-risk statement was given." };
+  return { level: 1, evidence: ev(locale, "v6.noResidual") };
 }
 
 /** Whichever of the item's enumerated elements is the correct answer, for the reveal — never sent before commit. */

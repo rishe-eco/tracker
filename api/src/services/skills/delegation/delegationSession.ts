@@ -333,6 +333,7 @@ async function finalizeEstimateAttempt(
     cueDirection: item.cueDirection,
     cueSelection,
     stakes,
+    locale,
   });
 
   await persistAttempt(prisma, attempt, score, {
@@ -391,16 +392,7 @@ export async function commitDelegationSplit(
   await stamp(prisma, attempt, "split_committed", { dispositions: dispositionMap });
 
   const { level } = scoreSplitDisposition(item.splitPieces ?? [], dispositionMap);
-  const score = assembleSplitScore({
-    moduleKey: "g4-split",
-    level,
-    evidence:
-      level === 2
-        ? "Handed over the piece the key marks delegable and kept the piece only they could judge."
-        : level === 0
-          ? "Delegated or kept the whole task where the key marks it separable."
-          : "Split the task, but inverted which piece to hand over.",
-  });
+  const score = assembleSplitScore({ moduleKey: "g4-split", level, locale });
 
   await persistAttempt(prisma, attempt, score, { dispositions: dispositionMap });
   return finishAttempt(prisma, userId, attempt.id, "g4-split", attempt.mode, timeZoneOffsetMinutes, locale);
@@ -480,6 +472,7 @@ async function finalizeSequenceAttempt(
     moduleKey: "g6-drift",
     round1Woa: roundResults[0]?.woaClamped ?? null,
     round3Woa: roundResults[G6_ROUNDS - 1]?.woaClamped ?? null,
+    locale,
   });
 
   await persistAttempt(prisma, attempt, score, { rounds: roundResults });

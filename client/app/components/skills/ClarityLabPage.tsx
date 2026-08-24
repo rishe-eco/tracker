@@ -8,6 +8,7 @@ import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_CLARITY_MODULES, GET_CLARITY_PROGRESS } from "~/api/queries";
+import HowASittingWorks from "./HowASittingWorks";
 import RichText from "./RichText";
 import RubricRail, { CRITERIA } from "./RubricRail";
 import SkillProbeBanner from "./SkillProbeBanner";
@@ -99,7 +100,12 @@ export default function ClarityLabPage() {
       <div className="space-y-6">
         <p className="text-sm text-muted-foreground">{t("clarity.subtitle")}</p>
 
-        <HowASittingWorks defaultOpen={!started} />
+        <HowASittingWorks
+          ns="clarity.how"
+          steps={["read", "write", "diagnose", "score", "revise"]}
+          catchKey="lock"
+          defaultOpen={!started}
+        />
 
         {/* The way in comes before the caveats. Everything below is a notice
             about what this installation cannot score — honest, and the wrong
@@ -281,42 +287,6 @@ export default function ClarityLabPage() {
   );
 }
 
-/**
- * Session mechanics, re-openable. The intro overlay is shown once and gone; a
- * learner returning for their second sitting wants this, not that.
- */
-function HowASittingWorks({ defaultOpen }: { defaultOpen: boolean }) {
-  const { t } = useTranslation();
-  const steps = ["read", "write", "diagnose", "score", "revise"];
-
-  return (
-    <details open={defaultOpen} className="rounded-lg border bg-card">
-      <summary className="cursor-pointer list-none p-4 text-sm font-semibold">
-        {t("clarity.how.title")}
-      </summary>
-      <div className="space-y-4 border-t p-4">
-        <p className="text-sm leading-relaxed text-muted-foreground">{t("clarity.how.premise")}</p>
-        <ol className="space-y-2">
-          {steps.map((key, i) => (
-            <li key={key} className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-[10px]">
-                {i + 1}
-              </span>
-              <p className="text-sm leading-relaxed">
-                <span className="font-medium">{t(`clarity.how.${key}Title`)}</span>{" "}
-                <span className="text-muted-foreground">{t(`clarity.how.${key}Body`)}</span>
-              </p>
-            </li>
-          ))}
-        </ol>
-        <div className="rounded-md border border-sky-500/40 bg-sky-500/10 p-3">
-          <p className="text-sm font-medium">{t("clarity.how.lockTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed">{t("clarity.how.lockBody")}</p>
-        </div>
-      </div>
-    </details>
-  );
-}
 
 /**
  * Which criteria this install cannot score, named rather than assumed.
