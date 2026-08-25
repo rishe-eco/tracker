@@ -6,6 +6,7 @@ import { getDecompositionModules, getDecompositionProgress } from "../../service
 import { getVerificationModules, getVerificationProgress } from "../../services/skills/verification/verificationSession";
 import { getDelegationModules, getDelegationProgress } from "../../services/skills/delegation/delegationSession";
 import { getMonitoringModules, getMonitoringProgress } from "../../services/skills/monitoring/monitoringSession";
+import { getSkillsOverview } from "../../services/skills/overview";
 import { getPlan } from "../../services/skills/planning";
 import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
@@ -303,6 +304,11 @@ export const queryResolvers = {
       (m: any) => m.state === "due_review"
     );
   }),
+
+  // The AI Training Lab hub. One round trip for all six labs, four Prisma reads
+  // for the whole page, and no metric service — the hub shows progress, never
+  // performance (07-training-lab-hub.md §5a).
+  skillsOverview: requireAuth((_, __, ctx) => getSkillsOverview(ctx.prisma, ctx.user.id, ctx.locale)),
 
   skillPlan: requireAuth(async (_, { skillKey }: any, ctx) => {
     assertEvidence(skillKey);

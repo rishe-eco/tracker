@@ -366,24 +366,12 @@
     "journalsTitle": "Journals",
     "journalsDescription": "Running records of thought and progress, optionally anchored to a goal or project.",
     "openJournals": "Open Journals",
-    "skillsTitle": "Skills",
-    "skillsDescription": "Six short labs, each training one habit that decides whether working with AI helps or hurts — saying precisely what you want, breaking a problem down, checking what comes back, and knowing when to rely on it. Do them in any order; each one stands on its own.",
-    "startHere": "Start here",
-    "openEvidenceLab": "Open Evidence Lab",
-    "openClarityLab": "Open Clarity Lab",
+    "skillsTitle": "AI Training Lab",
+    "skillsDescription": "Six short labs, each training one habit that decides whether working with AI helps or hurts. Do them in any order.",
+    "openSkills": "Open AI Training Lab",
     "learnTitle": "Feelings & Needs",
     "learnDescription": "A short daily practice: notice what you feel, find a word for it, and the need underneath.",
-    "openFeelingsNeeds": "Open Feelings & Needs",
-    "evidenceLabTrains": "Checking what an AI tells you — working out whether a confident answer is actually right.",
-    "clarityLabTrains": "Saying precisely what you want — writing a request someone can act on.",
-    "openDecompositionLab": "Open Decomposition Lab",
-    "decompositionLabTrains": "Breaking a messy problem into pieces you can actually check.",
-    "openVerificationLab": "Open Verification Lab",
-    "verificationLabTrains": "Checking a claim against an independent source before trusting it — not just judging whether it sounds right.",
-    "openDelegationLab": "Open Delegation Lab",
-    "delegationLabTrains": "Knowing when to trust an AI's judgement and when to trust your own.",
-    "openMonitoringLab": "Open Monitoring Lab",
-    "monitoringLabTrains": "Noticing your own state while something is actively shaping it — whether you actually understand, and whether agreement means anything."
+    "openFeelingsNeeds": "Open Feelings & Needs"
   },
   "learn": {
     "feelingsNeeds": {
@@ -1010,6 +998,91 @@
     }
   },
   "skills": {
+    "hub": {
+      "title": "AI Training Lab",
+      "subtitle": "Six short labs, each training one habit that decides whether working with AI helps or hurts — saying precisely what you want, breaking a problem down, checking what comes back, and knowing when to rely on it. Each one stands on its own, and they can be done in any order.",
+      "startedCount_one": "{{count}} of {{total}} lab started",
+      "startedCount_other": "{{count}} of {{total}} labs started",
+      "moduleCount_one": "{{count}} of {{total}} modules",
+      "moduleCount_other": "{{count}} of {{total}} modules",
+      "inProgressCount_one": "{{count}} in progress",
+      "inProgressCount_other": "{{count}} in progress",
+      "reviewsDue_one": "{{count}} review due",
+      "reviewsDue_other": "{{count}} reviews due",
+      "nextStepLabel": "Next",
+      "recommendedRibbon": "Next",
+      "draftLocale": "Machine-drafted translation",
+      "dueTitle": "Due now",
+      "orderNote": "The labs are independent and the suggestion above is only a suggestion — open whichever one you want.",
+      "next": {
+        "go": "Go",
+        "reviewAction": "Review “{{module}}” in {{lab}}",
+        "reviewReason": "Spacing is what makes it stick. A review left too long is practice you already paid for and are about to lose.",
+        "startAction": "Start with {{lab}}",
+        "startReason": "It is the one lab that needs no vocabulary from any of the others.",
+        "continueAction": "Carry on with {{lab}}",
+        "continueReason": "You have something open here already. Picking it up beats picking again.",
+        "allClear": "Nothing is due. Every module is mastered and no review has come round yet — practise whichever lab you feel like.",
+        "probe": {
+          "postAction": "Take the {{lab}} test",
+          "postReason": "You have finished every module, so this is the measurement the practice was for.",
+          "delayedAction": "Take the {{lab}} retention check",
+          "delayedReason": "This one is timed on purpose: taken late it measures something else, not the same thing later."
+        }
+      },
+      "dueProbe": {
+        "post": "End-of-lab test",
+        "delayed": "Retention check"
+      },
+      "secondary": {
+        "drill": "Free drill",
+        "realWork": "Bring your own work",
+        "selfAudit": "Audit a transcript"
+      },
+      "how": {
+        "title": "What a sitting is",
+        "premise": "Every lab runs the same shape, and it is short. One sitting is a few minutes, not an evening.",
+        "predictTitle": "Predict.",
+        "predictBody": "You commit to an answer before you see anything — that is what makes the comparison afterwards mean something.",
+        "doTitle": "Do the thing.",
+        "doBody": "Write the request, break down the problem, run the check. Real work, not a quiz about it.",
+        "compareTitle": "Compare.",
+        "compareBody": "You see what you predicted next to what happened, with the rubric that was applied. Nothing is hidden from you afterwards.",
+        "reviewTitle": "Come back.",
+        "reviewBody": "A module counts as mastered only after two separate days at criterion, and then it comes back for review at widening intervals. Same-session repetition measures short-term memory, which is the illusion these labs exist to dispel.",
+        "catchTitle": "The tests are optional, and separate from practice.",
+        "catchBody": "Each lab offers a baseline before you start and a test after you finish. Skipping the baseline is allowed — it just means later scores have nothing to be compared against. Practice works either way."
+      },
+      "errors": {
+        "couldNotLoad": "Your progress could not be loaded. The labs below still open normally — this is a failed request, not lost work."
+      },
+      "labs": {
+        "evidence": {
+          "title": "Evidence Lab",
+          "trains": "Checking what an AI tells you — working out whether a confident answer is actually right."
+        },
+        "clarity": {
+          "title": "Clarity Lab",
+          "trains": "Saying precisely what you want — writing a request someone can act on."
+        },
+        "decomposition": {
+          "title": "Decomposition Lab",
+          "trains": "Breaking a messy problem into pieces you can actually check."
+        },
+        "verification": {
+          "title": "Verification Lab",
+          "trains": "Checking a claim against an independent source before trusting it — not just judging whether it sounds right."
+        },
+        "delegation": {
+          "title": "Delegation Lab",
+          "trains": "Knowing when to trust an AI's judgement and when to trust your own."
+        },
+        "monitoring": {
+          "title": "Monitoring Lab",
+          "trains": "Noticing your own state while something is actively shaping it — whether you actually understand, and whether agreement means anything."
+        }
+      }
+    },
     "levelOutOfTwo": "{{level}} / 2",
     "levelOutOfTwoAria": "Level {{level}} of 2",
     "evidence": {

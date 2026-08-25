@@ -44,6 +44,7 @@ import {
   toDayKey,
   type MasterySchedule,
   type ReviewSubmissionSchedule,
+  isDueReview,
 } from "./scheduler";
 import { ensureProfile } from "./profile";
 import { scheduleReviewAction } from "./planning";
@@ -389,7 +390,7 @@ export async function getModules(prisma: PrismaClient, userId: string, locale: L
 
   return pack.modules.map((mod) => {
     const p = byKey.get(mod.moduleKey);
-    const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
+    const due = isDueReview(p, now);
     return {
       moduleKey: mod.moduleKey,
       title: mod.title,

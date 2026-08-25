@@ -215,7 +215,7 @@ export default function OnboardingSlideshow({
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link to="/tools/skills/evidence" onClick={handleFinish}>
+              <Link to="/tools/skills" onClick={handleFinish}>
                 {t("onboarding.slides.6.ctaSkills")}
               </Link>
             </Button>

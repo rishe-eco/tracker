@@ -288,6 +288,11 @@ export const typeResolvers = {
     },
   },
 
+  SkillOverview: {
+    lastAttemptAt: (parent: any) =>
+      parent.lastAttemptAt != null ? new Date(parent.lastAttemptAt).toISOString() : null,
+  },
+
   SkillModule: {
     masteredAt: (parent: any) =>
       parent.masteredAt != null ? new Date(parent.masteredAt).toISOString() : null,

@@ -39,6 +39,7 @@ import {
   toDayKey,
   type MasterySchedule,
   type ReviewSubmissionSchedule,
+  isDueReview,
 } from "../scheduler";
 import { loadServingProbe } from "../probes";
 import type { MasteryGap } from "../mastery";
@@ -618,7 +619,7 @@ export async function getDelegationModules(prisma: PrismaClient, userId: string,
 
   return pack.modules.map((mod) => {
     const p = byKey.get(mod.moduleKey);
-    const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
+    const due = isDueReview(p, now);
     return {
       moduleKey: mod.moduleKey,
       title: mod.title,

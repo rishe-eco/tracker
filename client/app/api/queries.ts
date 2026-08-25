@@ -1229,6 +1229,31 @@ export const GET_SKILL_PROGRESS = `
   }
 `;
 
+// The AI Training Lab hub's whole payload. One round trip: `useApi` does not
+// batch, and the per-lab queries would be twelve requests — five of which the
+// server rejects for any skill but Evidence.
+export const GET_SKILLS_OVERVIEW = `
+  query SkillsOverview {
+    skillsOverview {
+      skillKey
+      moduleCount
+      masteredCount
+      inProgressCount
+      totalAttempts
+      lastAttemptAt
+      hasBaseline
+      assessmentSkipped
+      probeReady
+      reviewStatus
+      dueModules {
+        moduleKey
+        title
+      }
+      dueProbe
+    }
+  }
+`;
+
 export const GET_SKILL_DUE_REVIEWS = `
   query SkillDueReviews {
     skillDueReviews {
