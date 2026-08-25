@@ -21,6 +21,7 @@ import { useApi } from "~/api/useApi";
 import { GET_SKILL_MODULES, GET_SKILL_PROGRESS } from "~/api/queries";
 import SkillPlanPanel from "./SkillPlanPanel";
 import SkillProbeBanner from "./SkillProbeBanner";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 
 type SkillModule = {
@@ -233,7 +234,7 @@ export default function EvidenceLabPage() {
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    navigate(`/tools/skills/evidence/drill?mode=module&module=${m.moduleKey}`)
+                    navigate(`/tools/skills/evidence/drill?mode=${modeForModuleState(m.state)}&module=${m.moduleKey}`)
                   }
                 >
                   {t("skills.evidence.practiceModule")}

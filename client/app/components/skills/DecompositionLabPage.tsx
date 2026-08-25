@@ -8,6 +8,7 @@ import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_DECOMPOSITION_MODULES, GET_DECOMPOSITION_PROGRESS } from "~/api/queries";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 import DecompositionRubricRail from "./DecompositionRubricRail";
 import HowASittingWorks from "./HowASittingWorks";
@@ -205,7 +206,7 @@ export default function DecompositionLabPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/tools/skills/decomposition/session?module=${m.moduleKey}`)}
+                    onClick={() => navigate(`/tools/skills/decomposition/session?module=${m.moduleKey}&mode=${modeForModuleState(m.state)}`)}
                   >
                     {t("decomposition.practiceModule")}
                   </Button>

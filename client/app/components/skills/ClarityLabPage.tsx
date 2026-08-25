@@ -9,6 +9,7 @@ import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_CLARITY_MODULES, GET_CLARITY_PROGRESS } from "~/api/queries";
 import HowASittingWorks from "./HowASittingWorks";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 import RubricRail, { CRITERIA } from "./RubricRail";
 import SkillProbeBanner from "./SkillProbeBanner";
@@ -240,7 +241,7 @@ export default function ClarityLabPage() {
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                      navigate(`/tools/skills/clarity/session?module=${m.moduleKey}`)
+                      navigate(`/tools/skills/clarity/session?module=${m.moduleKey}&mode=${modeForModuleState(m.state)}`)
                     }
                   >
                     {t("clarity.practiceModule")}

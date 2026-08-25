@@ -8,6 +8,7 @@ import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_DELEGATION_MODULES, GET_DELEGATION_PROGRESS } from "~/api/queries";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 import DelegationRubricRail from "./DelegationRubricRail";
 import HowASittingWorks from "./HowASittingWorks";
@@ -204,7 +205,7 @@ export default function DelegationLabPage() {
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">{t(`skills.state.${m.state}`)}</span>
                   </button>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/delegation/session?module=${m.moduleKey}`)}>
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/delegation/session?module=${m.moduleKey}&mode=${modeForModuleState(m.state)}`)}>
                     {t("delegation.practiceModule")}
                   </Button>
                 </div>

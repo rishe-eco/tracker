@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
+import { resolveSessionMode } from "./sessionMode";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import InternalPageLayout from "~/layout/InternalPageLayout";
@@ -101,7 +102,7 @@ export default function DelegationSessionPage() {
   const probeId = params.get("probeId") ?? undefined;
   const timepoint = params.get("timepoint") ?? undefined;
   const isProbe = params.get("mode") === "assessment" && Boolean(probeId) && Boolean(timepoint);
-  const mode = isProbe ? "assessment" : moduleKey ? "module" : "calibrated_practice";
+  const mode = resolveSessionMode({ isProbe, requested: params.get("mode"), moduleKey });
 
   const [served, setServed] = useState<Served | null>(null);
   const [stage, setStage] = useState<Stage>("estimate");

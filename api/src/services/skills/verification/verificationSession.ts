@@ -31,7 +31,13 @@ import {
 } from "../../../content/skills/verification/types";
 import { buildVerificationPack, ITEM_SPEC_BY_ID, RUBRIC_VERSION } from "../../../content/skills/verification/v1";
 import { ensureProfile } from "../profile";
-import { scheduleOnMastery, toDayKey } from "../scheduler";
+import {
+  scheduleOnMastery,
+  scheduleOnReviewSubmitted,
+  toDayKey,
+  type MasterySchedule,
+  type ReviewSubmissionSchedule,
+} from "../scheduler";
 import { loadServingProbe } from "../probes";
 import type { MasteryGap } from "../mastery";
 import { assistedCeilingFor, costFor } from "./metrics";
@@ -476,7 +482,10 @@ async function finalizeVerificationAttempt(
 
   const moduleUpdate =
     attempt.mode !== "open_practice"
-      ? await updateVerificationModuleProgress(prisma, userId, attempt.moduleKey as VerificationModuleKey, timeZoneOffsetMinutes)
+      ? await updateVerificationModuleProgress(prisma, userId, attempt.moduleKey as VerificationModuleKey, timeZoneOffsetMinutes, {
+          mode: attempt.mode as VerificationMode,
+          passed: score.strict,
+        })
       : { state: "not_started", unmetCriteria: [] as MasteryGap[] };
 
   const promotionOffered =
@@ -629,7 +638,8 @@ export async function updateVerificationModuleProgress(
   prisma: PrismaClient,
   userId: string,
   moduleKey: VerificationModuleKey,
-  tzOffsetMinutes: number
+  tzOffsetMinutes: number,
+  submitted?: { mode: VerificationMode; passed: boolean | null } | null
 ) {
   const allAttempts = await loadScoredAttempts(prisma, userId, moduleKey, tzOffsetMinutes);
   const unassisted = allAttempts.filter((a) => a.score.rung === "unassisted");
@@ -641,10 +651,24 @@ export async function updateVerificationModuleProgress(
     where: { userId_skillKey_moduleKey: { userId, skillKey: SKILL, moduleKey } },
   });
 
+  // A review-mode submission carries its own schedule, from the pass/fail of
+  // that one attempt — not the mastery window's rolling verdict. Any other
+  // mode falls back to the ordinary first-mastery scheduling.
+  //
+  // `passed: null` means the module has no per-attempt verdict to read: its
+  // criterion is scored over a window rather than per attempt, so the only
+  // honest answer to "did this review pass" is whether the module still holds.
+  const schedule: Partial<ReviewSubmissionSchedule & MasterySchedule> =
+    submitted?.mode === "review"
+      ? scheduleOnReviewSubmitted(submitted.passed ?? verdict.mastered, existing, new Date(), `${userId}:${moduleKey}`)
+      : verdict.mastered
+        ? scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)
+        : {};
+
   const data = {
     state: state as any,
     lastCriterionDay: allAttempts.length ? allAttempts[allAttempts.length - 1].dayKey : null,
-    ...(verdict.mastered && scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)),
+    ...schedule,
   };
 
   await prisma.skillModuleProgress.upsert({

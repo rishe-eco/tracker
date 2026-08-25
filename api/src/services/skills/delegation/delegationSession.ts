@@ -33,7 +33,13 @@ import {
 } from "../../../content/skills/delegation/types";
 import { buildDelegationPack, ITEM_SPEC_BY_ID, RUBRIC_VERSION } from "../../../content/skills/delegation/v1";
 import { ensureProfile } from "../profile";
-import { scheduleOnMastery, toDayKey } from "../scheduler";
+import {
+  scheduleOnMastery,
+  scheduleOnReviewSubmitted,
+  toDayKey,
+  type MasterySchedule,
+  type ReviewSubmissionSchedule,
+} from "../scheduler";
 import { loadServingProbe } from "../probes";
 import type { MasteryGap } from "../mastery";
 import { computeWoa } from "./woa";
@@ -515,7 +521,9 @@ async function finishAttempt(
   const score = JSON.parse(row.scores) as DelegationScore;
 
   const moduleUpdate =
-    mode !== "open_practice" ? await updateDelegationModuleProgress(prisma, userId, moduleKey, timeZoneOffsetMinutes) : { state: "not_started", unmetCriteria: [] as MasteryGap[] };
+    mode !== "open_practice"
+      ? await updateDelegationModuleProgress(prisma, userId, moduleKey, timeZoneOffsetMinutes, { mode: mode as DelegationMode, passed: attemptPassed(score) })
+      : { state: "not_started", unmetCriteria: [] as MasteryGap[] };
 
   return { attemptId, score, moduleState: moduleUpdate.state, masteryUnmet: moduleUpdate.unmetCriteria };
 }
@@ -536,7 +544,19 @@ async function loadModuleAttempts(prisma: PrismaClient, userId: string, moduleKe
     .filter(Boolean) as { score: DelegationScore; spec: DelegationItemSpec; dayKey: string }[];
 }
 
-export async function updateDelegationModuleProgress(prisma: PrismaClient, userId: string, moduleKey: DelegationModuleKey, tzOffsetMinutes: number) {
+/**
+ * Did the attempt just submitted clear the bar for its module, if that is even
+ * a question? Keyed modules score one criterion per attempt and mastery counts
+ * level 2, so that is the bar. G1 and G6's window-level criteria never carry a
+ * per-attempt level at all — there is no populated criterion to read, and the
+ * caller falls back to the module's window verdict instead.
+ */
+function attemptPassed(score: DelegationScore): boolean | null {
+  const populated = score.criteria.find((c) => c.level !== null && c.level !== undefined);
+  return populated ? populated.level === 2 : null;
+}
+
+export async function updateDelegationModuleProgress(prisma: PrismaClient, userId: string, moduleKey: DelegationModuleKey, tzOffsetMinutes: number, submitted?: { mode: DelegationMode; passed: boolean | null } | null) {
   const rows = await loadModuleAttempts(prisma, userId, moduleKey, tzOffsetMinutes);
 
   const verdict = KEYED_MODULES.includes(moduleKey)
@@ -561,10 +581,24 @@ export async function updateDelegationModuleProgress(prisma: PrismaClient, userI
     where: { userId_skillKey_moduleKey: { userId, skillKey: SKILL, moduleKey } },
   });
 
+  // A review-mode submission carries its own schedule, from the pass/fail of
+  // that one attempt — not the mastery window's rolling verdict. Any other
+  // mode falls back to the ordinary first-mastery scheduling.
+  //
+  // `passed: null` means the module has no per-attempt verdict to read: its
+  // criterion is scored over a window rather than per attempt, so the only
+  // honest answer to "did this review pass" is whether the module still holds.
+  const schedule: Partial<ReviewSubmissionSchedule & MasterySchedule> =
+    submitted?.mode === "review"
+      ? scheduleOnReviewSubmitted(submitted.passed ?? verdict.mastered, existing, new Date(), `${userId}:${moduleKey}`)
+      : verdict.mastered
+        ? scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)
+        : {};
+
   const data = {
     state: state as any,
     lastCriterionDay: rows.length ? rows[rows.length - 1].dayKey : null,
-    ...(verdict.mastered && scheduleOnMastery(existing, new Date(), `${userId}:${moduleKey}`)),
+    ...schedule,
   };
 
   await prisma.skillModuleProgress.upsert({

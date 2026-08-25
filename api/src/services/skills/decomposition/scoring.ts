@@ -346,13 +346,21 @@ export function evaluateDecompositionMastery(attempts: ScoredDecompositionAttemp
   return { mastered: unmet.length === 0, unmetCriteria: unmet };
 }
 
-/** Did this attempt clear the bar for its module? Requires the module's own criterion at level 2. */
-export function atCriterion(attempt: ScoredDecompositionAttempt): boolean {
-  const { score } = attempt;
+/**
+ * The same bar as `atCriterion`, for an attempt that has just been scored and
+ * has not been read back out of the database yet — the review-schedule path
+ * has the score and the module's criterion in hand and nothing else.
+ */
+export function scoreAtCriterion(score: DecompositionScore, ownCriterion: DecompositionCriterionId): boolean {
   if (!score.isComplete) return false;
   if (score.total < DECOMPOSITION_MASTERY_MIN_TOTAL) return false;
   if (score.criteria.some((c) => c.level === 0)) return false;
-  return score.criteria.find((c) => c.id === attempt.ownCriterion)?.level === 2;
+  return score.criteria.find((c) => c.id === ownCriterion)?.level === 2;
+}
+
+/** Did this attempt clear the bar for its module? Requires the module's own criterion at level 2. */
+export function atCriterion(attempt: ScoredDecompositionAttempt): boolean {
+  return scoreAtCriterion(attempt.score, attempt.ownCriterion);
 }
 
 export { granularityDiscrimination };

@@ -8,6 +8,7 @@ import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_VERIFICATION_MODULES, GET_VERIFICATION_PROGRESS, SET_VERIFICATION_RUNG } from "~/api/queries";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 import VerificationRubricRail from "./VerificationRubricRail";
 import HowASittingWorks from "./HowASittingWorks";
@@ -194,7 +195,7 @@ export default function VerificationLabPage() {
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">{t(`skills.state.${m.state}`)}</span>
                   </button>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/verification/session?module=${m.moduleKey}`)}>
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/verification/session?module=${m.moduleKey}&mode=${modeForModuleState(m.state)}`)}>
                     {t("verification.practiceModule")}
                   </Button>
                 </div>

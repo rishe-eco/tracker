@@ -8,6 +8,7 @@ import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { GET_MONITORING_MODULES, GET_MONITORING_PROGRESS } from "~/api/queries";
+import { modeForModuleState } from "./sessionMode";
 import RichText from "./RichText";
 import MonitoringRubricRail from "./MonitoringRubricRail";
 import HowASittingWorks from "./HowASittingWorks";
@@ -188,7 +189,7 @@ export default function MonitoringLabPage() {
                     </span>
                     <span className="mt-1 block text-xs text-muted-foreground">{t(`skills.state.${m.state}`)}</span>
                   </button>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/monitoring/session?module=${m.moduleKey}`)}>
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/tools/skills/monitoring/session?module=${m.moduleKey}&mode=${modeForModuleState(m.state)}`)}>
                     {t("monitoring.practiceModule")}
                   </Button>
                 </div>
