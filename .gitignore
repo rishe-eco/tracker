@@ -9,3 +9,5 @@ Thumbs.db
 
 # Local agent/editor state
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/worktrees/
