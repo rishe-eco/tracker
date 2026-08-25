@@ -1,10 +1,33 @@
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { useApi } from "~/api/useApi";
+import { GET_SKILLS_OVERVIEW } from "~/api/queries";
+import type { SkillOverview } from "~/components/skills/trainingLab";
 
 export default function ToolsHomePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { call } = useApi();
+
+  // The one piece of state on an otherwise static page, and it is decoration.
+  // Six lab cards used to live here; six equal doors asked the reader to make a
+  // decision they had no basis for, on a page whose other three sections are a
+  // heading, a sentence and a button. The recommendation moved to the hub.
+  const [overview, setOverview] = useState<SkillOverview[] | null>(null);
+
+  useEffect(() => {
+    // Deliberately no error state and no spinner: if this fails, the section is
+    // a heading, a sentence and a button, exactly as it would have been. A
+    // learner who cannot reach the API still needs the door to open.
+    void call({ query: GET_SKILLS_OVERVIEW }).then((res) => {
+      if (res?.skillsOverview) setOverview(res.skillsOverview);
+    });
+  }, [call]);
+
+  const startedCount = overview?.filter((o) => o.totalAttempts > 0).length ?? 0;
+  const reviewsDue = overview?.reduce((n, o) => n + o.dueModules.length, 0) ?? 0;
 
   return (
     <main className="space-y-8 p-6">
@@ -39,52 +62,16 @@ export default function ToolsHomePage() {
           <h2 className="text-lg font-semibold">{t("toolsHome.skillsTitle")}</h2>
           <p className="text-sm text-muted-foreground">{t("toolsHome.skillsDescription")}</p>
         </div>
-        {/* One row per lab, each saying which skill it trains. Two bare buttons
-            under a sentence naming both skills left the reader to work out
-            which was which — and the buttons were in the opposite order to the
-            sentence. Six rows and no recommendation is the same problem one
-            size up, so Evidence Lab is marked as the way in: it is the only
-            lab that needs no vocabulary from any of the others. */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex flex-col items-start gap-2 rounded-md border border-primary/50 bg-primary/[0.06] p-4">
-            <span className="rounded-full border border-primary/50 bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-              {t("toolsHome.startHere")}
-            </span>
-            <p className="text-sm">{t("toolsHome.evidenceLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/evidence")}>
-              {t("toolsHome.openEvidenceLab")}
-            </Button>
-          </div>
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
-            <p className="text-sm">{t("toolsHome.clarityLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/clarity")}>
-              {t("toolsHome.openClarityLab")}
-            </Button>
-          </div>
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
-            <p className="text-sm">{t("toolsHome.decompositionLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/decomposition")}>
-              {t("toolsHome.openDecompositionLab")}
-            </Button>
-          </div>
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
-            <p className="text-sm">{t("toolsHome.verificationLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/verification")}>
-              {t("toolsHome.openVerificationLab")}
-            </Button>
-          </div>
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
-            <p className="text-sm">{t("toolsHome.delegationLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/delegation")}>
-              {t("toolsHome.openDelegationLab")}
-            </Button>
-          </div>
-          <div className="flex flex-col items-start gap-2 rounded-md border bg-background/60 p-4">
-            <p className="text-sm">{t("toolsHome.monitoringLabTrains")}</p>
-            <Button className="mt-auto" onClick={() => navigate("/tools/skills/monitoring")}>
-              {t("toolsHome.openMonitoringLab")}
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button asChild>
+            <Link to="/tools/skills">{t("toolsHome.openSkills")}</Link>
+          </Button>
+          {overview && (
+            <p className="text-sm text-muted-foreground">
+              {t("skills.hub.startedCount", { count: startedCount, total: overview.length })}
+              {reviewsDue > 0 && <> · {t("skills.hub.reviewsDue", { count: reviewsDue })}</>}
+            </p>
+          )}
         </div>
       </section>
 

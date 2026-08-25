@@ -75,7 +75,9 @@ export class ProbeSequenceError extends Error {
   }
 }
 
-const MODULE_KEYS: Record<SkillKey, readonly string[]> = {
+/** Each skill's module keys, in order. Exported for the hub overview, which needs
+ * "are all six done" for six skills without loading six services. */
+export const MODULE_KEYS_BY_SKILL: Record<SkillKey, readonly string[]> = {
   evidence: EVIDENCE_MODULE_KEYS,
   clarity: CLARITY_MODULE_KEYS,
   decomposition: DECOMPOSITION_MODULE_KEYS,
@@ -562,7 +564,7 @@ export async function getDueSkillProbes(prisma: PrismaClient, userId: string): P
 
     const post = byTimepoint.get("post");
     if (!post?.completedAt) {
-      const keys = MODULE_KEYS[skillKey];
+      const keys = MODULE_KEYS_BY_SKILL[skillKey];
       const allDone =
         moduleProgress.length > 0 &&
         keys.every((mk) => {

@@ -63,6 +63,7 @@ import {
   toDayKey,
   type MasterySchedule,
   type ReviewSubmissionSchedule,
+  isDueReview,
 } from "../scheduler";
 import { loadServingProbe } from "../probes";
 import { isVoid, runDetectors } from "./detectors";
@@ -490,7 +491,7 @@ export async function getClarityModules(prisma: PrismaClient, userId: string, lo
 
   return pack.modules.map((mod) => {
     const p = byKey.get(mod.moduleKey);
-    const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
+    const due = isDueReview(p, now);
     return {
       moduleKey: mod.moduleKey,
       title: mod.title,

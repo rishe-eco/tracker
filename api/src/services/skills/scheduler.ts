@@ -142,3 +142,21 @@ export function toDayKey(date: Date, timeZoneOffsetMinutes = 0): string {
   const shifted = new Date(date.getTime() - timeZoneOffsetMinutes * 60 * 1000);
   return shifted.toISOString().slice(0, 10);
 }
+
+/**
+ * Whether a module's spaced review has come due.
+ *
+ * `due_review` is **derived, never stored**: `SkillModuleProgress.state` keeps
+ * saying `mastered` and the due-ness is read off `nextReviewAt` at query time.
+ * All six `get<Skill>Modules` carried their own identical copy of this line,
+ * and the hub needs a seventh reader — one that must agree with all six, since
+ * a hub that disagrees with a lab page about what is due is worse than a hub
+ * that shows nothing (07-training-lab-hub.md §6a).
+ */
+export function isDueReview(
+  progress: { nextReviewAt: Date | null } | null | undefined,
+  now: Date | number
+): boolean {
+  if (!progress?.nextReviewAt) return false;
+  return progress.nextReviewAt.getTime() <= (now instanceof Date ? now.getTime() : now);
+}

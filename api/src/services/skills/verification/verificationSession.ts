@@ -37,6 +37,7 @@ import {
   toDayKey,
   type MasterySchedule,
   type ReviewSubmissionSchedule,
+  isDueReview,
 } from "../scheduler";
 import { loadServingProbe } from "../probes";
 import type { MasteryGap } from "../mastery";
@@ -539,7 +540,7 @@ export async function getVerificationModules(prisma: PrismaClient, userId: strin
   return Promise.all(
     pack.modules.map(async (mod) => {
       const p = byKey.get(mod.moduleKey);
-      const due = p?.nextReviewAt != null && p.nextReviewAt.getTime() <= now;
+      const due = isDueReview(p, now);
       const rung = (p?.rung as Rung | undefined) ?? "assisted";
       return {
         moduleKey: mod.moduleKey,

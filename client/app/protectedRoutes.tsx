@@ -17,6 +17,7 @@ import IntervalsListPage from "./components/intervals/IntervalsListPage";
 import IntervalForm from "./components/intervals/IntervalForm";
 import JournalsListPage from "./components/journals/JournalsListPage";
 import JournalDetailPage from "./components/journals/JournalDetailPage";
+import TrainingLabHubPage from "./components/skills/TrainingLabHubPage";
 import EvidenceLabPage from "./components/skills/EvidenceLabPage";
 import EvidenceDrillPage from "./components/skills/EvidenceDrillPage";
 import ClarityLabPage from "./components/skills/ClarityLabPage";
@@ -63,6 +64,12 @@ export default [
   {
     path: "/tools/journals",
     element: <JournalsListPage />,
+  },
+  {
+    // The AI Training Lab hub. A new parent, not a gate — every lab route
+    // below keeps working and keeps its bookmarks.
+    path: "/tools/skills",
+    element: <TrainingLabHubPage />,
   },
   {
     path: "/tools/skills/evidence",

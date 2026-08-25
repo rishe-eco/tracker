@@ -1717,6 +1717,39 @@ export const typeDefs = gql`
     graduation: FnGraduation
   }
 
+  """
+  One skill's line on the AI Training Lab hub. Progress only — no headline
+  metric appears here, because the six labs' metrics are on six different
+  scales and a hub that compared them would be inventing a ranking
+  (07-training-lab-hub.md §5a).
+  """
+  type SkillOverview {
+    skillKey: SkillKey!
+    moduleCount: Int!
+    "Mastered or tested out, and not currently due for review."
+    masteredCount: Int!
+    "Started but not finished, plus anything a review has brought back."
+    inProgressCount: Int!
+    "Every attempt row, practice included: a has-this-been-touched signal, not the scored count each lab's own progress screen reports."
+    totalAttempts: Int!
+    lastAttemptAt: String
+    hasBaseline: Boolean!
+    assessmentSkipped: Boolean!
+    "False when the pack's probe items are not human-verified. The hub's probe recommendation requires it, because dueSkillProbes does not check it and the lab page would refuse to start one."
+    probeReady: Boolean!
+    "draft = machine-drafted, awaiting native review. Surfaced per card, never as six stacked banners."
+    reviewStatus: String!
+    "Derived, never stored: nextReviewAt <= now. Empty when nothing is due."
+    dueModules: [SkillOverviewModule!]!
+    "post or delayed, by the same rule dueSkillProbes applies. Never baseline — that is the lab page's own offer."
+    dueProbe: SkillTimepoint
+  }
+
+  type SkillOverviewModule {
+    moduleKey: String!
+    title: String!
+  }
+
   type Query {
     actions: [Action!]!
     action(id: ID!): Action
@@ -1753,6 +1786,12 @@ export const typeDefs = gql`
     skillProgress(skillKey: SkillKey!): SkillProgress!
     "Modules whose spaced review has come due."
     skillDueReviews: [SkillModule!]!
+    """
+    AI Training Lab hub: every skill, always six entries, in canonical order.
+    One round trip for the whole page — the per-lab queries would be twelve,
+    and five of them are gated to Evidence.
+    """
+    skillsOverview: [SkillOverview!]!
     "Module sittings currently on the calendar, past and future."
     skillPlan(skillKey: SkillKey!): [SkillPlannedSession!]!
 
