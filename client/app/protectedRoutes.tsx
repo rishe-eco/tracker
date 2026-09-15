@@ -4,6 +4,9 @@ import CalendarPage from "./components/calendar/CalendarPage";
 import ToolsPage from "./components/tools/ToolsPage";
 import ToolsHomePage from "./components/tools/ToolsHomePage";
 import SettingsPage from "./components/settings/SettingsPage";
+import TagManagerPage from "./components/tags/TagManagerPage";
+import TimeThemesListPage from "./components/timeThemes/TimeThemesListPage";
+import TimeThemeForm from "./components/timeThemes/TimeThemeForm";
 import TodayPage from "./components/today/TodayPage";
 import ActionsListPage from "./components/actions/ActionsListPage";
 import ActionForm from "./components/actions/ActionForm";
@@ -160,6 +163,18 @@ export default [
   {
     path: "/settings",
     element: <SettingsPage />,
+  },
+  {
+    path: "/settings/tags",
+    element: <TagManagerPage />,
+  },
+  {
+    path: "/activities/timeThemes",
+    element: <TimeThemesListPage />,
+  },
+  {
+    path: "/activities/timeTheme/:id?",
+    element: <TimeThemeForm />,
   },
   {
     path: "/calendar",

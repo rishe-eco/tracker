@@ -14,6 +14,7 @@ import {
   RUN_ACTION_GATHERING,
   GET_SKILL_DUE_REVIEWS,
   GET_DUE_SKILL_PROBES,
+  GET_TIME_THEMES_FOR_DATE,
 } from "~/api/queries";
 import { useNavigate } from "react-router";
 import { toLocalDateString } from "~/utils/dateUtils";
@@ -22,6 +23,9 @@ import HintPopover from "~/components/ui/HintPopover";
 import { useTranslation } from "react-i18next";
 import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import JournalQuickAdd from "~/components/journals/JournalQuickAdd";
+import { type TimeThemeLike } from "~/lib/timeThemes";
+import { tagColorClasses } from "~/lib/tagPalette";
+import { cn } from "~/lib/utils";
 
 export default function TodayPage() {
   const { t } = useTranslation();
@@ -42,6 +46,7 @@ export default function TodayPage() {
   const [addEstimatedMin, setAddEstimatedMin] = useState<string>("");
   const [addTimeOfDay, setAddTimeOfDay] = useState<string>("");
   const [skillsDueCount, setSkillsDueCount] = useState(0);
+  const [themesToday, setThemesToday] = useState<TimeThemeLike[]>([]);
   const { call } = useApi();
   const showAddFields = addInput.trim().length > 0;
   const addDateIsToday = addDate === todayKey;
@@ -106,6 +111,14 @@ export default function TodayPage() {
       cancelled = true;
     };
   }, [call]);
+
+  // Time Themes: today's active bands, shown as a soft banner — surfacing +
+  // context only, never a gate (time-themes.md §2).
+  useEffect(() => {
+    call({ query: GET_TIME_THEMES_FOR_DATE, variables: { dateKey: todayKey } }).then((res: any) =>
+      setThemesToday(res?.timeThemesForDate ?? [])
+    );
+  }, [call, todayKey]);
 
   const afterDayRequired = preDayStatus?.afterDayRequired === true;
 
@@ -182,6 +195,24 @@ export default function TodayPage() {
           </Button>
         </div>
       </div>
+
+      {themesToday.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <span className="font-medium text-muted-foreground">{t("wizard.themesToday")}</span>
+          {themesToday.map((theme) => {
+            const classes = tagColorClasses(theme.tags[0]?.color);
+            return (
+              <span
+                key={theme.id}
+                className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs", classes.chip)}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", classes.dot)} aria-hidden />
+                {theme.title} ({theme.startTimeOfDay}–{theme.endTimeOfDay})
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {skillsDueCount > 0 && (
         <button

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { BookOpen, PlayCircle } from "lucide-react";
+import { BookOpen, PlayCircle, Tag as TagIcon } from "lucide-react";
 import UnderConstruction from "../UnderConstruction";
 import OnboardingSlideshow from "../onboarding/OnboardingSlideshow";
 import ApiTokensSection from "./ApiTokensSection";
@@ -128,6 +128,17 @@ export default function SettingsPage() {
             {discoverableByEmail ? t("settings.discoverability.on") : t("settings.discoverability.off")}
           </span>
         </div>
+      </section>
+      {/* Time Themes: the shared tag vocabulary manager (time-themes.md §7.1). */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">{t("tags.settingsSectionTitle")}</h2>
+        <p className="text-sm text-muted-foreground">{t("tags.settingsSectionDescription")}</p>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/settings/tags">
+            <TagIcon className="h-4 w-4" />
+            {t("tags.openManager")}
+          </Link>
+        </Button>
       </section>
       <ApiTokensSection />
       <section className="space-y-4">

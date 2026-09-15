@@ -8,8 +8,9 @@ import { useAppDate } from "~/i18n/useAppDate";
 import { DatePickerGrid } from "~/components/ui/date-picker-grid";
 import { Badge } from "~/components/ui/badge";
 import InternalPageLayout from "~/layout/InternalPageLayout";
-import { ADD_ACTION, UPDATE_ACTION, GET_ACTION, DELETE_ACTION, GET_PROJECTS } from "~/api/queries";
+import { ADD_ACTION, UPDATE_ACTION, GET_ACTION, DELETE_ACTION, GET_PROJECTS, GET_TAGS, SET_ACTION_TAGS } from "~/api/queries";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import TagPicker from "~/components/tags/TagPicker";
 import { InlineEdit } from "~/components/ui/inline-edit";
 import { Pencil, Trash2 } from "lucide-react";
 import { useApi } from "~/api/useApi";
@@ -33,6 +34,7 @@ type ProjectOption = {
   title: string;
   goal?: { id: string; title: string } | null;
   milestone?: { id: string; title: string } | null;
+  tags?: { id: string; name: string; color: string }[];
 };
 
 function getActionFormReturnPath(state: unknown): string {
@@ -81,6 +83,10 @@ export default function ActionForm() {
   const [tempTbd, setTempTbd] = useState<Date | undefined>(undefined);
   const [projectId, setProjectId] = useState<string>(initialProjectId);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const [isGathered, setIsGathered] = useState(false);
+  const [sourceType, setSourceType] = useState<string | null>(null);
   const navigate = useNavigate();
   const { call } = useApi();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -100,7 +106,22 @@ export default function ActionForm() {
     call({ query: GET_PROJECTS }).then((res) => {
       setProjects((res?.projects ?? []) as ProjectOption[]);
     });
+    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
   }, [call]);
+
+  // Time Themes: a new project-linked action's tags seed from the project
+  // (server does the same at create — this just lets the picker show/edit
+  // that starting point before submit). Only for create; an edit's tags come
+  // from the action itself, fetched below.
+  useEffect(() => {
+    if (isEdit) return;
+    if (!projectId) {
+      setTagIds([]);
+      return;
+    }
+    const project = projects.find((p) => p.id === projectId);
+    setTagIds((project?.tags ?? []).map((tg) => tg.id));
+  }, [isEdit, projectId, projects]);
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -117,6 +138,9 @@ export default function ActionForm() {
         );
         setStartTimeOfDay(action.startTimeOfDay ?? "");
         setProjectId(action.project?.id ?? initialProjectId);
+        setTagIds((action.tags ?? []).map((tg: any) => tg.id));
+        setIsGathered(Boolean(action.isGathered));
+        setSourceType(action.sourceType ?? null);
       })
       .catch((err) => {
         if (!cancelled) console.error("Failed to fetch action:", err);
@@ -148,6 +172,15 @@ export default function ActionForm() {
         return "";
     }
   }
+
+  // Time Themes: locked (gathered) actions never reach this — TagPicker
+  // renders read-only and calls no onChange when `locked`. The server also
+  // enforces it (setActionTags rejects sourceType != null) as the real gate.
+  const handleTagsChange = async (nextTagIds: string[]) => {
+    setTagIds(nextTagIds);
+    if (!isEdit || !id || isGathered) return;
+    await call({ query: SET_ACTION_TAGS, variables: { actionId: id, tagIds: nextTagIds } });
+  };
 
   const updateActionField = async (field: string, value: string | null) => {
     if (!id) return;
@@ -234,6 +267,12 @@ export default function ActionForm() {
             };
 
         const res = await call({ query: mutation, variables });
+        if (!isEditing && res?.addAction && tagIds.length > 0) {
+          // Reconcile: the server already seeded project tags at create
+          // (addAction copies them); this applies whatever the picker showed
+          // at submit time, including edits the user made to that starting set.
+          await call({ query: SET_ACTION_TAGS, variables: { actionId: res.addAction.id, tagIds } });
+        }
         if (res?.updateAction ?? res?.addAction) navigate(returnTo);
       } catch (error) {
         console.error("Failed to submit action:", error);
@@ -295,6 +334,24 @@ export default function ActionForm() {
               />
               <Badge className={statusColor}>{status}</Badge>
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="flex items-center gap-2">{t("tags.label")}</Label>
+            <TagPicker
+              availableTags={availableTags}
+              selectedTagIds={tagIds}
+              onChange={handleTagsChange}
+              locked={isGathered}
+              lockedNote={
+                isGathered
+                  ? sourceType === "routine"
+                    ? t("tags.lockedFromRoutine")
+                    : t("tags.lockedFromInterval")
+                  : undefined
+              }
+              seededNote={!isGathered && projectId ? t("tags.projectSeedNote") : undefined}
+            />
           </div>
 
           <div className="space-y-1">
@@ -469,6 +526,16 @@ export default function ActionForm() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("actions.titlePlaceholder")}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">{t("tags.label")}</Label>
+          <TagPicker
+            availableTags={availableTags}
+            selectedTagIds={tagIds}
+            onChange={setTagIds}
+            seededNote={projectId ? t("tags.projectSeedNote") : undefined}
           />
         </div>
 

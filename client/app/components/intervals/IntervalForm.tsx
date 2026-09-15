@@ -36,27 +36,13 @@ import {
   DELETE_ROUTINE,
 } from "~/api/queries";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import RecurrenceControl, { toDateTimeLocal, fromDateTimeLocal } from "~/components/schedule/RecurrenceControl";
+import TagPicker from "~/components/tags/TagPicker";
+import { GET_TAGS, SET_INTERVAL_TAGS, SET_ROUTINE_TAGS } from "~/api/queries";
 import { cn } from "~/lib/utils";
 import { useSubmitGuard } from "~/utils/useSubmitGuard";
 
-const REPEAT_UNIT_KEYS = ["minute", "hour", "day", "week", "month", "year"] as const;
-const DAY_LABEL_KEYS = ["dayMon", "dayTue", "dayWed", "dayThu", "dayFri", "daySat", "daySun"] as const;
-const MONTH_LABEL_KEYS = ["monthJan", "monthFeb", "monthMar", "monthApr", "monthMay", "monthJun", "monthJul", "monthAug", "monthSep", "monthOct", "monthNov", "monthDec"] as const;
-
 const MAX_ESTIMATED_MINUTES = 24 * 60; // 24 hours
-
-/** Format Date or ISO string for input[type="datetime-local"] (local time) */
-function toDateTimeLocal(isoOrDate: string | Date | null | undefined): string {
-  if (!isoOrDate) return "";
-  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-  return format(d, "yyyy-MM-dd'T'HH:mm");
-}
-
-/** Parse datetime-local value to ISO string */
-function fromDateTimeLocal(s: string): string {
-  if (!s) return "";
-  return new Date(s).toISOString();
-}
 
 function AccordionSection({
   title,
@@ -207,8 +193,25 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
   const [estimatedTimeMinutes, setEstimatedTimeMinutes] = useState<string>("");
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const minDateTimeLocal = format(new Date(), "yyyy-MM-dd") + "T00:00";
+
+  useEffect(() => {
+    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
+  }, []);
+
+  // Time Themes: tags on an existing interval/routine commit immediately, like
+  // the rest of this edit-context form's inline-editable fields (Convention
+  // #8) — there is no separate "save" step for a chip add/remove.
+  const handleTagsChange = async (nextTagIds: string[]) => {
+    setTagIds(nextTagIds);
+    if (!isEdit || !id) return;
+    const query = mode === "interval" ? SET_INTERVAL_TAGS : SET_ROUTINE_TAGS;
+    const variables = mode === "interval" ? { intervalId: id, tagIds: nextTagIds } : { routineId: id, tagIds: nextTagIds };
+    await call({ query, variables });
+  };
 
   useEffect(() => {
     if (mode === "interval") {
@@ -293,6 +296,7 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
         setMilestoneId(data.milestone?.id ?? "");
         setProjectId(data.project?.id ?? "");
         setEstimatedTimeMinutes(data.estimatedTimeMinutes != null ? String(data.estimatedTimeMinutes) : "");
+        setTagIds((data.tags ?? []).map((tg: any) => tg.id));
       });
     } else {
       call({ query: GET_ROUTINE, variables: { id } }).then((res) => {
@@ -314,6 +318,7 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
           }))
         );
         setEstimatedTimeMinutes(data.estimatedTimeMinutes != null ? String(data.estimatedTimeMinutes) : "");
+        setTagIds((data.tags ?? []).map((tg: any) => tg.id));
       });
     }
   }, [id, isEdit, mode]);
@@ -464,7 +469,12 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
               steps: stepsPayload,
             },
           });
-          if (res?.addRoutine) navigate("/activities/intervals");
+          if (res?.addRoutine) {
+            if (tagIds.length > 0) {
+              await call({ query: SET_ROUTINE_TAGS, variables: { routineId: res.addRoutine.id, tagIds } });
+            }
+            navigate("/activities/intervals");
+          }
         }
       } else {
         if (isEdit) {
@@ -507,7 +517,12 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
               projectId: scope.projectId || undefined,
             },
           });
-          if (res?.addInterval) navigate("/activities/intervals");
+          if (res?.addInterval) {
+            if (tagIds.length > 0) {
+              await call({ query: SET_INTERVAL_TAGS, variables: { intervalId: res.addInterval.id, tagIds } });
+            }
+            navigate("/activities/intervals");
+          }
         }
       }
     } catch (err) {
@@ -656,6 +671,14 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
         </div>
 
         <div className="space-y-2">
+          <Label className="flex items-center gap-2">{t("tags.label")}</Label>
+          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} />
+          <p className="text-xs text-muted-foreground">
+            {mode === "interval" ? t("tags.intervalSeedNote") : t("tags.routineSeedNote")}
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="estimatedTimeMinutes" className="flex items-center gap-2">
             {t("intervals.estimatedTimeMinutes")} <span className="text-destructive">*</span>
             <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
@@ -790,249 +813,29 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
           open={repeatsOpen}
           onToggle={() => setRepeatsOpen((o) => !o)}
         >
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="repeatValue" className="flex items-center gap-2">
-                {t("intervals.every")} <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
-              </Label>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  id="repeatValue"
-                  type="number"
-                  min={1}
-                  value={repeatValue}
-                  onChange={(e) => setRepeatValue(parseInt(e.target.value, 10) || 1)}
-                  className="w-20"
-                />
-                <select
-                  value={repeatUnit}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setRepeatUnit(v);
-                    if (v !== "week") setCustomRepeatRuleDaysOfWeek([]);
-                    if (v !== "month") setCustomRepeatRuleDaysOfMonth([]);
-                    if (v !== "year") {
-                      setCustomRepeatRuleMonths([]);
-                      setCustomRepeatRuleYearDaysOfMonth([]);
-                    }
-                  }}
-                  className={cn(
-                    "flex h-9 flex-1 min-w-0 rounded-md border border-input bg-transparent px-2 py-1 text-sm",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  )}
-                >
-                  {REPEAT_UNIT_KEYS.map((key) => (
-                    <option key={key} value={key}>
-                      {t(`intervals.repeatUnit${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {repeatUnit === "week" && (
-              <div className="space-y-2">
-                <Label>{t("intervals.onDaysOfWeek")}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {DAY_LABEL_KEYS.map((key, i) => {
-                    const value = i + 1;
-                    const selected = customRepeatRuleDaysOfWeek.includes(value);
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => {
-                          setCustomRepeatRuleDaysOfWeek((prev) =>
-                            selected
-                              ? prev.filter((x) => x !== value)
-                              : [...prev, value].sort((a, b) => a - b)
-                          );
-                        }}
-                        className={cn(
-                          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                          selected
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        {t(`intervals.${key}`)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {repeatUnit === "month" && (
-              <div className="space-y-2">
-                <Label>{t("intervals.onDaysOfMonth")}</Label>
-                <div className="flex flex-wrap gap-1.5 max-w-md">
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                    const selected = customRepeatRuleDaysOfMonth.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          setCustomRepeatRuleDaysOfMonth((prev) =>
-                            selected
-                              ? prev.filter((x) => x !== day)
-                              : [...prev, day].sort((a, b) => a - b)
-                          );
-                        }}
-                        className={cn(
-                          "min-w-[2rem] rounded-md px-2 py-1 text-sm font-medium transition-colors",
-                          selected
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {repeatUnit === "year" && (
-              <>
-                <div className="space-y-2">
-                  <Label>{t("intervals.inMonths")}</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {MONTH_LABEL_KEYS.map((key, i) => {
-                      const value = i + 1;
-                      const selected = customRepeatRuleMonths.includes(value);
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => {
-                            setCustomRepeatRuleMonths((prev) =>
-                              selected
-                                ? prev.filter((x) => x !== value)
-                                : [...prev, value].sort((a, b) => a - b)
-                            );
-                          }}
-                          className={cn(
-                            "rounded-md px-2 py-1 text-sm font-medium transition-colors",
-                            selected
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                          )}
-                        >
-                          {t(`intervals.${key}`)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("intervals.onDaysOfMonth")}</Label>
-                  <div className="flex flex-wrap gap-1.5 max-w-md">
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                      const selected = customRepeatRuleYearDaysOfMonth.includes(day);
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => {
-                            setCustomRepeatRuleYearDaysOfMonth((prev) =>
-                              selected
-                                ? prev.filter((x) => x !== day)
-                                : [...prev, day].sort((a, b) => a - b)
-                            );
-                          }}
-                          className={cn(
-                            "min-w-[2rem] rounded-md px-2 py-1 text-sm font-medium transition-colors",
-                            selected
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                          )}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="space-y-2 pt-2 border-t">
-              <Label htmlFor="intervalTimeBlock-0" className="flex items-center gap-2">
-                {t("intervals.timeOfDayBlocksOptional")} <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {t("intervals.timeBlocksRepeatHelp")}
-              </p>
-              {timeOfDayBlocks.map((block, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Label htmlFor={`intervalTimeBlock-${i}`} className="sr-only">{t("intervals.timeBlockLabel", { n: i + 1 })}</Label>
-                  <Input
-                    id={`intervalTimeBlock-${i}`}
-                    type="time"
-                    value={block}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setTimeOfDayBlocks((prev) => prev.map((t, j) => (j === i ? next : t)));
-                    }}
-                    className="max-w-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTimeOfDayBlocks((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label={t("intervals.removeTimeBlock")}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setTimeOfDayBlocks((prev) => [...prev, "09:00"])}
-              >
-                <Plus className="h-4 w-4 mr-2" /> {t("intervals.addTimeBlock")}
-              </Button>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t">
-              <Label htmlFor="customRepeatDate-0" className="flex items-center gap-2">
-                {t("intervals.specificDatesOptional")} <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {t("intervals.specificDatesHelp")}
-              </p>
-              {customRepeatDates.map((iso, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Label htmlFor={`customRepeatDate-${i}`} className="sr-only">{t("intervals.dateLabel", { n: i + 1 })}</Label>
-                  <DateTimeField
-                    id={`customRepeatDate-${i}`}
-                    min={minDateTimeLocal}
-                    value={iso ? toDateTimeLocal(iso) : ""}
-                    onChange={(e) => setCustomDateAt(i, e.target.value)}
-                    className="flex-1 max-w-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeCustomDate(i)}
-                    aria-label={t("intervals.removeDate")}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={addCustomDate}>
-                <Plus className="h-4 w-4 mr-2" /> {t("intervals.addDate")}
-              </Button>
-            </div>
-          </div>
+          <RecurrenceControl
+            repeatValue={repeatValue}
+            onRepeatValueChange={setRepeatValue}
+            repeatUnit={repeatUnit}
+            onRepeatUnitChange={setRepeatUnit}
+            daysOfWeek={customRepeatRuleDaysOfWeek}
+            onDaysOfWeekChange={setCustomRepeatRuleDaysOfWeek}
+            daysOfMonth={customRepeatRuleDaysOfMonth}
+            onDaysOfMonthChange={setCustomRepeatRuleDaysOfMonth}
+            months={customRepeatRuleMonths}
+            onMonthsChange={setCustomRepeatRuleMonths}
+            yearDaysOfMonth={customRepeatRuleYearDaysOfMonth}
+            onYearDaysOfMonthChange={setCustomRepeatRuleYearDaysOfMonth}
+            customRepeatDates={customRepeatDates}
+            onAddCustomDate={addCustomDate}
+            onCustomDateChange={setCustomDateAt}
+            onRemoveCustomDate={removeCustomDate}
+            minDateTimeLocal={minDateTimeLocal}
+            toDateTimeLocal={toDateTimeLocal}
+            timeOfDayBlocks={timeOfDayBlocks}
+            onTimeOfDayBlocksChange={setTimeOfDayBlocks}
+            showTimeOfDayBlocks
+          />
         </AccordionSection>
         )}
 

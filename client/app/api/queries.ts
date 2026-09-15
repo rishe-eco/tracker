@@ -23,6 +23,7 @@ export const GET_PROJECTS = `
         id
         title
       }
+      tags { id name color }
     }
   }
 `;
@@ -52,6 +53,7 @@ export const GET_PROJECT = `
         id
         title
       }
+      tags { id name color }
     }
   }
 `;
@@ -107,6 +109,7 @@ export const UPDATE_ACTION = `
       priority
       estimatedTimeMinutes
       startTimeOfDay
+      tags { id name color }
     }
   }
 `;
@@ -121,6 +124,7 @@ export const ADD_ACTION = `
       priority
       estimatedTimeMinutes
       startTimeOfDay
+      tags { id name color }
     }
   }
 `;
@@ -145,12 +149,15 @@ export const GET_ACTIONS = `
       estimatedTimeMinutes
       startTimeOfDay
       createdAt
+      isGathered
+      sourceType
       project {
         id
         title
         goal { id title }
         milestone { id title }
       }
+      tags { id name color }
     }
   }
 `;
@@ -164,12 +171,15 @@ export const GET_ACTION = `
       done
       estimatedTimeMinutes
       startTimeOfDay
+      isGathered
+      sourceType
       project {
         id
         title
         goal { id title }
         milestone { id title }
       }
+      tags { id name color }
     }
   }
 `;
@@ -398,6 +408,7 @@ export const GET_STANDALONE_ACTIONS = `
       tbd
       done
       priority
+      tags { id name color }
     }
   }
 `;
@@ -449,6 +460,7 @@ export const GET_INTERVALS = `
         id
         title
       }
+      tags { id name color }
     }
   }
 `;
@@ -474,6 +486,7 @@ export const GET_INTERVAL = `
       goal { id title }
       milestone { id title }
       project { id title }
+      tags { id name color }
     }
   }
 `;
@@ -591,6 +604,7 @@ export const GET_ROUTINES = `
         title
         order
       }
+      tags { id name color }
     }
   }
 `;
@@ -610,6 +624,7 @@ export const GET_ROUTINE = `
         title
         order
       }
+      tags { id name color }
     }
   }
 `;
@@ -721,6 +736,7 @@ export const GET_TODAY_ACTIONS = `
       forDate
       isGathered
       actionFate
+      tags { id name color }
     }
   }
 `;
@@ -739,6 +755,7 @@ export const GET_PRE_DAY_STATUS = `
         isGathered
         sourceType
         sourceId
+        tags { id name color }
       }
       todayActionsWithOverlap {
         action {
@@ -748,6 +765,7 @@ export const GET_PRE_DAY_STATUS = `
           estimatedTimeMinutes
           project { id title }
           isGathered
+          tags { id name color }
         }
         overlapIds
       }
@@ -2619,5 +2637,135 @@ export const FINISH_LOOP_SITTING = `
 export const ACKNOWLEDGE_GRADUATION = `
   mutation AcknowledgeGraduation {
     acknowledgeGraduation
+  }
+`;
+
+// ---- Time Themes: Tags (shared vocabulary) ----
+
+const TAG_FIELDS = `id name color usageCount createdAt`;
+
+export const GET_TAGS = `
+  query GetTags {
+    tags { ${TAG_FIELDS} }
+  }
+`;
+
+export const CREATE_TAG = `
+  mutation CreateTag($name: String!, $color: String!) {
+    createTag(name: $name, color: $color) { ${TAG_FIELDS} }
+  }
+`;
+
+export const RENAME_TAG = `
+  mutation RenameTag($id: ID!, $name: String!) {
+    renameTag(id: $id, name: $name) { ${TAG_FIELDS} }
+  }
+`;
+
+export const RECOLOR_TAG = `
+  mutation RecolorTag($id: ID!, $color: String!) {
+    recolorTag(id: $id, color: $color) { ${TAG_FIELDS} }
+  }
+`;
+
+export const DELETE_TAG = `
+  mutation DeleteTag($id: ID!) {
+    deleteTag(id: $id)
+  }
+`;
+
+export const SET_PROJECT_TAGS = `
+  mutation SetProjectTags($projectId: ID!, $tagIds: [ID!]!) {
+    setProjectTags(projectId: $projectId, tagIds: $tagIds) {
+      id
+      tags { id name color }
+    }
+  }
+`;
+
+export const SET_INTERVAL_TAGS = `
+  mutation SetIntervalTags($intervalId: ID!, $tagIds: [ID!]!) {
+    setIntervalTags(intervalId: $intervalId, tagIds: $tagIds) {
+      id
+      tags { id name color }
+    }
+  }
+`;
+
+export const SET_ROUTINE_TAGS = `
+  mutation SetRoutineTags($routineId: ID!, $tagIds: [ID!]!) {
+    setRoutineTags(routineId: $routineId, tagIds: $tagIds) {
+      id
+      tags { id name color }
+    }
+  }
+`;
+
+export const SET_ACTION_TAGS = `
+  mutation SetActionTags($actionId: ID!, $tagIds: [ID!]!) {
+    setActionTags(actionId: $actionId, tagIds: $tagIds) {
+      id
+      tags { id name color }
+    }
+  }
+`;
+
+// ---- Time Themes: themes ----
+
+const TIME_THEME_FIELDS = `
+  id
+  title
+  status
+  startTimeOfDay
+  endTimeOfDay
+  repeatValue
+  repeatUnit
+  customRepeatDates
+  customRepeatRule
+  endTime
+  tags { id name color }
+  createdAt
+  updatedAt
+`;
+
+export const GET_TIME_THEMES = `
+  query GetTimeThemes {
+    timeThemes { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const GET_TIME_THEME = `
+  query GetTimeTheme($id: ID!) {
+    timeTheme(id: $id) { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const GET_TIME_THEMES_FOR_DATE = `
+  query GetTimeThemesForDate($dateKey: String!) {
+    timeThemesForDate(dateKey: $dateKey) { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const CREATE_TIME_THEME = `
+  mutation CreateTimeTheme($input: TimeThemeInput!) {
+    createTimeTheme(input: $input) { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const UPDATE_TIME_THEME = `
+  mutation UpdateTimeTheme($id: ID!, $input: TimeThemeInput!) {
+    updateTimeTheme(id: $id, input: $input) { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const SET_TIME_THEME_STATUS = `
+  mutation SetTimeThemeStatus($id: ID!, $status: IntervalStatus!) {
+    setTimeThemeStatus(id: $id, status: $status) { ${TIME_THEME_FIELDS} }
+  }
+`;
+
+export const DELETE_TIME_THEME = `
+  mutation DeleteTimeTheme($id: ID!) {
+    deleteTimeTheme(id: $id)
   }
 `;

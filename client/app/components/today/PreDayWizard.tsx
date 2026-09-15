@@ -14,6 +14,7 @@ import {
   SET_ACTION_IGNORE,
   SET_ACTION_PASSED_ARCHIVED,
   COMPLETE_PRE_DAY,
+  GET_TIME_THEMES_FOR_DATE,
 } from "~/api/queries";
 import { toLocalDateString, addDaysToDateKey } from "~/utils/dateUtils";
 import { format } from "date-fns";
@@ -22,6 +23,11 @@ import HintPopover from "~/components/ui/HintPopover";
 import AfterDayWizard from "./AfterDayWizard";
 import { LoadingBlock } from "~/components/ui/spinner";
 import { useKeyedSubmitGuard } from "~/utils/useSubmitGuard";
+import { matchesAnyTheme, themesCoveringTime, type TimeThemeLike } from "~/lib/timeThemes";
+import { tagColorClasses } from "~/lib/tagPalette";
+import { cn } from "~/lib/utils";
+
+type TagRef = { id: string; name: string; color: string };
 
 type ActionWithOverlap = {
   action: {
@@ -31,6 +37,7 @@ type ActionWithOverlap = {
     estimatedTimeMinutes: number | null;
     project?: { id: string; title: string } | null;
     isGathered?: boolean;
+    tags?: TagRef[];
   };
   overlapIds: string[];
 };
@@ -44,6 +51,7 @@ type ActionItem = {
   isGathered?: boolean;
   sourceType?: string | null;
   sourceId?: string | null;
+  tags?: TagRef[];
 };
 
 type StepIndex = 0 | 1 | 2 | 3;
@@ -120,8 +128,17 @@ export default function PreDayWizard({
   }>({ doTitle: "", doDate: "", ensureTitle: "", ensureDate: "" });
   const [overlapConfirmOpen, setOverlapConfirmOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [themesToday, setThemesToday] = useState<TimeThemeLike[]>([]);
   const { call } = useApi();
   const minDate = format(new Date(), "yyyy-MM-dd");
+
+  // Time Themes: soft surfacing only (time-themes.md §2) — ranks matching
+  // actions to the top and marks them; never restricts what can be picked.
+  useEffect(() => {
+    call({ query: GET_TIME_THEMES_FOR_DATE, variables: { dateKey: todayKey } }).then((res: any) =>
+      setThemesToday(res?.timeThemesForDate ?? [])
+    );
+  }, [todayKey]);
 
   const fetchPreDay = useCallback(
     () =>
@@ -150,7 +167,20 @@ export default function PreDayWizard({
     };
   }, [todayKey]);
 
-  const untimedList = preDay?.actionsWithoutTime ?? [];
+  const untimedListRaw = preDay?.actionsWithoutTime ?? [];
+  // Time Themes: soft surfacing (wireframe §6) — matching actions rank to the
+  // top of the picker, under a divider; "everything else" stays fully
+  // reachable below it. Order is the only thing this changes.
+  const themeMatchIds = new Set(
+    themesToday.length > 0
+      ? untimedListRaw.filter((a: ActionItem) => matchesAnyTheme(a.tags?.map((tg) => tg.id) ?? [], themesToday)).map((a: ActionItem) => a.id)
+      : []
+  );
+  const untimedList =
+    themeMatchIds.size > 0
+      ? [...untimedListRaw].sort((a, b) => Number(themeMatchIds.has(b.id)) - Number(themeMatchIds.has(a.id)))
+      : untimedListRaw;
+  const firstNonMatchIndex = untimedList.findIndex((a: ActionItem) => !themeMatchIds.has(a.id));
   const withOverlap = preDay?.todayActionsWithOverlap ?? [];
   const orderedOverview = sortActionsWithTimeFirst(withOverlap);
   // First list: only actions that have a time (so no task appears in both lists)
@@ -445,6 +475,25 @@ export default function PreDayWizard({
         })}
       </div>
 
+      {themesToday.length > 0 && (step === 1 || step === 2) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          <span className="font-medium text-muted-foreground">{t("wizard.themesToday")}</span>
+          {themesToday.map((theme) => {
+            const primaryColor = theme.tags[0]?.color;
+            const classes = tagColorClasses(primaryColor);
+            return (
+              <span
+                key={theme.id}
+                className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs", classes.chip)}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full", classes.dot)} aria-hidden />
+                {theme.title} ({theme.startTimeOfDay}–{theme.endTimeOfDay})
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       {/* Step 1: Day overview (has time) + Tasks without time — mutually exclusive lists */}
       {step === 1 && (
         <section className="space-y-8">
@@ -452,20 +501,29 @@ export default function PreDayWizard({
             <div>
               <h2 className="mb-3 text-lg font-semibold">{t("wizard.dayOverviewOrdered")}</h2>
               <ul className="space-y-2">
-                {overviewWithTimeOnly.map(({ action, overlapIds }) => (
-                  <li
-                    key={action.id}
-                    className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${
-                      overlapIds.length > 0 ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30" : ""
-                    }`}
-                  >
-                    <span>{action.title}</span>
-                    <span className="text-muted-foreground">
-                      {action.startTimeOfDay ?? "—"}
-                      {action.estimatedTimeMinutes != null && ` (${action.estimatedTimeMinutes} min)`}
-                    </span>
-                  </li>
-                ))}
+                {overviewWithTimeOnly.map(({ action, overlapIds }) => {
+                  const covering = themesCoveringTime(themesToday, action.startTimeOfDay);
+                  const isMatch = covering.length > 0 && matchesAnyTheme(action.tags?.map((tg) => tg.id) ?? [], covering);
+                  return (
+                    <li
+                      key={action.id}
+                      className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${
+                        overlapIds.length > 0 ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30" : ""
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {action.title}
+                        {isMatch && (
+                          <span className="text-xs font-mono text-muted-foreground">{t("wizard.themeMatch")}</span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {action.startTimeOfDay ?? "—"}
+                        {action.estimatedTimeMinutes != null && ` (${action.estimatedTimeMinutes} min)`}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -512,13 +570,26 @@ export default function PreDayWizard({
             </p>
           ) : (
             <ul className="space-y-4">
-              {untimedList.map((a) => {
+              {untimedList.map((a, idx) => {
                 const disp = untimedDisposition[a.id];
                 const timeVal = untimedTimes[a.id] ?? "";
                 const reactiveWarn = reactiveOverlapWarning(a.id, timeVal);
+                const isMatch = themeMatchIds.has(a.id);
+                const showSuggestedHeader = idx === 0 && isMatch;
+                const showEverythingElseHeader = idx === firstNonMatchIndex && firstNonMatchIndex > 0;
                 return (
-                  <li key={a.id} className="rounded-lg border bg-card p-4">
-                    <div className="mb-2 font-medium">{a.title}</div>
+                  <li key={a.id} className="space-y-4">
+                    {showSuggestedHeader && (
+                      <h3 className="text-sm font-medium text-muted-foreground">{t("wizard.suggestedForTheme")}</h3>
+                    )}
+                    {showEverythingElseHeader && (
+                      <h3 className="text-sm font-medium text-muted-foreground pt-2 border-t">{t("wizard.everythingElse")}</h3>
+                    )}
+                    <div className={cn("rounded-lg border bg-card p-4", isMatch && "border-primary/50")}>
+                    <div className="mb-2 font-medium flex items-center gap-2">
+                      {a.title}
+                      {isMatch && <span className="text-xs font-mono text-muted-foreground">{t("wizard.themeMatch")}</span>}
+                    </div>
                     {disp === "postpone" ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <Label htmlFor={`preday-postpone-${a.id}`} className="flex items-center gap-2 shrink-0">
@@ -684,6 +755,7 @@ export default function PreDayWizard({
                         </div>
                       </>
                     )}
+                    </div>
                   </li>
                 );
               })}

@@ -239,6 +239,14 @@ export default function CalendarPage() {
           />
           <Label className="text-sm cursor-pointer">{t("calendarPage.routines")}</Label>
         </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox
+            checked={filters.timeThemes}
+            onCheckedChange={() => toggle("timeThemes")}
+            aria-label={t("calendarPage.timeThemes")}
+          />
+          <Label className="text-sm cursor-pointer">{t("calendarPage.timeThemes")}</Label>
+        </label>
       </div>
 
       {mode === "manage" && (
