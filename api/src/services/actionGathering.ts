@@ -256,6 +256,61 @@ function gatheredActionKey(action: {
 }
 
 /**
+ * Per-user serialization for gathering.
+ *
+ * `runActionGatheringInner` reads the set of already-gathered rows into `seen`,
+ * then writes new rows in a per-date transaction — but the read and the write
+ * are not atomic. Two overlapping calls for the same user each read "nothing
+ * gathered yet" and both insert, producing duplicate gathered actions. It shows
+ * up in dev because `TodayPage`'s mount effect double-fires under React
+ * StrictMode, but two tabs or a retry race the same way. The dedup is in
+ * application code (no DB uniqueness on the gathered-action identity), so the
+ * only real defence is to not let two runs for one user overlap.
+ *
+ * We serialize per user: a call runs only after the prior call for the same user
+ * has committed, so its fresh `seen` read sees the prior run's rows and dedupes.
+ * Different users never block each other. A single writer is the operative
+ * assumption (SQLite is single-writer, so the API is single-process); if this
+ * ever runs multi-instance, add a DB-level unique index on
+ * (userId, forDate, sourceType, sourceId, startTimeOfDay) as the durable guard —
+ * gathered rows are always fully non-null on those columns, and SQLite treats
+ * NULLs as distinct, so standalone/project actions are exempt automatically.
+ */
+const userGatheringChains = new Map<string, Promise<void>>();
+
+export async function runActionGathering(
+  prisma: PrismaClient,
+  userId: string,
+  options: ActionGatheringOptions
+): Promise<{ dateKeysProcessed: string[]; actionsCreated: number }> {
+  // Gate on the prior holder for this user, swallowing its outcome so one
+  // failed run can't break the chain for the next caller.
+  const prior = userGatheringChains.get(userId) ?? Promise.resolve();
+  const gate = prior.then(
+    () => {},
+    () => {}
+  );
+  let release!: () => void;
+  const mine = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // Reserve our slot synchronously so a concurrent caller chains after us.
+  const slot = gate.then(() => mine);
+  userGatheringChains.set(userId, slot);
+
+  await gate;
+  try {
+    return await runActionGatheringInner(prisma, userId, options);
+  } finally {
+    release();
+    // Drop the entry once we're the tail, so the map doesn't grow per user.
+    if (userGatheringChains.get(userId) === slot) {
+      userGatheringChains.delete(userId);
+    }
+  }
+}
+
+/**
  * Run action gathering for today, today+1, today+2 (or subset).
  * Creates gathered Actions from intervals and routines, and sets actionGatheringCompletedAt on DayState.
  *
@@ -265,8 +320,11 @@ function gatheredActionKey(action: {
  * transaction. Doing a findFirst-then-create round trip per action instead cost
  * ~100-400ms per action against SQLite, so a user with 10 intervals across two
  * time blocks waited ~23s.
+ *
+ * Always call through `runActionGathering`, never directly — it holds the
+ * per-user lock that keeps the non-atomic read-then-write from racing itself.
  */
-export async function runActionGathering(
+async function runActionGatheringInner(
   prisma: PrismaClient,
   userId: string,
   options: ActionGatheringOptions

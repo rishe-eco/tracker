@@ -49,6 +49,36 @@ describe("runActionGathering", () => {
     expect(actions).toHaveLength(3);
   });
 
+  it("does not duplicate when two runs race concurrently for the same user/date", async () => {
+    const user = await createTestUser();
+    await makeActiveInterval(user.id);
+    // The TOCTOU this guards against: two overlapping runs (StrictMode
+    // double-fire, two tabs, a retry) each read "nothing gathered yet" and both
+    // insert. Serialized per user, so between them exactly one set is created.
+    const [a, b] = await Promise.all([
+      runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false }),
+      runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false }),
+    ]);
+    expect(a.actionsCreated + b.actionsCreated).toBe(3); // 3 total, never 6
+    const actions = await prisma.action.findMany({ where: { userId: user.id, isGathered: true } });
+    expect(actions).toHaveLength(3);
+  });
+
+  it("serializes per user, not globally — two users gather in parallel", async () => {
+    const u1 = await createTestUser({ email: "race1@example.com" });
+    const u2 = await createTestUser({ email: "race2@example.com" });
+    await makeActiveInterval(u1.id);
+    await makeActiveInterval(u2.id);
+    const [r1, r2] = await Promise.all([
+      runActionGathering(prisma, u1.id, { todayDateKey: TODAY, skipCompletedDates: false }),
+      runActionGathering(prisma, u2.id, { todayDateKey: TODAY, skipCompletedDates: false }),
+    ]);
+    expect(r1.actionsCreated).toBe(3);
+    expect(r2.actionsCreated).toBe(3);
+    expect(await prisma.action.count({ where: { userId: u1.id, isGathered: true } })).toBe(3);
+    expect(await prisma.action.count({ where: { userId: u2.id, isGathered: true } })).toBe(3);
+  });
+
   it("skips dates that already have actionGatheringCompletedAt (skipCompletedDates=true)", async () => {
     const user = await createTestUser();
     await makeActiveInterval(user.id);
