@@ -207,7 +207,7 @@ export default function TodayPage() {
                 className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs", classes.chip)}
               >
                 <span className={cn("h-1.5 w-1.5 rounded-full", classes.dot)} aria-hidden />
-                {theme.title} ({theme.startTimeOfDay}–{theme.endTimeOfDay})
+                {theme.title} (<bdi dir="ltr">{theme.startTimeOfDay}–{theme.endTimeOfDay}</bdi>)
               </span>
             );
           })}

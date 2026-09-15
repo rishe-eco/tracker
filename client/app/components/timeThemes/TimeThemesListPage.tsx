@@ -77,7 +77,10 @@ export default function TimeThemesListPage() {
                 </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>
+                {/* dir="ltr": two LTR time tokens joined by a bare dash read
+                    reversed under the RTL bidi algorithm otherwise — visible
+                    live in fa ("12:00–08:00" for a theme stored as 08:00–12:00). */}
+                <span dir="ltr">
                   {theme.startTimeOfDay}–{theme.endTimeOfDay}
                 </span>
                 <span>{formatRepeats(theme, t)}</span>
