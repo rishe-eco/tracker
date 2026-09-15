@@ -80,6 +80,12 @@ model Action {
   forDate              DateTime? // calendar day this gathered action is for (hidden until this day)
   isGathered           Boolean           @default(false)
   actionFate           ActionFate? // set when disposed in After-day wizard
+  // Time Themes: shared tag vocabulary. Gathered actions snapshot-copy the
+  // source's tags at gather time and lock further edits (resolver-enforced);
+  // project actions initialise from the project's tags at create, then are
+  // independently editable; standalone actions start empty. See
+  // time-themes.md §3.1.
+  tags                 Tag[]
 }
 
 model DayState {
@@ -150,6 +156,9 @@ model Project {
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   journals    Journal[]
+  // Time Themes: tags seed onto actions created under this project (copy at
+  // create, then independently editable — not a live link).
+  tags        Tag[]
 }
 
 // Conceptual steps for each repetition of an interval (not the same as Action).
@@ -187,6 +196,9 @@ model Interval {
   user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+  // Time Themes: tags snapshot-copy onto every action this interval gathers
+  // (locked on the occurrence — retagging here only affects future gathers).
+  tags                 Tag[]
 }
 
 // Routine: daily-with-timer style; no link to goal/milestone/project.
@@ -212,6 +224,9 @@ model Routine {
   user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+  // Time Themes: tags snapshot-copy onto every action this routine gathers
+  // (locked on the occurrence), same rule as Interval.
+  tags                 Tag[]
 }
 
 model Note {
@@ -310,6 +325,8 @@ model User {
   frameCompletion     FrameCompletion?
   loopSittings        LoopSitting[]
   loopState           LoopState?
+  tags                Tag[]
+  timeThemes          TimeTheme[]
 }
 
 /// A personal access token for the public API. The secret is never stored —
@@ -336,6 +353,56 @@ model ApiToken {
 enum ApiTokenScope {
   read
   write
+}
+
+// ─── Time Themes ─────────────────────────────────────────────────────────────
+// Spec: root-sot/tracker/drafts/time-themes.md. A Time Theme is a recurring,
+// tag-bearing span of time that softly surfaces matching actions — it never
+// gates or filters anything, and never touches DayState or the daily cycle.
+// Tags are a first-class, user-scoped, shared vocabulary (name + colour)
+// attaching (m2m) to Project, Interval, Routine, Action, and TimeTheme. This
+// is the schema's first many-to-many relation — see time-themes-build-plan.md
+// §1 for why a real relation is used here instead of the usual JSON-string
+// list convention (#2 in 04-conventions.md), which is for lists of primitive
+// values, not entity references.
+
+model Tag {
+  id         String      @id @default(uuid())
+  name       String
+  color      String // palette key (see client tag palette module)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  // shared vocabulary — the five m2m back-relations
+  projects   Project[]
+  intervals  Interval[]
+  routines   Routine[]
+  actions    Action[]
+  timeThemes TimeTheme[]
+
+  @@unique([userId, name])
+}
+
+// Recurrence fields mirror Interval's exactly (same names, same types) so the
+// exported intervalOccursOnDate/dateMatchesRepeatFromAnchor in
+// actionGathering.ts can resolve theme occurrences by duck-typing on the
+// theme object directly — do not fork or reimplement that logic here.
+model TimeTheme {
+  id                String         @id @default(uuid())
+  title             String
+  status            IntervalStatus @default(active)
+  startTimeOfDay    String // "HH:mm"
+  endTimeOfDay      String // "HH:mm"
+  repeatValue       Int            @default(1)
+  repeatUnit        RepeatUnit?
+  customRepeatDates String? // JSON array of ISO datetimes
+  customRepeatRule  String? // JSON, same grammar as Interval
+  endTime           DateTime?
+  tags              Tag[]
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 // ─── Skill tools: Clarity Lab / Evidence Lab ────────────────────────────────
