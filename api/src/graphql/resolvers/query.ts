@@ -1,5 +1,6 @@
 import { requireAuth } from "../auth";
 import { getTodayActions, getPreDayStatus, getNotDoneActionsForDate } from "../../services/todayPreDayAfterDay";
+import { intervalOccursOnDate } from "../../services/actionGathering";
 import { getModules, getProgress } from "../../services/skills/evidenceSession";
 import { getClarityModules, getClarityProgress } from "../../services/skills/clarity/claritySession";
 import { getDecompositionModules, getDecompositionProgress } from "../../services/skills/decomposition/decompositionSession";
@@ -277,6 +278,40 @@ export const queryResolvers = {
       orderBy: { createdAt: "desc" },
     })
   ),
+
+  tags: requireAuth((_, __, ctx) =>
+    ctx.prisma.tag.findMany({
+      where: { userId: ctx.user.id },
+      orderBy: { createdAt: "asc" },
+    })
+  ),
+
+  timeThemes: requireAuth((_, __, ctx) =>
+    ctx.prisma.timeTheme.findMany({
+      where: { userId: ctx.user.id },
+      include: { tags: true },
+      orderBy: { createdAt: "desc" },
+    })
+  ),
+
+  timeTheme: requireAuth((_, { id }: any, ctx) =>
+    ctx.prisma.timeTheme.findFirst({
+      where: { id, userId: ctx.user.id },
+      include: { tags: true },
+    })
+  ),
+
+  // Soft surfacing (time-themes.md §2): resolved occurrences for one day, reusing
+  // intervalOccursOnDate verbatim (build-plan.md §Phase 4) rather than forking it.
+  // Only active themes are ever offered — inactive ones never fire, same as an
+  // inactive Interval never gathers.
+  timeThemesForDate: requireAuth(async (_, { dateKey }: any, ctx) => {
+    const themes = await ctx.prisma.timeTheme.findMany({
+      where: { userId: ctx.user.id, status: "active" },
+      include: { tags: true },
+    });
+    return themes.filter((t: any) => intervalOccursOnDate(t, dateKey));
+  }),
 
   skillModules: requireAuth(async (_, { skillKey }: any, ctx) => {
     assertEvidence(skillKey);

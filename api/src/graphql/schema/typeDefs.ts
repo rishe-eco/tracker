@@ -55,6 +55,8 @@ export const typeDefs = gql`
     forDate: String
     isGathered: Boolean!
     actionFate: ActionFate
+    "Time Themes: locked (snapshot from the interval/routine) when sourceType != null; editable otherwise."
+    tags: [Tag!]!
   }
 
   type DayState {
@@ -100,6 +102,8 @@ export const typeDefs = gql`
     endDate: String
     goal: Goal
     milestone: Milestone
+    "Time Themes: seeds tags onto actions created under this project (copy at create, then independent)."
+    tags: [Tag!]!
   }
 
   type Goal {
@@ -160,6 +164,8 @@ export const typeDefs = gql`
     project: Project
     createdAt: String!
     updatedAt: String!
+    "Time Themes: snapshot-copied onto every action this interval gathers (locked on the occurrence)."
+    tags: [Tag!]!
   }
 
   type RoutineStep {
@@ -180,6 +186,59 @@ export const typeDefs = gql`
     steps: [RoutineStep!]!
     createdAt: String!
     updatedAt: String!
+    "Time Themes: snapshot-copied onto every action this routine gathers (locked on the occurrence)."
+    tags: [Tag!]!
+  }
+
+  """
+  Time Themes: a shared, user-scoped tag vocabulary (name + colour) attaching
+  to Project, Interval, Routine, Action, and TimeTheme. Renaming/recolouring
+  propagates everywhere the tag is used, because everything references it by
+  id, not by spelling.
+  """
+  type Tag {
+    id: ID!
+    name: String!
+    color: String!
+    "Sum of how many Projects/Intervals/Routines/Actions/TimeThemes carry this tag."
+    usageCount: Int!
+    createdAt: String!
+  }
+
+  """
+  A recurring, tag-bearing span of time. Soft/suggestion only — a Time Theme
+  never blocks, gates, or filters anything; its only effects are re-ranking
+  matching actions to the top of a themed slot and drawing a coloured band on
+  the timeline. Recurrence fields mirror Interval's exactly (see
+  intervalOccursOnDate in services/actionGathering.ts, reused verbatim to
+  resolve which dates a theme fires on).
+  """
+  type TimeTheme {
+    id: ID!
+    title: String!
+    status: IntervalStatus!
+    startTimeOfDay: String!
+    endTimeOfDay: String!
+    repeatValue: Int!
+    repeatUnit: RepeatUnit
+    customRepeatDates: [String!]!
+    customRepeatRule: String
+    endTime: String
+    tags: [Tag!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input TimeThemeInput {
+    title: String!
+    startTimeOfDay: String!
+    endTimeOfDay: String!
+    repeatValue: Int
+    repeatUnit: RepeatUnit
+    customRepeatDates: [String!]
+    customRepeatRule: String
+    endTime: String
+    tagIds: [ID!]!
   }
 
   type Note {
@@ -1780,6 +1839,15 @@ export const typeDefs = gql`
     "Personal access tokens for this account. The secrets themselves are never returned."
     apiTokens: [ApiToken!]!
 
+    "Time Themes: the shared tag vocabulary, this user's."
+    tags: [Tag!]!
+    "Time Themes: every theme this user has defined, regardless of date."
+    timeThemes: [TimeTheme!]!
+    "Time Themes: a single theme by id, for the editor (mirrors interval(id)/project(id))."
+    timeTheme(id: ID!): TimeTheme
+    "Time Themes: active themes whose recurrence resolves an occurrence on dateKey (YYYY-MM-DD)."
+    timeThemesForDate(dateKey: String!): [TimeTheme!]!
+
     "Evidence Lab: the six modules with this learner's state on each."
     skillModules(skillKey: SkillKey!): [SkillModule!]!
     "Evidence Lab: scores, behaviour metrics, and content-readiness for the progress surface."
@@ -2406,6 +2474,23 @@ export const typeDefs = gql`
     offered. Idempotent; nothing is incremented behind it.
     """
     acknowledgeGraduation: Boolean!
+
+    "Time Themes: create a tag. Rejects a duplicate name for this user; color must be an allowed palette key."
+    createTag(name: String!, color: String!): Tag!
+    renameTag(id: ID!, name: String!): Tag!
+    recolorTag(id: ID!, color: String!): Tag!
+    "Drops the tag off every Project/Interval/Routine/Action/TimeTheme it was on. No cascade beyond that — tagged entities simply lose that tag."
+    deleteTag(id: ID!): Boolean!
+    setProjectTags(projectId: ID!, tagIds: [ID!]!): Project!
+    setIntervalTags(intervalId: ID!, tagIds: [ID!]!): Interval!
+    setRoutineTags(routineId: ID!, tagIds: [ID!]!): Routine!
+    "Rejected when the action is gathered (sourceType != null) — its tags are locked to the source template."
+    setActionTags(actionId: ID!, tagIds: [ID!]!): Action!
+
+    createTimeTheme(input: TimeThemeInput!): TimeTheme!
+    updateTimeTheme(id: ID!, input: TimeThemeInput!): TimeTheme!
+    setTimeThemeStatus(id: ID!, status: IntervalStatus!): TimeTheme!
+    deleteTimeTheme(id: ID!): Boolean!
 
     register(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!

@@ -278,11 +278,11 @@ export async function runActionGathering(
 
   const intervals = await prisma.interval.findMany({
     where: { userId, status: "active" },
-    include: { steps: { orderBy: { order: "asc" } } },
+    include: { steps: { orderBy: { order: "asc" } }, tags: { select: { id: true } } },
   });
   const routines = await prisma.routine.findMany({
     where: { userId, status: "active" },
-    include: { steps: { orderBy: { order: "asc" } } },
+    include: { steps: { orderBy: { order: "asc" } }, tags: { select: { id: true } } },
   });
 
   // Marking a date "gathered" must not close it to templates created later.
@@ -330,7 +330,7 @@ export async function runActionGathering(
     const toCreate: Prisma.ActionUncheckedCreateInput[] = [];
 
     const collect = (
-      template: { id: string; title: string; estimatedTimeMinutes: number | null },
+      template: { id: string; title: string; estimatedTimeMinutes: number | null; tags: { id: string }[] },
       sourceType: "interval" | "routine",
       occurrences: { startTimeOfDay: string }[]
     ) => {
@@ -344,6 +344,10 @@ export async function runActionGathering(
         if (seen.has(key)) continue;
         seen.add(key);
 
+        // Time Themes: snapshot-copy the source's tags at gather time (not a
+        // live link — retagging the template only affects future gathers).
+        // Tags are deliberately not part of gatheredActionKey's identity, so
+        // re-running gathering stays safe/idempotent regardless of tag state.
         toCreate.push({
           userId,
           title: template.title,
@@ -354,6 +358,7 @@ export async function runActionGathering(
           sourceId: template.id,
           isGathered: true,
           priority: "P",
+          tags: { connect: template.tags.map((t) => ({ id: t.id })) },
         });
       }
     };

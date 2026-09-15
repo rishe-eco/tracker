@@ -47,7 +47,9 @@ export async function getTodayActions(prisma: PrismaClient, userId: string, date
         tbd: { gte: date, lt: nextDay },
         actionFate: null,
       },
-      include: { project: true },
+      // Time Themes: tags are fetched here (not lazy-loaded per action) so the
+      // Pre-day picker and Today page can rank/mark matches without N+1 queries.
+      include: { project: true, tags: true },
     }),
     prisma.action.findMany({
       where: {
@@ -56,6 +58,7 @@ export async function getTodayActions(prisma: PrismaClient, userId: string, date
         forDate: { gte: date, lt: nextDay },
         actionFate: null,
       },
+      include: { tags: true },
     }),
   ]);
 
