@@ -80,6 +80,27 @@ describe("runActionGathering", () => {
     expect(await prisma.action.count({ where: { userId: u2.id, isGathered: true } })).toBe(3);
   });
 
+  it("gathers a weekly interval on a selected weekday that isn't its creation weekday", async () => {
+    // The user's real symptom: a new weekly interval never showed up in linked
+    // tasks. The form sends repeatUnit="week" + repeatValue=1 +
+    // customRepeatRule.daysOfWeek together, and the occurrence check used to
+    // additionally demand the same weekday as createdAt. Anchor 2025-01-01 is a
+    // Wednesday; the window is Tue/Wed/Thu 2025-06-10..12, so a Thursday-only
+    // interval was silently dropped. It must now materialize on 2025-06-12.
+    const user = await createTestUser();
+    await makeActiveInterval(user.id, {
+      title: "Weekly review",
+      repeatUnit: "week",
+      repeatValue: 1,
+      customRepeatRule: JSON.stringify({ unit: "week", daysOfWeek: [4] }), // Thursday
+    });
+    const result = await runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false });
+    expect(result.actionsCreated).toBe(1);
+    const actions = await prisma.action.findMany({ where: { userId: user.id, isGathered: true } });
+    expect(actions).toHaveLength(1);
+    expect(actions[0].forDate?.toISOString().slice(0, 10)).toBe("2025-06-12");
+  });
+
   it("skips dates that already have actionGatheringCompletedAt (skipCompletedDates=true)", async () => {
     const user = await createTestUser();
     await makeActiveInterval(user.id);
