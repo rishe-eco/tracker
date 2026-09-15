@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from "@prisma/client";
+import { withUserLock } from "./userLock";
 
 const REPEAT_UNIT_DAY = "day";
 const REPEAT_UNIT_WEEK = "week";
@@ -322,38 +323,15 @@ function gatheredActionKey(action: {
  * gathered rows are always fully non-null on those columns, and SQLite treats
  * NULLs as distinct, so standalone/project actions are exempt automatically.
  */
-const userGatheringChains = new Map<string, Promise<void>>();
-
 export async function runActionGathering(
   prisma: PrismaClient,
   userId: string,
   options: ActionGatheringOptions
 ): Promise<{ dateKeysProcessed: string[]; actionsCreated: number }> {
-  // Gate on the prior holder for this user, swallowing its outcome so one
-  // failed run can't break the chain for the next caller.
-  const prior = userGatheringChains.get(userId) ?? Promise.resolve();
-  const gate = prior.then(
-    () => {},
-    () => {}
-  );
-  let release!: () => void;
-  const mine = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  // Reserve our slot synchronously so a concurrent caller chains after us.
-  const slot = gate.then(() => mine);
-  userGatheringChains.set(userId, slot);
-
-  await gate;
-  try {
-    return await runActionGatheringInner(prisma, userId, options);
-  } finally {
-    release();
-    // Drop the entry once we're the tail, so the map doesn't grow per user.
-    if (userGatheringChains.get(userId) === slot) {
-      userGatheringChains.delete(userId);
-    }
-  }
+  // Serialize per user via the shared in-process lock (see userLock.ts): a call
+  // runs only after the prior call for the same user has committed, so its fresh
+  // `seen` read sees the prior run's rows and dedupes.
+  return withUserLock(`gather:${userId}`, () => runActionGatheringInner(prisma, userId, options));
 }
 
 /**

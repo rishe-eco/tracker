@@ -30,6 +30,7 @@ import {
 } from "../../content/feelings-needs";
 import { computeFadeLevel, ensureLoopState, isFrameDone } from "./state";
 import { maybeCatch, type SurfacedCatch } from "./distinctions";
+import { withUserLock } from "../userLock";
 
 /**
  * The pack for this person, in the language they are reading the app in.
@@ -261,55 +262,53 @@ export async function startSitting(
     throw new Error("Start with the Day-1 frame — it's the on-ramp to this loop.");
   }
 
-  // Resuming beats starting over: a second sitting opened while one is still
-  // open would split one practice across two rows.
-  //
-  const existing = await getActiveSitting(prisma, userId);
-  if (existing) return existing;
+  // Serialize opens per user with the shared in-process lock (userLock.ts, the
+  // same guard the gather race uses — D-57). That makes the check-then-insert
+  // below atomic within the process, so two concurrent opens can't both read
+  // "nothing active" and both insert. The converge-and-clean pass is kept as
+  // defense-in-depth for a hypothetical multi-instance future, where an
+  // in-process lock no longer spans every caller.
+  return withUserLock(`fn-sitting:${userId}`, async () => {
+    // Resuming beats starting over: a second sitting opened while one is still
+    // open would split one practice across two rows.
+    const existing = await getActiveSitting(prisma, userId);
+    if (existing) return existing;
 
-  // Two concurrent opens both reach here having found nothing, and both insert.
-  // A double-invoked mount effect does exactly that, leaving an empty sitting
-  // nobody ever fills.
-  //
-  // Neither obvious defence works. `LoopSitting` has no unique constraint that
-  // could arbitrate — a user may legitimately have many sittings — so there is
-  // nothing to recover from the way `ensureLoopState` recovers from P2002. And
-  // an interactive transaction is worse than useless on this stack: Prisma
-  // holds SQLite's single connection for the life of the transaction, so
-  // concurrent callers cannot even begin one and simply time out.
-  //
-  // So converge instead of lock. Everyone inserts, then everyone independently
-  // agrees on the same winner — the oldest open sitting — and clears the blank
-  // duplicates. The rule is deterministic, so racers reach the same answer
-  // without coordinating, and `deleteMany` makes doing it twice harmless.
-  const created = await prisma.loopSitting.create({
-    data: {
-      userId,
-      wasPrompted: opts.wasPrompted ?? false,
-      entries: { create: { passIndex: 0 } },
-    },
-    include: SITTING_WITH_ENTRIES,
+    // `LoopSitting` has no unique constraint that could arbitrate a duplicate —
+    // a user may legitimately have many sittings — so if two ever do land (only
+    // possible across processes now the lock is in place), converge: everyone
+    // inserts, then everyone independently agrees on the same winner (the oldest
+    // open sitting) and clears the blank duplicates. The rule is deterministic
+    // and `deleteMany` makes doing it twice harmless.
+    const created = await prisma.loopSitting.create({
+      data: {
+        userId,
+        wasPrompted: opts.wasPrompted ?? false,
+        entries: { create: { passIndex: 0 } },
+      },
+      include: SITTING_WITH_ENTRIES,
+    });
+
+    const open = await prisma.loopSitting.findMany({
+      where: { userId, completedAt: null, createdAt: { gte: startOfToday() } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: SITTING_WITH_ENTRIES,
+    });
+    if (open.length <= 1) return created;
+
+    const [winner, ...rest] = open;
+    // Only ever discard sittings that hold nothing. A duplicate with content in
+    // it is not a duplicate — it is someone's practice, and losing it would be
+    // far worse than the stray row this is cleaning up.
+    const discardable = rest.filter(
+      (s) => !s.breathTaken && s.entries.every(isBlankEntry)
+    );
+    if (discardable.length) {
+      await prisma.loopSitting.deleteMany({ where: { id: { in: discardable.map((s) => s.id) } } });
+    }
+
+    return winner;
   });
-
-  const open = await prisma.loopSitting.findMany({
-    where: { userId, completedAt: null, createdAt: { gte: startOfToday() } },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    include: SITTING_WITH_ENTRIES,
-  });
-  if (open.length <= 1) return created;
-
-  const [winner, ...rest] = open;
-  // Only ever discard sittings that hold nothing. A duplicate with content in
-  // it is not a duplicate — it is someone's practice, and losing it would be
-  // far worse than the stray row this is cleaning up.
-  const discardable = rest.filter(
-    (s) => !s.breathTaken && s.entries.every(isBlankEntry)
-  );
-  if (discardable.length) {
-    await prisma.loopSitting.deleteMany({ where: { id: { in: discardable.map((s) => s.id) } } });
-  }
-
-  return winner;
 }
 
 /** Load a sitting the caller owns, or throw the indistinguishable "Not found". */
