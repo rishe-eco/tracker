@@ -116,6 +116,119 @@ describe("intervalOccursOnDate — customRepeatRule week", () => {
   });
 });
 
+// The combination the interval form actually sends: repeatUnit="week" +
+// repeatValue + customRepeatRule.daysOfWeek all set together. The suite above
+// only ever exercised repeatUnit:null, which took an early return and never hit
+// the anchor-cadence gate — which is where the "only fires on the creation
+// weekday" bug lived.
+describe("intervalOccursOnDate — weekly rule with repeatUnit (the form's real payload)", () => {
+  // Anchor MON 2025-01-06.
+  it("fires on a selected weekday that is NOT the creation weekday", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "week", daysOfWeek: [2] }), // every Tuesday
+      repeatUnit: "week",
+      repeatValue: 1,
+    });
+    expect(intervalOccursOnDate(iv, "2025-01-07")).toBe(true);  // Tue, same week as creation
+    expect(intervalOccursOnDate(iv, "2025-01-14")).toBe(true);  // Tue, next week
+    expect(intervalOccursOnDate(iv, "2025-01-06")).toBe(false); // Mon not selected
+  });
+
+  it("fires on every selected weekday, not just the creation weekday", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "week", daysOfWeek: [1, 4] }), // Mon & Thu
+      repeatUnit: "week",
+      repeatValue: 1,
+    });
+    expect(intervalOccursOnDate(iv, "2025-01-06")).toBe(true); // Mon (creation weekday)
+    expect(intervalOccursOnDate(iv, "2025-01-09")).toBe(true); // Thu — was silently dropped
+    expect(intervalOccursOnDate(iv, "2025-01-13")).toBe(true); // next Mon
+    expect(intervalOccursOnDate(iv, "2025-01-16")).toBe(true); // next Thu
+    expect(intervalOccursOnDate(iv, "2025-01-08")).toBe(false); // Wed not selected
+  });
+
+  it("honors every-2-weeks cadence on all selected days, anchored to the creation week", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "week", daysOfWeek: [1, 4] }), // Mon & Thu
+      repeatUnit: "week",
+      repeatValue: 2,
+    });
+    // Creation week (Jan 6 is Mon): both fire.
+    expect(intervalOccursOnDate(iv, "2025-01-06")).toBe(true); // Mon wk0
+    expect(intervalOccursOnDate(iv, "2025-01-09")).toBe(true); // Thu wk0
+    // Odd week: neither.
+    expect(intervalOccursOnDate(iv, "2025-01-13")).toBe(false); // Mon wk1
+    expect(intervalOccursOnDate(iv, "2025-01-16")).toBe(false); // Thu wk1
+    // Week 2: both again.
+    expect(intervalOccursOnDate(iv, "2025-01-20")).toBe(true); // Mon wk2
+    expect(intervalOccursOnDate(iv, "2025-01-23")).toBe(true); // Thu wk2
+  });
+
+  it("does not fire before the creation date", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "week", daysOfWeek: [1] }), // every Monday
+      repeatUnit: "week",
+      repeatValue: 1,
+      createdAt: new Date("2025-01-08T12:00:00.000Z"), // Wed
+    });
+    expect(intervalOccursOnDate(iv, "2025-01-06")).toBe(false); // Mon before creation
+    expect(intervalOccursOnDate(iv, "2025-01-13")).toBe(true);  // first Mon on/after
+  });
+});
+
+describe("intervalOccursOnDate — monthly rule with repeatUnit", () => {
+  it("fires on the selected day-of-month even when it differs from the creation day", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "month", daysOfMonth: [15] }),
+      repeatUnit: "month",
+      repeatValue: 1,
+      createdAt: new Date("2025-01-06T12:00:00.000Z"), // created on the 6th
+    });
+    expect(intervalOccursOnDate(iv, "2025-01-15")).toBe(true);  // was dropped (createdAt day = 6)
+    expect(intervalOccursOnDate(iv, "2025-02-15")).toBe(true);
+    expect(intervalOccursOnDate(iv, "2025-01-16")).toBe(false);
+  });
+
+  it("honors every-2-months cadence anchored to the creation month", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "month", daysOfMonth: [15] }),
+      repeatUnit: "month",
+      repeatValue: 2,
+      createdAt: new Date("2025-01-06T12:00:00.000Z"),
+    });
+    expect(intervalOccursOnDate(iv, "2025-01-15")).toBe(true);  // month 0
+    expect(intervalOccursOnDate(iv, "2025-02-15")).toBe(false); // month 1
+    expect(intervalOccursOnDate(iv, "2025-03-15")).toBe(true);  // month 2
+  });
+});
+
+describe("intervalOccursOnDate — yearly rule with repeatUnit", () => {
+  it("fires on the selected month/day each year", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "year", months: [3], daysOfMonth: [15] }),
+      repeatUnit: "year",
+      repeatValue: 1,
+      createdAt: new Date("2025-01-06T12:00:00.000Z"),
+    });
+    expect(intervalOccursOnDate(iv, "2025-03-15")).toBe(true);
+    expect(intervalOccursOnDate(iv, "2026-03-15")).toBe(true);
+    expect(intervalOccursOnDate(iv, "2025-03-16")).toBe(false);
+    expect(intervalOccursOnDate(iv, "2025-04-15")).toBe(false);
+  });
+
+  it("honors every-2-years cadence anchored to the creation year", () => {
+    const iv = makeInterval({
+      customRepeatRule: JSON.stringify({ unit: "year", months: [3], daysOfMonth: [15] }),
+      repeatUnit: "year",
+      repeatValue: 2,
+      createdAt: new Date("2025-01-06T12:00:00.000Z"),
+    });
+    expect(intervalOccursOnDate(iv, "2025-03-15")).toBe(true);  // year 0
+    expect(intervalOccursOnDate(iv, "2026-03-15")).toBe(false); // year 1
+    expect(intervalOccursOnDate(iv, "2027-03-15")).toBe(true);  // year 2
+  });
+});
+
 describe("intervalOccursOnDate — customRepeatRule month", () => {
   it("matches the listed day-of-month", () => {
     const iv = makeInterval({

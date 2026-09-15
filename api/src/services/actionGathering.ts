@@ -3,6 +3,7 @@ import type { PrismaClient, Prisma } from "@prisma/client";
 const REPEAT_UNIT_DAY = "day";
 const REPEAT_UNIT_WEEK = "week";
 const REPEAT_UNIT_MONTH = "month";
+const REPEAT_UNIT_YEAR = "year";
 
 /** Add N days to a dateKey "YYYY-MM-DD", return dateKey. Uses UTC noon to avoid DST. */
 function addDaysToDateKey(dateKey: string, days: number): string {
@@ -20,6 +21,64 @@ function dateKeyToDate(dateKey: string): Date {
 function getISODayOfWeek(d: Date): number {
   const day = d.getUTCDay(); // 0 = Sun, 6 = Sat
   return day === 0 ? 7 : day;
+}
+
+/** Date at UTC midnight, dropping the time-of-day. */
+function utcMidnight(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/** Monday (UTC midnight) of the ISO week containing d. */
+function startOfISOWeekUTC(d: Date): Date {
+  const midnight = utcMidnight(d);
+  midnight.setUTCDate(midnight.getUTCDate() - (getISODayOfWeek(d) - 1));
+  return midnight;
+}
+
+/**
+ * Cadence gate for a customRepeatRule occurrence.
+ *
+ * The rule (daysOfWeek / daysOfMonth / months) has already selected *which*
+ * days qualify; this only answers whether `date`'s week/month/year bucket is on
+ * the every-N cadence measured from the interval's creation bucket. Crucially it
+ * compares whole buckets, NOT the exact anchor day — an "every Tuesday" interval
+ * created on a Monday must still fire on Tuesdays. `repeatValue` is the N;
+ * `unit` is the rule's unit ("week" | "month" | "year"). Never fires before the
+ * creation date.
+ */
+function matchesRuleCadence(
+  createdAt: Date,
+  date: Date,
+  repeatValue: number,
+  unit: string
+): boolean {
+  const anchorDay = utcMidnight(createdAt);
+  const targetDay = utcMidnight(date);
+  if (targetDay < anchorDay) return false;
+
+  const n = repeatValue > 0 ? repeatValue : 1;
+  switch (unit) {
+    case REPEAT_UNIT_WEEK: {
+      const weeks = Math.round(
+        (startOfISOWeekUTC(date).getTime() - startOfISOWeekUTC(createdAt).getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      );
+      return weeks >= 0 && weeks % n === 0;
+    }
+    case REPEAT_UNIT_MONTH: {
+      const months =
+        (targetDay.getUTCFullYear() - anchorDay.getUTCFullYear()) * 12 +
+        (targetDay.getUTCMonth() - anchorDay.getUTCMonth());
+      return months >= 0 && months % n === 0;
+    }
+    case REPEAT_UNIT_YEAR: {
+      const years = targetDay.getUTCFullYear() - anchorDay.getUTCFullYear();
+      return years >= 0 && years % n === 0;
+    }
+    default:
+      // Unknown unit: the selected day already matched, so don't over-gate.
+      return true;
+  }
 }
 
 /** Return true if the interval has an occurrence on the given dateKey (YYYY-MM-DD). */
@@ -63,31 +122,23 @@ export function intervalOccursOnDate(
         months?: number[];
         timeOfDayBlocks?: string[];
       };
+      // For each unit the rule first selects the qualifying days (daysOfWeek /
+      // daysOfMonth / months). The repeatValue cadence is then applied to the
+      // week/month/year *bucket* via matchesRuleCadence — NOT to the exact
+      // anchor day. Gating on the anchor day (the old dateMatchesRepeatFromAnchor
+      // call) forced every occurrence onto the interval's creation weekday /
+      // day-of-month, silently dropping the other selected days.
       if (rule.unit === "week" && Array.isArray(rule.daysOfWeek)) {
         const dow = getISODayOfWeek(date);
-        if (rule.daysOfWeek.includes(dow)) {
-          if (!interval.repeatUnit || interval.repeatValue <= 0) return true;
-          return dateMatchesRepeatFromAnchor(
-            interval.createdAt,
-            date,
-            interval.repeatValue,
-            interval.repeatUnit
-          );
-        }
-        return false;
+        if (!rule.daysOfWeek.includes(dow)) return false;
+        if (!interval.repeatUnit || interval.repeatValue <= 0) return true;
+        return matchesRuleCadence(interval.createdAt, date, interval.repeatValue, REPEAT_UNIT_WEEK);
       }
       if (rule.unit === "month" && Array.isArray(rule.daysOfMonth)) {
         const dom = date.getUTCDate();
-        if (rule.daysOfMonth.includes(dom)) {
-          if (!interval.repeatUnit || interval.repeatValue <= 0) return true;
-          return dateMatchesRepeatFromAnchor(
-            interval.createdAt,
-            date,
-            interval.repeatValue,
-            interval.repeatUnit
-          );
-        }
-        return false;
+        if (!rule.daysOfMonth.includes(dom)) return false;
+        if (!interval.repeatUnit || interval.repeatValue <= 0) return true;
+        return matchesRuleCadence(interval.createdAt, date, interval.repeatValue, REPEAT_UNIT_MONTH);
       }
       if (rule.unit === "year" && Array.isArray(rule.months)) {
         const month = date.getUTCMonth() + 1; // 1-12
@@ -97,12 +148,7 @@ export function intervalOccursOnDate(
           if (!rule.daysOfMonth.includes(dom)) return false;
         }
         if (!interval.repeatUnit || interval.repeatValue <= 0) return true;
-        return dateMatchesRepeatFromAnchor(
-          interval.createdAt,
-          date,
-          interval.repeatValue,
-          interval.repeatUnit
-        );
+        return matchesRuleCadence(interval.createdAt, date, interval.repeatValue, REPEAT_UNIT_YEAR);
       }
     } catch {
       // fall through
