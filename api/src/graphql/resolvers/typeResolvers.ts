@@ -31,6 +31,11 @@ export const typeResolvers = {
       parent.forDate != null ? new Date(parent.forDate).toISOString().slice(0, 10) : null,
     createdAt: (parent: any) =>
       parent.createdAt != null ? new Date(parent.createdAt).toISOString() : null,
+    tags: async (parent: any, _: any, ctx: any) => {
+      if (parent.tags != null) return parent.tags;
+      const withTags = await ctx.prisma.action.findUnique({ where: { id: parent.id }, select: { tags: true } });
+      return withTags?.tags ?? [];
+    },
   },
 
   Project: {
@@ -81,6 +86,11 @@ export const typeResolvers = {
         where: { projectId: parent.id },
         include: { steps: { orderBy: { order: "asc" } } },
       });
+    },
+    tags: async (parent: any, _: any, ctx: any) => {
+      if (parent.tags != null) return parent.tags;
+      const withTags = await ctx.prisma.project.findUnique({ where: { id: parent.id }, select: { tags: true } });
+      return withTags?.tags ?? [];
     },
   },
 
@@ -214,6 +224,11 @@ export const typeResolvers = {
         ? parent.project ??
           ctx.prisma.project.findUnique({ where: { id: parent.projectId } })
         : null,
+    tags: async (parent: any, _: any, ctx: any) => {
+      if (parent.tags != null) return parent.tags;
+      const withTags = await ctx.prisma.interval.findUnique({ where: { id: parent.id }, select: { tags: true } });
+      return withTags?.tags ?? [];
+    },
   },
 
   IntervalStep: {
@@ -235,6 +250,11 @@ export const typeResolvers = {
     },
     createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
     updatedAt: (parent: any) => new Date(parent.updatedAt).toISOString(),
+    tags: async (parent: any, _: any, ctx: any) => {
+      if (parent.tags != null) return parent.tags;
+      const withTags = await ctx.prisma.routine.findUnique({ where: { id: parent.id }, select: { tags: true } });
+      return withTags?.tags ?? [];
+    },
   },
 
   RoutineStep: {
@@ -269,6 +289,43 @@ export const typeResolvers = {
       parent.expiresAt != null ? new Date(parent.expiresAt).toISOString() : null,
     revokedAt: (parent: any) =>
       parent.revokedAt != null ? new Date(parent.revokedAt).toISOString() : null,
+  },
+
+  Tag: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+    usageCount: async (parent: any, _: any, ctx: any) => {
+      if (parent._count != null) {
+        const c = parent._count;
+        return (c.projects ?? 0) + (c.intervals ?? 0) + (c.routines ?? 0) + (c.actions ?? 0) + (c.timeThemes ?? 0);
+      }
+      const withCount = await ctx.prisma.tag.findUnique({
+        where: { id: parent.id },
+        select: { _count: { select: { projects: true, intervals: true, routines: true, actions: true, timeThemes: true } } },
+      });
+      const c = withCount?._count ?? {};
+      return (c.projects ?? 0) + (c.intervals ?? 0) + (c.routines ?? 0) + (c.actions ?? 0) + (c.timeThemes ?? 0);
+    },
+  },
+
+  TimeTheme: {
+    endTime: (parent: any) =>
+      parent.endTime != null ? new Date(parent.endTime).toISOString() : null,
+    customRepeatDates: (parent: any) => {
+      if (parent.customRepeatDates == null || parent.customRepeatDates === "") return [];
+      try {
+        const arr = JSON.parse(parent.customRepeatDates);
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
+    },
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+    updatedAt: (parent: any) => new Date(parent.updatedAt).toISOString(),
+    tags: async (parent: any, _: any, ctx: any) => {
+      if (parent.tags != null) return parent.tags;
+      const withTags = await ctx.prisma.timeTheme.findUnique({ where: { id: parent.id }, select: { tags: true } });
+      return withTags?.tags ?? [];
+    },
   },
 
   User: {

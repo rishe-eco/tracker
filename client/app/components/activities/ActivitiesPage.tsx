@@ -2,6 +2,9 @@ import ActivityPanel from "~/components/activities/ActivityPanel";
 import ActionPreview from "../actions/ActionPreview";
 import { useEffect, useState, type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
+import { Palette } from "lucide-react";
+import { Button } from "~/components/ui/button";
 import ProjectPreview, { type Project } from "../projects/ProjectPreview";
 import { type Action } from "../actions/ActionsListPage";
 import type { Goal } from "../goals/GoalPreview";
@@ -132,7 +135,15 @@ export default function ActivitiesPage() {
 
   return (
     <main className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold tracking-tight">{t("activities.title")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t("activities.title")}</h1>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/activities/timeThemes">
+            <Palette className="h-4 w-4" />
+            {t("activities.timeThemes")}
+          </Link>
+        </Button>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <ActivityPanel type="goal" title={t("activities.goals")} {...renderGoalPreviews()} />

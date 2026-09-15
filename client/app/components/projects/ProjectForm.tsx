@@ -9,8 +9,9 @@ import ActionPreview from "../actions/ActionPreview";
 import AddActionWidget from "../actions/AddActionWidget";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { useApi } from "../../api/useApi";
-import { ADD_GOAL_PROJECT, ADD_PROJECT, ADD_PROJECT_ACTION, DELETE_ACTION, DELETE_PROJECT, GET_ALL_GOALS, GET_PROJECT, UPDATE_PROJECT } from "~/api/queries";
+import { ADD_GOAL_PROJECT, ADD_PROJECT, ADD_PROJECT_ACTION, DELETE_ACTION, DELETE_PROJECT, GET_ALL_GOALS, GET_PROJECT, UPDATE_PROJECT, GET_TAGS, SET_PROJECT_TAGS } from "~/api/queries";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import TagPicker from "~/components/tags/TagPicker";
 import { Pencil, Trash2 } from "lucide-react";
 import { parseDateOnly, toLocalDateString } from "~/utils/dateUtils";
 import { cn } from "~/lib/utils";
@@ -50,8 +51,23 @@ export default function ProjectForm() {
   const [deletedActionIds, setDeletedActionIds] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const { call, getLastError } = useApi();
   const { submitting, run } = useSubmitGuard();
+
+  useEffect(() => {
+    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
+  }, []);
+
+  // Time Themes: tags seed onto actions created under this project (copy at
+  // create, editable after) — editing them here on an existing project
+  // commits immediately, like this form's other inline-editable fields.
+  const handleTagsChange = async (nextTagIds: string[]) => {
+    setTagIds(nextTagIds);
+    if (!isEdit || !id) return;
+    await call({ query: SET_PROJECT_TAGS, variables: { projectId: id, tagIds: nextTagIds } });
+  };
 
   const handleDeleteConfirm = async () => {
     if (!id) return;
@@ -113,6 +129,7 @@ export default function ProjectForm() {
             tbd: a.tbd ? parseDateOnly(a.tbd) : undefined,
           }))
         );
+        setTagIds((data.tags ?? []).map((tg: any) => tg.id));
       });
     }
 
@@ -184,6 +201,13 @@ export default function ProjectForm() {
       if (!res) {
         setSubmitError(getLastError() || t("projects.saveError"));
         return;
+      }
+
+      if (!isEdit && tagIds.length > 0) {
+        const newProjectId = res.addProject?.id;
+        if (newProjectId) {
+          await call({ query: SET_PROJECT_TAGS, variables: { projectId: newProjectId, tagIds } });
+        }
       }
 
       if (isEdit) {
@@ -326,6 +350,12 @@ export default function ProjectForm() {
             </div>
           </>
         )}
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">{t("tags.label")}</Label>
+          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} />
+          <p className="text-xs text-muted-foreground">{t("tags.projectSeedNote")}</p>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <div className="space-y-1">

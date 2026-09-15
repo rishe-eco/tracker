@@ -2,7 +2,7 @@
  * Unified calendar item for gantt-style display.
  * Maps to react-big-calendar Event type (start, end, title) with extra fields for type and color.
  */
-export type CalendarItemType = "goal" | "milestone" | "action" | "interval" | "routine";
+export type CalendarItemType = "goal" | "milestone" | "action" | "interval" | "routine" | "timeTheme";
 
 export interface CalendarItem {
   id: string;
@@ -16,6 +16,12 @@ export interface CalendarItem {
   entityId?: string;
   /** When true, show in "untimed" section (end of day) in week/day list view. */
   allDay?: boolean;
+  /**
+   * Time Themes only: the tag palette key to render this item's colour from
+   * (its primary/first tag — time-themes.md §8, multi-tag band colour is
+   * deferred), overriding the fixed per-type colour below.
+   */
+  tagColorKey?: string;
 }
 
 /** Filter flags for which item types to show on the calendar. */
@@ -24,6 +30,8 @@ export interface CalendarFilters {
   actions: boolean;
   intervals: boolean;
   routines: boolean;
+  /** Time Themes: soft bands only — never affects which actions can be placed (time-themes.md §2). */
+  timeThemes: boolean;
 }
 
 export const DEFAULT_CALENDAR_FILTERS: CalendarFilters = {
@@ -31,6 +39,7 @@ export const DEFAULT_CALENDAR_FILTERS: CalendarFilters = {
   actions: true,
   intervals: true,
   routines: true,
+  timeThemes: true,
 };
 
 /** Colors per type for gantt/calendar (Tailwind-style names for use in components). */
@@ -40,4 +49,6 @@ export const CALENDAR_TYPE_COLORS: Record<CalendarItemType, string> = {
   action: "bg-emerald-600 border-emerald-700 text-white",
   interval: "bg-amber-500 border-amber-600 text-white",
   routine: "bg-teal-500 border-teal-600 text-white",
+  // Overridden per-instance by `tagColorKey` when present (see CalendarEvent).
+  timeTheme: "bg-slate-400 border-slate-500 text-white",
 };

@@ -429,6 +429,7 @@
     "actions": "Actions",
     "intervals": "Intervals",
     "routines": "Routines",
+    "timeThemes": "Time Themes",
     "actionQueue": "Action queue",
     "add": "Add",
     "noActionsYet": "No actions added yet.",
@@ -598,6 +599,10 @@
     "nextSetTimes": "Next: Set times",
     "setTimesIntro": "Set a time for each task, or choose Postpone, Ignore (if available), Pass (if available), or Outsource. Times are checked against already-set actions; overlaps between new times are checked on Submit.",
     "noUntimedTasks": "No untimed tasks.",
+    "themesToday": "Today's themes:",
+    "themeMatch": "↑ match",
+    "suggestedForTheme": "Suggested for today's themes",
+    "everythingElse": "Everything else",
     "postpone": "Postpone",
     "outsource": "Outsource",
     "ignore": "Ignore",
@@ -714,7 +719,9 @@
     "typeGoal": "goal",
     "typeProject": "project",
     "typeAction": "action",
-    "typeInterval": "interval"
+    "typeInterval": "interval",
+    "typeTimeTheme": "time theme",
+    "timeThemes": "Time Themes"
   },
   "concepts": {
     "pageTitle": "Concepts & Guide",
@@ -2226,6 +2233,68 @@
         "couldNotSaveJournal": "Could not save that as a journal entry — you may need a journal first, from the Journals tool.",
         "couldNotAttach": "Could not attach that. Try again."
       }
+    }
+  },
+  "tags": {
+    "label": "Tags",
+    "none": "No tags",
+    "addTag": "tag",
+    "removeTag": "Remove {{name}}",
+    "colorLabel": "Colour",
+    "colorNames": {
+      "indigo": "Indigo",
+      "slate": "Slate",
+      "amber": "Amber",
+      "green": "Green",
+      "plum": "Plum",
+      "teal": "Teal",
+      "rose": "Rose"
+    },
+    "managerTitle": "Tags",
+    "managerDescription": "One shared vocabulary — name and colour — used by projects, intervals, routines, actions, and Time Themes. Renaming or recolouring a tag updates it everywhere it's used.",
+    "noTags": "No tags yet.",
+    "nameLabel": "Name",
+    "usageCountOne": "{{count}} use",
+    "usageCountOther": "{{count}} uses",
+    "edit": "edit",
+    "newTagLabel": "New tag",
+    "newTagPlaceholder": "Tag name",
+    "newTagButton": "Add tag",
+    "settingsSectionTitle": "Tags",
+    "settingsSectionDescription": "Manage the shared tag vocabulary used across projects, intervals, routines, actions, and Time Themes.",
+    "openManager": "Manage tags",
+    "deleteConfirmTitle": "Delete \"{{name}}\"?",
+    "deleteConfirmDescription": "This drops the tag off everything it's on. Nothing else is affected.",
+    "projectSeedNote": "New actions under this project start with these tags — you can change them per action.",
+    "intervalSeedNote": "Every action this interval gathers will carry these tags, locked.",
+    "routineSeedNote": "Every action this routine gathers will carry these tags, locked.",
+    "lockedFromInterval": "Inherited from the interval — edit the interval to change it.",
+    "lockedFromRoutine": "Inherited from the routine — edit the routine to change it.",
+    "errors": {
+      "createFailed": "Could not create that tag.",
+      "saveFailed": "Could not save that tag."
+    }
+  },
+  "timeThemes": {
+    "backToList": "Back to Time Themes",
+    "listTitle": "Time Themes",
+    "listDescription": "A Time Theme is a recurring, tag-bearing span of time — it suggests, it never blocks. Matching actions surface into it; anything can still be scheduled anywhere.",
+    "noThemes": "No Time Themes yet.",
+    "addTitle": "New Time Theme",
+    "editTitle": "Edit Time Theme",
+    "deleteTheme": "Delete Time Theme",
+    "deleteConfirmTitle": "Delete this Time Theme?",
+    "deleteConfirmDescription": "This has no effect on any action — they were never bound to it.",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Deep-work morning",
+    "natureLabel": "Nature (tags it attracts)",
+    "natureHelp": "A theme surfaces actions matching any of its tags. It can hold more than one.",
+    "fromLabel": "From",
+    "toLabel": "To",
+    "recurrenceTitle": "Repeat",
+    "errors": {
+      "titleRequired": "Name is required.",
+      "endAfterStart": "\"To\" must be after \"From\"."
     }
   }
 }

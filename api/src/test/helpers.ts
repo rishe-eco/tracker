@@ -32,6 +32,10 @@ export async function clearDb() {
     prisma.journalAccess.deleteMany(),
     prisma.journal.deleteMany(),
     prisma.apiToken.deleteMany(),
+    // Time Themes: Tag/TimeTheme m2m join rows are dropped automatically when
+    // the parent rows are deleted, so no explicit join-table cleanup is needed.
+    prisma.timeTheme.deleteMany(),
+    prisma.tag.deleteMany(),
     // Skills: check events cascade from attempts, and attempts reference probes,
     // so delete leaves first.
     prisma.skillCheckEvent.deleteMany(),

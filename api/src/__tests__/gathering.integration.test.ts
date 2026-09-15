@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { prisma, clearDb, createTestUser } from "../test/helpers";
+import { prisma, clearDb, createTestUser, makeCtx } from "../test/helpers";
 import { runActionGathering } from "../services/actionGathering";
+import { mutationResolvers } from "../graphql/resolvers/mutations";
 
 const TODAY = "2025-06-10";
 
@@ -157,5 +158,84 @@ describe("runActionGathering", () => {
     const result = await runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false });
     // 2 blocks × 3 days
     expect(result.actionsCreated).toBe(6);
+  });
+});
+
+describe("Time Themes: tag inheritance on gather (build-plan.md Phase 3b)", () => {
+  it("a gathered action from a tagged interval carries the interval's tags, and is locked", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const tag = await mutationResolvers.createTag(null, { name: "deep-work", color: "indigo" }, ctx);
+    const interval = await makeActiveInterval(user.id, { tags: { connect: [{ id: tag.id }] } });
+
+    await runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false });
+    const gathered = await prisma.action.findFirst({
+      where: { userId: user.id, isGathered: true, sourceId: interval.id },
+      include: { tags: true },
+    });
+    expect(gathered).not.toBeNull();
+    expect(gathered!.tags.map((t) => t.id)).toEqual([tag.id]);
+
+    // Locked: sourceType != null rejects setActionTags (build-plan.md §0 constraint #2).
+    await expect(
+      mutationResolvers.setActionTags(null, { actionId: gathered!.id, tagIds: [] }, ctx)
+    ).rejects.toThrow(/come from its interval or routine/);
+  });
+
+  it("retagging the interval after gather does not change an already-gathered action (snapshot, not live)", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const tagA = await mutationResolvers.createTag(null, { name: "deep-work", color: "indigo" }, ctx);
+    const tagB = await mutationResolvers.createTag(null, { name: "admin", color: "slate" }, ctx);
+    const interval = await makeActiveInterval(user.id, { tags: { connect: [{ id: tagA.id }] } });
+
+    await runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false });
+    const gathered = await prisma.action.findFirst({
+      where: { userId: user.id, isGathered: true, sourceId: interval.id, forDate: new Date(TODAY + "T00:00:00.000Z") },
+      include: { tags: true },
+    });
+    expect(gathered!.tags.map((t) => t.id)).toEqual([tagA.id]);
+
+    // Retag the template after the occurrence already exists.
+    await mutationResolvers.setIntervalTags(null, { intervalId: interval.id, tagIds: [tagB.id] }, ctx);
+
+    const unchanged = await prisma.action.findUnique({ where: { id: gathered!.id }, include: { tags: true } });
+    expect(unchanged!.tags.map((t) => t.id)).toEqual([tagA.id]);
+
+    // A future gather (a new date the template didn't cover yet) picks up the retag.
+    const future = await runActionGathering(prisma, user.id, { todayDateKey: "2025-07-01", skipCompletedDates: false });
+    expect(future.actionsCreated).toBeGreaterThan(0);
+    const futureAction = await prisma.action.findFirst({
+      where: { userId: user.id, isGathered: true, sourceId: interval.id, forDate: new Date("2025-07-01T00:00:00.000Z") },
+      include: { tags: true },
+    });
+    expect(futureAction!.tags.map((t) => t.id)).toEqual([tagB.id]);
+  });
+
+  it("a routine's tags propagate identically — snapshot-copied and locked", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const tag = await mutationResolvers.createTag(null, { name: "admin", color: "slate" }, ctx);
+    const routine = await prisma.routine.create({
+      data: {
+        title: "Inbox & triage",
+        status: "active",
+        estimatedTimeMinutes: 20,
+        timeOfDayBlocks: JSON.stringify(["09:00"]),
+        userId: user.id,
+        tags: { connect: [{ id: tag.id }] },
+      },
+    });
+
+    await runActionGathering(prisma, user.id, { todayDateKey: TODAY, skipCompletedDates: false });
+    const gathered = await prisma.action.findFirst({
+      where: { userId: user.id, isGathered: true, sourceId: routine.id },
+      include: { tags: true },
+    });
+    expect(gathered).not.toBeNull();
+    expect(gathered!.tags.map((t) => t.id)).toEqual([tag.id]);
+    await expect(
+      mutationResolvers.setActionTags(null, { actionId: gathered!.id, tagIds: [] }, ctx)
+    ).rejects.toThrow(/come from its interval or routine/);
   });
 });

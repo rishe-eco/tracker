@@ -7,6 +7,7 @@ import {
   GET_ACTIONS,
   GET_INTERVALS,
   GET_ROUTINES,
+  GET_TIME_THEMES,
 } from "~/api/queries";
 import type { CalendarItem, CalendarFilters } from "./calendarTypes";
 
@@ -157,12 +158,14 @@ export function useCalendarItems(
   const [actionsRaw, setActionsRaw] = useState<any[]>([]);
   const [intervalsRaw, setIntervalsRaw] = useState<any[]>([]);
   const [routinesRaw, setRoutinesRaw] = useState<any[]>([]);
+  const [timeThemesRaw, setTimeThemesRaw] = useState<any[]>([]);
 
   useEffect(() => {
     call({ query: GET_GOALS }).then((res) => setGoalsRaw(res?.goals ?? []));
     call({ query: GET_ACTIONS }).then((res) => setActionsRaw(res?.actions ?? []));
     call({ query: GET_INTERVALS }).then((res) => setIntervalsRaw(res?.intervals ?? []));
     call({ query: GET_ROUTINES }).then((res) => setRoutinesRaw(res?.routines ?? []));
+    call({ query: GET_TIME_THEMES }).then((res) => setTimeThemesRaw(res?.timeThemes ?? []));
   }, [call, refreshKey]);
 
   const range = dateRange ?? defaultRange();
@@ -307,18 +310,56 @@ export function useCalendarItems(
       }
     }
 
+    // —— Time Themes (Phase 6 — soft bands, never gate anything) ——
+    // Recurrence resolved with the same day-by-day loop + duck-typed
+    // intervalOccursOnDate this file already uses for intervals, per
+    // build-plan.md Phase 6 item 5 ("use the client recurrence util only
+    // where the calendar already does" — avoiding a third copy of the
+    // recurrence logic that would otherwise live in a per-day
+    // timeThemesForDate query loop).
+    if (filters.timeThemes) {
+      const ninetyDaysOut = addDays(new Date(), 90).getTime();
+      const effectiveRangeEnd = Math.min(rangeEnd, ninetyDaysOut);
+      for (const theme of timeThemesRaw) {
+        if (theme.status !== "active") continue;
+        let d = new Date(range.start);
+        d.setHours(0, 0, 0, 0);
+        while (d.getTime() <= effectiveRangeEnd) {
+          const dateKey = format(d, "yyyy-MM-dd");
+          if (intervalOccursOnDate(theme, dateKey)) {
+            const [sh, sm] = String(theme.startTimeOfDay).split(":").map((x: string) => parseInt(x, 10) || 0);
+            const [eh, em] = String(theme.endTimeOfDay).split(":").map((x: string) => parseInt(x, 10) || 0);
+            const start = setMinutes(setHours(new Date(d), sh), sm);
+            const end = setMinutes(setHours(new Date(d), eh), em);
+            list.push({
+              id: `timeTheme-${theme.id}-${dateKey}`,
+              type: "timeTheme",
+              title: theme.title ?? "Time Theme",
+              start,
+              end,
+              entityId: theme.id,
+              tagColorKey: theme.tags?.[0]?.color,
+            });
+          }
+          d = addDays(d, 1);
+        }
+      }
+    }
+
     return list;
   }, [
     goalsRaw,
     actionsRaw,
     intervalsRaw,
     routinesRaw,
+    timeThemesRaw,
     range.start,
     range.end,
     filters.goalsMilestones,
     filters.actions,
     filters.intervals,
     filters.routines,
+    filters.timeThemes,
   ]);
 
   return { items, loading: false };

@@ -46,6 +46,50 @@ describe("addAction", () => {
   });
 });
 
+describe("Time Themes: project tag init-from-project (build-plan.md Phase 3a)", () => {
+  it("a new action under a tagged project carries those tags, and stays editable", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const tag = await mutationResolvers.createTag(null, { name: "creative", color: "amber" }, ctx);
+    const project = await mutationResolvers.addProject(null, { title: "Q4 redesign" }, ctx);
+    await mutationResolvers.setProjectTags(null, { projectId: project.id, tagIds: [tag.id] }, ctx);
+
+    const action = await mutationResolvers.addAction(null, { title: "Draft nav", projectId: project.id }, ctx);
+    expect(action.tags.map((t: any) => t.id)).toEqual([tag.id]);
+
+    // Project-origin, not gathered: setActionTags still succeeds.
+    const other = await mutationResolvers.createTag(null, { name: "deep-work", color: "indigo" }, ctx);
+    const updated = await mutationResolvers.setActionTags(
+      null,
+      { actionId: action.id, tagIds: [other.id] },
+      ctx
+    );
+    expect(updated.tags.map((t: any) => t.id)).toEqual([other.id]);
+  });
+
+  it("is a copy, not a live link — retagging the project afterward does not retro-propagate", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const tagA = await mutationResolvers.createTag(null, { name: "a", color: "indigo" }, ctx);
+    const tagB = await mutationResolvers.createTag(null, { name: "b", color: "amber" }, ctx);
+    const project = await mutationResolvers.addProject(null, { title: "P" }, ctx);
+    await mutationResolvers.setProjectTags(null, { projectId: project.id, tagIds: [tagA.id] }, ctx);
+    const action = await mutationResolvers.addAction(null, { title: "Existing", projectId: project.id }, ctx);
+    expect(action.tags.map((t: any) => t.id)).toEqual([tagA.id]);
+
+    await mutationResolvers.setProjectTags(null, { projectId: project.id, tagIds: [tagB.id] }, ctx);
+    const unchanged = await prisma.action.findUnique({ where: { id: action.id }, include: { tags: true } });
+    expect(unchanged!.tags.map((t) => t.id)).toEqual([tagA.id]);
+  });
+
+  it("a standalone action (no projectId) starts with no tags", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const action = await mutationResolvers.addAction(null, { title: "Call the accountant" }, ctx);
+    expect(action.tags).toEqual([]);
+  });
+});
+
 describe("updateAction", () => {
   it("updates the title", async () => {
     const user = await createTestUser();

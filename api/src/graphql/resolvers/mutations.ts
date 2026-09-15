@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import { ensureOwned, requireAuth, signToken, SALT_ROUNDS } from "../auth";
 import { runActionGathering } from "../../services/actionGathering";
+import { isValidTagColor } from "../../services/tags";
 import { generateToken } from "../../services/apiTokens";
 import {
   ensureProfile,
@@ -100,9 +101,18 @@ const mutations: Record<string, any> = {};
 
 // ---- Actions ----
 mutations.addAction = requireAuth(async (_, { title, tbd, projectId, priority, estimatedTimeMinutes, startTimeOfDay }: any, ctx) => {
+  // Time Themes: a project action's tags are *initialised* from the project's
+  // tags at create — a copy, not a live link (time-themes.md §3.1). Because
+  // this action is project-origin (sourceType stays null), setActionTags
+  // remains allowed on it afterward.
+  let projectTagIds: string[] = [];
   if (projectId) {
-    const project = await ctx.prisma.project.findUnique({ where: { id: projectId } });
+    const project = await ctx.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { tags: { select: { id: true } } },
+    });
     ensureOwned(project, ctx);
+    projectTagIds = project!.tags.map((t: { id: string }) => t.id);
   }
   const hasDueDate = Boolean(tbd);
   const est = validateEstimatedMinutes(estimatedTimeMinutes, hasDueDate, "Action");
@@ -115,7 +125,9 @@ mutations.addAction = requireAuth(async (_, { title, tbd, projectId, priority, e
       estimatedTimeMinutes: est,
       startTimeOfDay: startTimeOfDay ?? undefined,
       userId: ctx.user.id,
+      tags: { connect: projectTagIds.map((id) => ({ id })) },
     },
+    include: { tags: true },
   });
 });
 mutations.updateAction = requireAuth(async (_, { id, title, tbd, done, priority, estimatedTimeMinutes, startTimeOfDay, actionFate, projectId }: any, ctx) => {
@@ -662,6 +674,198 @@ mutations.deleteRoutine = requireAuth(async (_, { id }: any, ctx) => {
     where: { id },
     include: { steps: true },
   });
+});
+
+// ---- Tags (Time Themes: shared vocabulary across Project/Interval/Routine/Action/TimeTheme) ----
+
+/** Every tag id must exist and belong to the caller — foreign or unknown ids are rejected as "Not found". */
+async function ensureOwnedTagIds(prisma: any, ctx: any, tagIds: string[]): Promise<void> {
+  if (tagIds.length === 0) return;
+  const owned = await prisma.tag.count({ where: { id: { in: tagIds }, userId: ctx.user.id } });
+  if (owned !== new Set(tagIds).size) {
+    throw new Error("Not found");
+  }
+}
+
+mutations.createTag = requireAuth(async (_, { name, color }: any, ctx) => {
+  if (!isValidTagColor(color)) {
+    throw new Error(`Unknown tag color "${color}".`);
+  }
+  const trimmed = String(name).trim();
+  if (!trimmed) throw new Error("Tag name is required.");
+  const existing = await ctx.prisma.tag.findUnique({
+    where: { userId_name: { userId: ctx.user.id, name: trimmed } },
+  });
+  if (existing) throw new Error(`A tag named "${trimmed}" already exists.`);
+  return ctx.prisma.tag.create({
+    data: { name: trimmed, color, userId: ctx.user.id },
+  });
+});
+
+mutations.renameTag = requireAuth(async (_, { id, name }: any, ctx) => {
+  const existing = await ctx.prisma.tag.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  const trimmed = String(name).trim();
+  if (!trimmed) throw new Error("Tag name is required.");
+  const collision = await ctx.prisma.tag.findUnique({
+    where: { userId_name: { userId: ctx.user.id, name: trimmed } },
+  });
+  if (collision && collision.id !== id) {
+    throw new Error(`A tag named "${trimmed}" already exists.`);
+  }
+  return ctx.prisma.tag.update({ where: { id }, data: { name: trimmed } });
+});
+
+mutations.recolorTag = requireAuth(async (_, { id, color }: any, ctx) => {
+  const existing = await ctx.prisma.tag.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  if (!isValidTagColor(color)) {
+    throw new Error(`Unknown tag color "${color}".`);
+  }
+  return ctx.prisma.tag.update({ where: { id }, data: { color } });
+});
+
+mutations.deleteTag = requireAuth(async (_, { id }: any, ctx) => {
+  const existing = await ctx.prisma.tag.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  // Implicit m2m: deleting the Tag row drops its join rows automatically —
+  // tagged entities simply lose the tag, no cascade to the entities themselves.
+  await ctx.prisma.tag.delete({ where: { id } });
+  return true;
+});
+
+mutations.setProjectTags = requireAuth(async (_, { projectId, tagIds }: any, ctx) => {
+  const project = await ctx.prisma.project.findUnique({ where: { id: projectId } });
+  ensureOwned(project, ctx);
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.project.update({
+    where: { id: projectId },
+    data: { tags: { set: tagIds.map((id: string) => ({ id })) } },
+    include: { actions: true, goal: true, milestone: true, intervals: true, tags: true },
+  });
+});
+
+mutations.setIntervalTags = requireAuth(async (_, { intervalId, tagIds }: any, ctx) => {
+  const interval = await ctx.prisma.interval.findUnique({ where: { id: intervalId } });
+  ensureOwned(interval, ctx);
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.interval.update({
+    where: { id: intervalId },
+    data: { tags: { set: tagIds.map((id: string) => ({ id })) } },
+    include: { steps: { orderBy: { order: "asc" } }, goal: true, milestone: true, project: true, tags: true },
+  });
+});
+
+mutations.setRoutineTags = requireAuth(async (_, { routineId, tagIds }: any, ctx) => {
+  const routine = await ctx.prisma.routine.findUnique({ where: { id: routineId } });
+  ensureOwned(routine, ctx);
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.routine.update({
+    where: { id: routineId },
+    data: { tags: { set: tagIds.map((id: string) => ({ id })) } },
+    include: { steps: { orderBy: { order: "asc" } }, tags: true },
+  });
+});
+
+mutations.setActionTags = requireAuth(async (_, { actionId, tagIds }: any, ctx) => {
+  const action = await ctx.prisma.action.findUnique({ where: { id: actionId } });
+  ensureOwned(action, ctx);
+  if (action!.sourceType != null) {
+    throw new Error("This action's tags come from its interval or routine and can't be edited here.");
+  }
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.action.update({
+    where: { id: actionId },
+    data: { tags: { set: tagIds.map((id: string) => ({ id })) } },
+    include: { tags: true },
+  });
+});
+
+// ---- Time Themes ----
+
+/** "HH:mm", 00:00-23:59. */
+function validateTimeOfDay(value: string, label: string): string {
+  const trimmed = String(value).trim().slice(0, 5);
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
+    throw new Error(`${label} must be HH:mm.`);
+  }
+  return trimmed;
+}
+
+function buildTimeThemeData(input: any) {
+  const startTimeOfDay = validateTimeOfDay(input.startTimeOfDay, "startTimeOfDay");
+  const endTimeOfDay = validateTimeOfDay(input.endTimeOfDay, "endTimeOfDay");
+  if (endTimeOfDay <= startTimeOfDay) {
+    throw new Error("endTimeOfDay must be after startTimeOfDay.");
+  }
+  const title = String(input.title).trim();
+  if (!title) throw new Error("Title is required.");
+  return {
+    title,
+    startTimeOfDay,
+    endTimeOfDay,
+    repeatValue: input.repeatValue ?? 1,
+    repeatUnit: input.repeatUnit ?? undefined,
+    customRepeatDates:
+      input.customRepeatDates != null && input.customRepeatDates.length > 0
+        ? JSON.stringify(input.customRepeatDates)
+        : undefined,
+    customRepeatRule: input.customRepeatRule ?? undefined,
+    endTime: input.endTime ? new Date(input.endTime) : undefined,
+  };
+}
+
+mutations.createTimeTheme = requireAuth(async (_, { input }: any, ctx) => {
+  const data = buildTimeThemeData(input);
+  const tagIds: string[] = input.tagIds ?? [];
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.timeTheme.create({
+    data: {
+      ...data,
+      userId: ctx.user.id,
+      tags: { connect: tagIds.map((id) => ({ id })) },
+    },
+    include: { tags: true },
+  });
+});
+
+mutations.updateTimeTheme = requireAuth(async (_, { id, input }: any, ctx) => {
+  const existing = await ctx.prisma.timeTheme.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  // TimeThemeInput is a full-replace shape (the editor resubmits the whole
+  // form on save, like createTimeTheme), not a sparse patch — so a field left
+  // out of the input clears to its default here exactly as it would on
+  // create, rather than being left alone.
+  const data = buildTimeThemeData(input);
+  const tagIds: string[] = input.tagIds ?? [];
+  await ensureOwnedTagIds(ctx.prisma, ctx, tagIds);
+  return ctx.prisma.timeTheme.update({
+    where: { id },
+    data: {
+      ...data,
+      repeatUnit: input.repeatUnit ?? null,
+      customRepeatDates: data.customRepeatDates ?? null,
+      customRepeatRule: data.customRepeatRule ?? null,
+      endTime: data.endTime ?? null,
+      tags: { set: tagIds.map((tid) => ({ id: tid })) },
+    },
+    include: { tags: true },
+  });
+});
+
+mutations.setTimeThemeStatus = requireAuth(async (_, { id, status }: any, ctx) => {
+  const existing = await ctx.prisma.timeTheme.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  return ctx.prisma.timeTheme.update({ where: { id }, data: { status }, include: { tags: true } });
+});
+
+mutations.deleteTimeTheme = requireAuth(async (_, { id }: any, ctx) => {
+  const existing = await ctx.prisma.timeTheme.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  // Soft by design: deleting a theme has zero effect on actions — they were
+  // never bound to it (time-themes.md §8).
+  await ctx.prisma.timeTheme.delete({ where: { id } });
+  return true;
 });
 
 mutations.toggleAction = requireAuth(async (_, { id }: any, ctx) => {
