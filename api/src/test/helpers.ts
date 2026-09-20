@@ -48,6 +48,11 @@ export async function clearDb() {
     prisma.loopSitting.deleteMany(),
     prisma.frameCompletion.deleteMany(),
     prisma.loopState.deleteMany(),
+    // Noticing: same shape, entries hang off sittings.
+    prisma.noticingEntry.deleteMany(),
+    prisma.noticingSitting.deleteMany(),
+    prisma.noticingFrame.deleteMany(),
+    prisma.noticingState.deleteMany(),
     prisma.user.deleteMany(),
   ]);
 }

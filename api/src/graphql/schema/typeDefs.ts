@@ -1776,6 +1776,313 @@ export const typeDefs = gql`
     graduation: FnGraduation
   }
 
+  # ── Impact · Noticing (Act 1) ────────────────────────────────────────────
+  # Spec: ecosystem/working/impact-build/01-noticing-spec.md.
+  # Build plan: ecosystem/working/impact-build/04-build-plan.md §7.
+  #
+  # A Tracker-namespaced tool, same staging arrangement as Feelings & Needs
+  # (Learn Module 1, above) but sharing no code with it — Noticing authors its
+  # own needs palette (build plan §4). Phase 3 lands the spine: the content
+  # pack, the active-sitting query, and the loop mutations. Phase 4 adds the
+  # day-one frame's own progress query and mutations (NtcFrame,
+  # updateNoticingFrame, completeNoticingFrame) — the frame does not gate the
+  # loop and the loop does not gate the frame; see NoticingState.frameDone.
+  # Phase 5 adds the catch payload (NtcCatch, on NtcEntryResult.catch) — the
+  # three lexicons themselves never reach this schema at all, only the one
+  # composed line a match actually produces. Phase 7 adds the self-initiation
+  # door: NtcFinishResult.graduation, the additive field this result type
+  # existed to make room for since phase 3 (rather than the mutation
+  # returning NtcSitting directly). finishNoticingSitting decides whether
+  # the door is due; acknowledgeNoticingGraduation is what retires it, on
+  # the client's own follow-up call. Deliberately two steps: writing the
+  # flag at surface time would let a dropped response spend the only time
+  # this is ever offered, silently and unrecoverably. See
+  # services/noticing/session.ts's graduationDue and acknowledgeGraduation.
+  """
+  The tool home's state: enough to route into the frame or the loop, no more.
+  Deliberately has no sitting count and no field named count, streak, total or
+  tally — the fences suite (build plan §9.4) holds this SDL block to that.
+  """
+  type NoticingState {
+    contentVersion: String!
+    "The locale of the practice content — see FeelingsNeedsState.locale for the same distinction."
+    locale: String!
+    "draft | reviewed — a draft locale is a known state, surfaced not hidden."
+    reviewStatus: String!
+    "Whether the day-one frame has been done. Does NOT gate the loop (spec §4.1, build plan §5)."
+    frameDone: Boolean!
+    "The one-time capability moment has been shown. A door, not a score."
+    graduationSurfaced: Boolean!
+    "How far the app has withdrawn its prompts (build plan §6). Derived, capped, never shown."
+    promptFadeLevel: Int!
+  }
+
+  "One place, one cue, or one need — the label the person sees. Ids are stable; labels can be edited freely."
+  type NtcPaletteEntry {
+    id: String!
+    label: String!
+  }
+
+  type NtcFrameIntro {
+    title: String!
+    body: String!
+    begin: String!
+  }
+
+  type NtcFrameMoment {
+    prompt: String!
+    helper: String
+    "Offered beside the prompt, not after a failed attempt — the reroute is a first-class path, not a fallback."
+    reroutePrompt: String!
+    rerouteLabel: String!
+    "Shown once the reroute is taken. A different question, not prompt reworded — it asks about a wish, not a memory."
+    wishedPrompt: String!
+  }
+
+  type NtcFrameUnsaidNeed {
+    prompt: String!
+    helper: String
+    otherLabel: String!
+  }
+
+  type NtcFrameVisibleCues {
+    prompt: String!
+    helper: String
+    otherLabel: String!
+  }
+
+  """
+  No question — the juxtaposition itself, reporting what the person just
+  wrote rather than asserting a lesson. wishedLine is the mandatory variant
+  for the wishedInstead reroute: line's wording claims someone actually made
+  the connection, which is true on the ordinary path and false by
+  construction on the reroute path.
+  """
+  type NtcFrameTurn {
+    line: String!
+    wishedLine: String!
+  }
+
+  type NtcFrameReverse {
+    prompt: String!
+    knowLabel: String!
+    noIdeaLabel: String!
+    knowResponse: String!
+    noIdeaResponse: String!
+  }
+
+  type NtcFrameBeatOne {
+    moment: NtcFrameMoment!
+    unsaidNeed: NtcFrameUnsaidNeed!
+    visibleCues: NtcFrameVisibleCues!
+    turn: NtcFrameTurn!
+    reverse: NtcFrameReverse!
+  }
+
+  type NtcFrameOption {
+    id: String!
+    label: String!
+  }
+
+  """
+  Keyed on the guess, not one line for everyone (phase-2 review correction):
+  the research finding is that people underestimate, so a single line told
+  whoever guessed "very" that they were wrong about the one thing they got
+  right. "body" is the finding itself and holds regardless of the guess.
+  """
+  type NtcFrameCorrectionLines {
+    notVery: String!
+    somewhat: String!
+    very: String!
+  }
+
+  type NtcFrameCorrection {
+    lineByGuess: NtcFrameCorrectionLines!
+    body: String!
+  }
+
+  type NtcFrameBeatTwo {
+    prompt: String!
+    options: [NtcFrameOption!]!
+    correction: NtcFrameCorrection!
+  }
+
+  type NtcFrameCopy {
+    intro: NtcFrameIntro!
+    beatOne: NtcFrameBeatOne!
+    beatTwo: NtcFrameBeatTwo!
+  }
+
+  """
+  The day-one frame's own progress row (tier 1, once). Committed step by
+  step, the same convention as NtcSitting — a null field is simply not
+  answered yet, not a missing row. completedAt is set only at the very end of
+  beat 2 by completeNoticingFrame; NoticingState.frameDone reads this
+  timestamp, not row existence (a phase-1 bug, fixed in phase 2 — see
+  notes/noticing-build-log.md). Null overall means the frame has never been
+  started, which is why the query that returns this is nullable.
+  """
+  type NtcFrame {
+    moment: String
+    unsaidNeed: String
+    "JSON string: cue chip ids plus any free text."
+    visibleCues: String
+    "Took the a-time-you-wished-someone-had reroute at step 1. A path, not a failure flag."
+    wishedInstead: Boolean!
+    welcomeGuess: String
+    completedAt: String
+  }
+
+  """
+  The loop's step prompts, already resolved to the person's current fade
+  level (build plan §6) — there is no separate "terse" field to choose
+  between, because the server has already chosen. Withdrawing the scaffold
+  is the mechanism; a client that saw both forms and picked one would be a
+  second, silent copy of the dial.
+  """
+  type NtcLoopCopy {
+    placePrompt: String!
+    placeOtherLabel: String!
+    personPrompt: String!
+    "Persistent, under the person field — not a modal, not dismissible-forever."
+    personThirdPartyWarning: String!
+    observationPrompt: String!
+    needPrompt: String!
+    needOtherLabel: String!
+    needNotSure: String!
+    smallThingPrompt: String!
+    smallThingSkip: String!
+    "Asked only when a small thing was written — the whole of the capacity accretion (phase 6)."
+    capacityPrompt: String!
+    capacityOtherLabel: String!
+    "The one-line close: '✓ noticed', already formed."
+    close: String!
+    addAnotherAsk: String!
+    "Shown once the soft cap is reached — closes warmly, never as a rule."
+    addAnotherCapped: String!
+    finish: String!
+    recapHeading: String!
+    recapNotRelated: String!
+  }
+
+  "Head / hands / heart — accreted from what the person HAD, never who they helped (phase 6)."
+  type NtcCapacityCopy {
+    prompt: String!
+    headChips: [NtcPaletteEntry!]!
+    handsChips: [NtcPaletteEntry!]!
+    heartChips: [NtcPaletteEntry!]!
+    otherLabel: String!
+  }
+
+  """
+  The Reflect handoff's own copy (spec §4.6) — deliberately thin, since
+  Reflect itself is unbuilt. A closed, two-way pick rather than free text;
+  motiveNote (on NtcEntry) stores which side was picked. Skippable — nothing
+  in Noticing gates on the answer.
+  """
+  type NtcReflectCopy {
+    prompt: String!
+    capacityLabel: String!
+    obligationLabel: String!
+    skip: String!
+  }
+
+  "A door, not an award. No count anywhere in this type or what it carries."
+  type NtcGraduationCopy {
+    line: String!
+    body: String!
+    close: String!
+  }
+
+  "Which of the needs pool to show now. Places and cues are shown whole; the needs pool (20) is wider than the screen (6)."
+  type NtcDisplaySelection {
+    needIds: [String!]!
+  }
+
+  """
+  The authored content pack, already localized and fade-resolved. Note what
+  is absent: no lexicon field of any kind — the three catch lexicons never
+  reach a browser (build plan §9.4's public-content fence).
+  """
+  type NoticingContent {
+    contentVersion: String!
+    locale: String!
+    reviewStatus: String!
+    places: [NtcPaletteEntry!]!
+    cues: [NtcPaletteEntry!]!
+    needs: [NtcPaletteEntry!]!
+    display: NtcDisplaySelection!
+    capacity: NtcCapacityCopy!
+    reflect: NtcReflectCopy!
+    frame: NtcFrameCopy!
+    loop: NtcLoopCopy!
+    graduation: NtcGraduationCopy!
+    thirdPartyWarning: String!
+    "So the UI can retire the repeat prompt rather than fail on it."
+    repeatSoftCap: Int!
+  }
+
+  """
+  One pass. Passes within a sitting are parallel and are never
+  cross-referenced — there is no field here that points at another pass, and
+  none ever will (spec §4.2).
+  """
+  type NtcEntry {
+    id: ID!
+    passIndex: Int!
+    place: String
+    "Free text, deliberately un-indexed server-side — see the schema comment on NoticingEntry.person."
+    person: String
+    observation: String
+    "Palette id or free text. Null is 'not sure' — a complete pass, not a missing answer."
+    need: String
+    smallThing: String
+    "JSON string, head/hands/heart. Set only once a small thing exists (phase 6)."
+    capacityTags: String
+    "The Reflect handoff answer (phase 6). Nothing is computed from it."
+    motiveNote: String
+  }
+
+  type NtcSitting {
+    id: ID!
+    completedAt: String
+    createdAt: String!
+    entries: [NtcEntry!]!
+  }
+
+  """
+  A catch that just fired (N6, tier 3), composed server-side — the three
+  lexicons never ship to a browser (see NoticingContent's own note). hints
+  is empty for read and protective, which never offer one; protective's
+  routeTo carries the Reflect handoff (unbuilt — a link-out stub for now,
+  build plan §8).
+  """
+  type NtcCatch {
+    type: String!
+    line: String!
+    hints: [String!]!
+    dismiss: String!
+    note: String!
+    routeTo: String
+  }
+
+  "The result of committing one step. catch is null far more often than not — that's the point (build plan §5 phase 5)."
+  type NtcEntryResult {
+    sitting: NtcSitting!
+    catch: NtcCatch
+  }
+
+  """
+  Closing a sitting. graduation is non-null exactly once, ever, per person —
+  the sitting whose close earns the one-time capability door (spec §4.5).
+  Already committed server-side by the time this is on the wire: seeing this
+  field non-null IS the door, not a preview of one still to be confirmed.
+  """
+  type NtcFinishResult {
+    sitting: NtcSitting!
+    graduation: NtcGraduationCopy
+  }
+
   """
   One skill's line on the AI Training Lab hub. Progress only — no headline
   metric appears here, because the six labs' metrics are on six different
@@ -1913,6 +2220,28 @@ export const typeDefs = gql`
     are grouped client-side because a day is a local-timezone concept.
     """
     loopHistory(limit: Int): [FnLoopSitting!]!
+
+    "Noticing: the tool home's state — enough to route into the frame or the loop."
+    noticingState: NoticingState!
+
+    "Noticing: the authored content pack, localized and fade-resolved."
+    noticingContent: NoticingContent!
+
+    "Noticing: today's still-open sitting, if there is one. Null means start fresh."
+    activeNoticingSitting: NtcSitting
+
+    "Noticing: the day-one frame's own progress, for resuming mid-frame. Null means it has never been started."
+    noticingFrame: NtcFrame
+
+    """
+    Noticing: the person's own record, reverse-chronological (spec §4.3). No
+    search, no person filter, no argument here or anywhere in this block
+    named search, person, query or name — that's the dossier fence, and the
+    fences suite holds this SDL to it as a red build, not a rule to remember.
+    Returns completed sittings only; grouping into days is the client's job,
+    because a day is a local-timezone concept the server does not know.
+    """
+    noticingHistory(limit: Int): [NtcSitting!]!
   }
 
   type AuthPayload {
@@ -2474,6 +2803,90 @@ export const typeDefs = gql`
     offered. Idempotent; nothing is incremented behind it.
     """
     acknowledgeGraduation: Boolean!
+
+    # ── Impact · Noticing: the day-one frame ──────────────────────────────
+    # Commits step by step, same convention as the loop below. completedAt is
+    # written only by completeNoticingFrame, and only at the very end of beat
+    # 2 — see NtcFrame's own docstring for why that separation is load-bearing.
+
+    """
+    Commit one step of the day-one frame. Creates the row on first call.
+    Every argument is optional and independently settable, mirroring
+    updateNoticingEntry — an omitted argument is left alone, and wishedInstead
+    is only ever set true, never toggled back off.
+    """
+    updateNoticingFrame(moment: String, unsaidNeed: String, visibleCues: String,
+                        wishedInstead: Boolean, welcomeGuess: String): NtcFrame!
+
+    """
+    Mark the day-one frame complete — the only mutation that sets
+    completedAt. Idempotent: a double submit is a double-click, not a second
+    frame. Returns NoticingState so the client can route onward with
+    frameDone already true.
+    """
+    completeNoticingFrame: NoticingState!
+
+    # ── Impact · Noticing: the loop ───────────────────────────────────────
+    # The wizard commits every step as it goes; there is deliberately no
+    # "submit the loop" mutation. Partial state is valid state — see
+    # services/noticing/session.ts's docblock. Not gated on the day-one
+    # frame — see NoticingState.frameDone's note.
+
+    """
+    Open a sitting and its first pass. Returns the still-open sitting instead
+    if one exists, so a reload cannot split one practice across two rows.
+    wasPrompted records whether the app cued this — input to the fade-level
+    inference (phase 7), never a metric.
+    """
+    startNoticingSitting(wasPrompted: Boolean): NtcSitting!
+
+    """
+    Commit one step of one pass. Every field is optional; an omitted field is
+    left alone, and an explicit null clears it — which is how "not sure" is
+    recorded for need: a complete pass, not a missing answer.
+    """
+    updateNoticingEntry(
+      entryId: ID!
+      place: String
+      person: String
+      observation: String
+      need: String
+      smallThing: String
+    ): NtcEntryResult!
+
+    """
+    Record the post-offer capacity accretion (spec §4.2, §4.6; build plan §5
+    phase 6) — asked once, only when a small thing was written. Built only
+    from what the person HAD, never from who they helped: capacityTags is an
+    opaque JSON string the client composes, the same convention as the
+    frame's visibleCues. No name ever passes through this mutation.
+    """
+    setNoticingCapacity(entryId: ID!, capacityTags: String!): NtcSitting!
+
+    """
+    Record the Reflect handoff's motive answer (spec §4.6) — a link-out stub
+    while Reflect is unbuilt. Nothing is computed from this, and nothing in
+    Noticing gates on it.
+    """
+    setNoticingMotive(entryId: ID!, motiveNote: String!): NtcSitting!
+
+    """
+    Add a pass for another distinct person. Refuses past the soft cap — the
+    bound is what keeps a plural sitting from becoming an inventory of
+    people rather than a distributed noticing practice.
+    """
+    addNoticingPass(sittingId: ID!): NtcSitting!
+
+    "Close the sitting. Drops a trailing pass left completely blank."
+    finishNoticingSitting(sittingId: ID!): NtcFinishResult!
+
+    """
+    Mark the Noticing door walked through. Explicit rather than written when
+    the door is surfaced, so a dropped response re-offers it on a later close
+    instead of spending it unseen. Idempotent; nothing is incremented behind
+    it. Distinct from acknowledgeGraduation above, which is Module 1's.
+    """
+    acknowledgeNoticingGraduation: Boolean!
 
     "Time Themes: create a tag. Rejects a duplicate name for this user; color must be an allowed palette key."
     createTag(name: String!, color: String!): Tag!

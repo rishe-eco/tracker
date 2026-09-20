@@ -12,6 +12,12 @@ import { getPlan } from "../../services/skills/planning";
 import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
 import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
+import { getFrameProgress, getNoticingState } from "../../services/noticing/state";
+import {
+  getContent as getNoticingContent,
+  getActiveSitting as getActiveNoticingSitting,
+  getHistory as getNoticingHistory,
+} from "../../services/noticing/session";
 
 /**
  * Clarity Lab has its own fields (`clarityModules`, `clarityProgress`) rather
@@ -398,5 +404,17 @@ export const queryResolvers = {
 
   loopHistory: requireAuth((_, { limit }: any, ctx) =>
     getHistory(ctx.prisma, ctx.user.id, limit ?? undefined)
+  ),
+
+  noticingState: requireAuth((_, __, ctx) => getNoticingState(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  noticingContent: requireAuth((_, __, ctx) => getNoticingContent(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  activeNoticingSitting: requireAuth((_, __, ctx) => getActiveNoticingSitting(ctx.prisma, ctx.user.id)),
+
+  noticingFrame: requireAuth((_, __, ctx) => getFrameProgress(ctx.prisma, ctx.user.id)),
+
+  noticingHistory: requireAuth((_, { limit }: any, ctx) =>
+    getNoticingHistory(ctx.prisma, ctx.user.id, limit ?? undefined)
   ),
 };

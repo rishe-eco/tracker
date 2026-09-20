@@ -76,6 +76,16 @@ import {
   updateEntry,
 } from "../../services/feelingsNeeds/session";
 import { completeFrame } from "../../services/feelingsNeeds/state";
+import {
+  acknowledgeGraduation as acknowledgeNoticingGraduation,
+  addPass as addNoticingPass,
+  finishSitting as finishNoticingSitting,
+  setCapacity as setNoticingCapacity,
+  setMotive as setNoticingMotive,
+  startSitting as startNoticingSitting,
+  updateEntry as updateNoticingEntry,
+} from "../../services/noticing/session";
+import { completeNoticingFrame, updateFrameStep as updateNoticingFrame } from "../../services/noticing/state";
 
 const MAX_ESTIMATED_MINUTES = 24 * 60; // 24 hours
 
@@ -1677,8 +1687,45 @@ mutations.finishLoopSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
   finishSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
 );
 
+mutations.acknowledgeNoticingGraduation = requireAuth(async (_, __: any, ctx) =>
+  acknowledgeNoticingGraduation(ctx.prisma, ctx.user.id)
+);
+
 mutations.acknowledgeGraduation = requireAuth(async (_, __: any, ctx) =>
   acknowledgeGraduation(ctx.prisma, ctx.user.id)
+);
+
+mutations.updateNoticingFrame = requireAuth(async (_, args: any, ctx) =>
+  updateNoticingFrame(ctx.prisma, ctx.user.id, args)
+);
+
+mutations.completeNoticingFrame = requireAuth(async (_, __: any, ctx) =>
+  completeNoticingFrame(ctx.prisma, ctx.user.id, ctx.locale)
+);
+
+mutations.startNoticingSitting = requireAuth(async (_, { wasPrompted }: any, ctx) =>
+  startNoticingSitting(ctx.prisma, ctx.user.id, { wasPrompted: wasPrompted ?? false })
+);
+
+mutations.updateNoticingEntry = requireAuth(async (_, args: any, ctx) => {
+  const { entryId, ...patch } = args;
+  return updateNoticingEntry(ctx.prisma, ctx.user.id, entryId, patch, ctx.locale);
+});
+
+mutations.setNoticingCapacity = requireAuth(async (_, { entryId, capacityTags }: any, ctx) =>
+  setNoticingCapacity(ctx.prisma, ctx.user.id, entryId, capacityTags)
+);
+
+mutations.setNoticingMotive = requireAuth(async (_, { entryId, motiveNote }: any, ctx) =>
+  setNoticingMotive(ctx.prisma, ctx.user.id, entryId, motiveNote, ctx.locale)
+);
+
+mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>
+  addNoticingPass(ctx.prisma, ctx.user.id, sittingId)
+);
+
+mutations.finishNoticingSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
+  finishNoticingSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
 );
 
 export const mutationResolvers = mutations;
