@@ -736,7 +736,14 @@ model NoticingFrame {
   /// The beat-2 prediction, kept only so the correction can be shown once
   /// against what they actually guessed.
   welcomeGuess  String?
-  completedAt   DateTime @default(now())
+  /// Null while the frame is in progress — the row is created at beat 1 step 1
+  /// and filled in as the person moves through it (every step commits as it
+  /// goes, same convention as NoticingSitting). `isFrameDone` checks this
+  /// timestamp, not row existence: with a default-on-create value here, the
+  /// row would be born "done" the moment someone typed a first line and
+  /// walked away. Phase-1 build-plan error, corrected in phase 2 — see
+  /// notes/noticing-build-log.md.
+  completedAt   DateTime?
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

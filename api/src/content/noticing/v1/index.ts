@@ -3,12 +3,12 @@
  * into a full pack. Mirrors `content/feelings-needs/v1/index.ts`.
  */
 
-import type { CatchLexiconSpec, Locale, NoticingPack, NoticingSurface } from "../types";
+import type { CatchLexiconSpec, CatchTypeId, Locale, NoticingPack, NoticingSurface } from "../types";
 import { CATCH_SPECS, CONTENT_VERSION, SPEC } from "./spec";
 import { SURFACE_EN } from "./surface.en";
 import { SURFACE_FA } from "./surface.fa";
 
-const HINT_SLOTS_BY_TYPE = new Map<string, number>(CATCH_SPECS.map((c) => [c.type, c.hintSlots]));
+const SPEC_BY_TYPE = new Map<CatchTypeId, CatchLexiconSpec>(CATCH_SPECS.map((c) => [c.type, c]));
 
 /**
  * Still typed as partial, now that both locales are here — the next locale
@@ -32,22 +32,19 @@ export function buildNoticingPack(locale: Locale): NoticingPack {
     );
   }
 
-  // Each catch type carries its hint-slot count through from the spec, so
-  // locales stay structurally matched without a second lookup at call time.
-  const catchTypesInSurface = new Set(surface.catches.map((c) => c.type));
-  const declaredTypes = new Set(CATCH_SPECS.map((c: CatchLexiconSpec) => c.type));
-  for (const type of catchTypesInSurface) {
-    if (!declaredTypes.has(type)) {
+  // Each catch type carries its hint-slot count and field contract through
+  // from the spec, so locales stay structurally matched and phase 5's matcher
+  // reads the contract from one place rather than reimplementing it.
+  const catches = surface.catches.map((c) => {
+    const spec = SPEC_BY_TYPE.get(c.type);
+    if (!spec) {
       throw new Error(
-        `Catch type "${type}" is realized in the ${locale} surface but not declared in ` +
+        `Catch type "${c.type}" is realized in the ${locale} surface but not declared in ` +
           `the ${CONTENT_VERSION} spec. Every catch type must be declared in the spec.`
       );
     }
-  }
-  const catches = surface.catches.map((c) => ({
-    ...c,
-    hintSlots: HINT_SLOTS_BY_TYPE.get(c.type) ?? 0,
-  }));
+    return { ...c, hintSlots: spec.hintSlots, matchesFields: spec.matchesFields };
+  });
 
   return {
     contentVersion: CONTENT_VERSION,

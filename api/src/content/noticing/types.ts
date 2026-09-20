@@ -59,7 +59,12 @@ export type FrameBeatOneSurface = {
   /** Step 4 — no question. Reports the turn as a description, not a claim. */
   turn: { line: string };
   /** Step 5 — the reverse prompt. A two-way pick, not free text. */
-  reverse: FrameStepSurface & { knowLabel: string; noIdeaLabel: string; noIdeaResponse: string };
+  reverse: FrameStepSurface & {
+    knowLabel: string;
+    noIdeaLabel: string;
+    knowResponse: string;
+    noIdeaResponse: string;
+  };
 };
 
 /**
@@ -87,15 +92,30 @@ export type FrameSurface = {
  * `personThirdPartyWarning` sits under the person field specifically — it is
  * not the same string as `NoticingSurface.thirdPartyWarning` for reuse's
  * sake; keeping it here is what lets the loop wizard render every step's copy
- * from one object without reaching into the pack root.
+ * from one object without reaching into the pack root. Both hold the same
+ * words in this pack; nothing requires them to.
+ *
+ * `*PromptTerse` are the withdrawn form of the four spine prompts, used once
+ * the scaffold starts fading (build plan §6 delta 2, spec §6
+ * `selfInitiationWindow`). Authored as different sentences, not truncations —
+ * same reasoning as Feelings & Needs' terse variants: the short form of a
+ * prompt is a different sentence, and withdrawing the scaffolding is the
+ * mechanism, not a cosmetic shortening. `smallThingPrompt` and
+ * `capacityPrompt` have no terse form, same as Module 1's breath and
+ * small-step prompts — they are asked rarely enough that fading them buys
+ * nothing.
  */
 export type LoopCopySurface = {
   placePrompt: string;
+  placePromptTerse: string;
   placeOtherLabel: string;
   personPrompt: string;
+  personPromptTerse: string;
   personThirdPartyWarning: string;
   observationPrompt: string;
+  observationPromptTerse: string;
   needPrompt: string;
+  needPromptTerse: string;
   needOtherLabel: string;
   needNotSure: string;
   smallThingPrompt: string;
@@ -119,19 +139,26 @@ export type LoopCopySurface = {
  * Three catch types, not families of concepts — unlike Module 1's 39 faux-
  * feelings, each type here is one authored lexicon (build plan §8).
  *
- * The field contract (build plan §8, binding on the phase-5 matcher, stated
- * here because it is a property of the content's shape): `read` matches only
- * `observation`; `strategy` matches `need` and `smallThing`; `protective`
- * matches `smallThing` and `motiveNote`. **None of the three is ever matched
- * against `person`** — a matcher that read the person field would be the tool
- * forming an opinion about a named human being.
+ * The field contract (build plan §8, binding on the phase-5 matcher) is
+ * encoded on the spec itself via `matchesFields`, not left as a comment for
+ * the matcher to reimplement correctly: `read` matches only `observation`;
+ * `strategy` matches `need` and `smallThing`; `protective` matches
+ * `smallThing` and `motiveNote`. **`"person"` must never appear in any
+ * `matchesFields` array** — a matcher that read the person field would be
+ * the tool forming an opinion about a named human being. The fences suite
+ * (build plan §9.4) and the phase-2 content suite both hold this.
  */
 export type CatchTypeId = "read" | "strategy" | "protective";
+
+/** The `NoticingEntry` fields a catch is allowed to be matched against. Never `"person"`. */
+export type NoticingEntryField = "observation" | "need" | "smallThing" | "motiveNote";
 
 /** Locale-invariant: how many hint chips this catch type's surface supplies. */
 export type CatchLexiconSpec = {
   type: CatchTypeId;
   hintSlots: number;
+  /** The field contract, authored once here so phase 5 reads it rather than reimplements it. */
+  matchesFields: NoticingEntryField[];
 };
 
 /**
@@ -214,7 +241,7 @@ export type NoticingPack = {
   needs: PaletteEntrySurface[];
   frame: FrameSurface;
   loop: LoopCopySurface;
-  catches: (CatchLexiconSurface & { hintSlots: number })[];
+  catches: (CatchLexiconSurface & { hintSlots: number; matchesFields: NoticingEntryField[] })[];
   catchCopy: CatchCopySurface;
   capacity: CapacityCopySurface;
   graduation: GraduationSurface;
@@ -248,15 +275,25 @@ export function toPublicPack(pack: NoticingPack): PublicNoticingPack {
   return rest;
 }
 
-/** Compose a catch that just fired. Server-side only — see `catches.ts` (phase 5). */
+/**
+ * Compose a catch that just fired. Server-side only — see `catches.ts`
+ * (phase 5), which finds `matchedWord` by walking `matchesFields` against
+ * the entry and never against `person`.
+ *
+ * `matchedWord` substitutes into the lexicon's `{{word}}` — each catch line
+ * quotes the person's own word back to them (spec §4.4's own examples all
+ * do: "'difficult' is your read on it", "'should' is worth a look"), which is
+ * what keeps the contrast about their material rather than a canned line.
+ */
 export function renderCatch(
   pack: NoticingPack,
-  type: CatchTypeId
+  type: CatchTypeId,
+  matchedWord: string
 ): { line: string; hints: string[]; dismiss: string; note: string; routeTo?: string } | null {
   const lexicon = pack.catches.find((c) => c.type === type);
   if (!lexicon) return null;
   return {
-    line: lexicon.line,
+    line: lexicon.line.replace("{{word}}", matchedWord),
     hints: lexicon.hints,
     dismiss: pack.catchCopy.dismiss,
     note: pack.catchCopy.note,

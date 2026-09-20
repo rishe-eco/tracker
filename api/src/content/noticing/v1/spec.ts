@@ -3,10 +3,6 @@
  *
  * Palette ids and catch-type structure only; the words live in
  * `surface.<locale>.ts`. See `../types.ts` for why the split exists.
- *
- * // PHASE 2: the needs palette below is authored (ids finalized against the
- * three directions build plan §4 requires), but the surface labels for
- * everything in this file are placeholder copy — see `surface.en.ts`.
  */
 
 import type { CatchLexiconSpec, NoticingSpec, PaletteEntrySpec } from "../types";
@@ -49,15 +45,23 @@ export const CUE_SPECS: PaletteEntrySpec[] = [
  * from coining two words for one need (asserted in the phase-2 content
  * suite, which imports Module 1's `NEED_IDS` read-only).
  *
- * Pool of ~20; the on-screen selection (`DIALS.needs.displayCount`) is a
+ * Pool of 20; the on-screen selection (`DIALS.needs.displayCount`) is a
  * service-layer concern (phase 3), not a content one, and is NOT narrowed by
  * the chosen place (build plan §4 — pruning the answer is worse than
  * pre-seeding the question).
+ *
+ * Phase-1 review (coordinator, 2026-09-20) restored `to_matter` — one of the
+ * most legible-from-outside needs there is (being talked over, being the one
+ * nobody asks) — and cut `privacy` for overlapping `to_be_left_alone` in the
+ * one category where precision matters most. `to_be_left_alone` (a state
+ * they want) and `nothing_right_now` (a response to *you*, specifically) are
+ * kept as the two genuinely different invite-no-offer needs.
  */
 export const NEED_SPECS: PaletteEntrySpec[] = [
   // ── Shared with Module 1 — same meaning, same id ──────────────────────────
   { id: "rest" },
   { id: "connection" },
+  { id: "to_matter" },
   { id: "safety" },
   { id: "space" },
   { id: "ease" },
@@ -82,21 +86,45 @@ export const NEED_SPECS: PaletteEntrySpec[] = [
   // ── Needs that invite no offer — the category Module 1 had no reason to
   //    carry (you do not offer yourself a hand). Without these the palette
   //    itself argues for intervention (build plan §4, spec §5 savior framing).
+  //    Two, not three — see the note above on `privacy`.
   { id: "to_be_left_alone" },
   { id: "nothing_right_now" },
-  { id: "privacy" },
+];
+
+/**
+ * The ids Noticing shares in meaning with Module 1's twelve — the authoring
+ * rule from build plan §4: where both palettes mean the same need, they
+ * carry the same id, so two independent content versions never coin two
+ * words for one need. Checked against `content/feelings-needs/v1/spec`'s
+ * `NEED_IDS` in the phase-2 content suite (read-only import — an assertion
+ * about authoring, not a runtime dependency).
+ */
+export const SHARED_WITH_MODULE1_NEED_IDS = [
+  "rest",
+  "connection",
+  "to_matter",
+  "safety",
+  "space",
+  "ease",
+  "to_be_seen",
+  "understanding",
+  "support",
+  "respect",
+  "autonomy",
 ];
 
 /**
  * The three Tier 3 catches (spec §4.4, build plan §8) — one authored lexicon
- * per type, not families of concepts like Module 1's faux-feelings. `hintSlots`
- * is 0 for `protective`, which routes to the Reflect handoff instead of
- * offering an answer (spec §4.4, N6-c).
+ * per type, not families of concepts like Module 1's faux-feelings.
+ * `hintSlots` is 0 for `protective`, which routes to the Reflect handoff
+ * instead of offering an answer (spec §4.4, N6-c). `matchesFields` is the
+ * field contract (build plan §8): the only fields the phase-5 matcher may
+ * read this catch type against. `"person"` must never appear in any of them.
  */
 export const CATCH_SPECS: CatchLexiconSpec[] = [
-  { type: "read", hintSlots: 0 },
-  { type: "strategy", hintSlots: 3 },
-  { type: "protective", hintSlots: 0 },
+  { type: "read", hintSlots: 0, matchesFields: ["observation"] },
+  { type: "strategy", hintSlots: 3, matchesFields: ["need", "smallThing"] },
+  { type: "protective", hintSlots: 0, matchesFields: ["smallThing", "motiveNote"] },
 ];
 
 export const SPEC: NoticingSpec = {

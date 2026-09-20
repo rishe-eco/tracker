@@ -60,9 +60,16 @@ export async function ensureNoticingState(prisma: PrismaClient, userId: string) 
 }
 
 /**
- * Whether the day-one frame has been done. Derived from the `NoticingFrame`
- * row rather than a flag kept beside it — the row is the event, and a
- * boolean mirroring it would only ever be a second thing to forget to write.
+ * Whether the day-one frame has been done.
+ *
+ * Checks `completedAt`, not row existence. The frame's five steps commit as
+ * they go (same convention as `NoticingSitting`), so the row exists from
+ * beat 1 step 1 onward — a row-existence check would report "done" the
+ * moment someone typed a first line and walked away. `completedAt` is the
+ * event; nothing mirrors it elsewhere, so there is nothing else to keep in
+ * sync. (This was wrong in phase 1 — `completedAt` defaulted on create,
+ * which made it indistinguishable from row existence. Fixed in phase 2 with
+ * a migration; see notes/noticing-build-log.md.)
  *
  * Informational only: per spec §4.1 and build plan §5 phase 4, this does
  * **not** gate the loop. Someone can run the loop having never done the
@@ -70,11 +77,11 @@ export async function ensureNoticingState(prisma: PrismaClient, userId: string) 
  * precondition for it (build plan §5, ordering notes).
  */
 export async function isFrameDone(prisma: PrismaClient, userId: string): Promise<boolean> {
-  const done = await prisma.noticingFrame.findUnique({
+  const frame = await prisma.noticingFrame.findUnique({
     where: { userId },
-    select: { userId: true },
+    select: { completedAt: true },
   });
-  return done !== null;
+  return frame?.completedAt != null;
 }
 
 export type NoticingState = {
