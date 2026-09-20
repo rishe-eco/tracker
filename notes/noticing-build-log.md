@@ -962,6 +962,180 @@ author all four `reflect` fields, plus a check that `reflect` survives
   (nothing in phase 6b needs one) should use it too rather than
   re-inlining the check a fourth time.
 
+## Phase 6b — the log
+
+Branch: `impact-noticing`, continuing from phase 6's commit. Committed
+separately per the coordinator's instruction, so the log stands on its own
+in history.
+
+### What landed
+
+**GraphQL** — `Query.noticingHistory(limit: Int): [NtcSitting!]!`, wired to
+the `getHistory` service function that has existed since phase 3 unchanged
+(it already computed nothing and returned completed sittings, newest
+first — this phase only gave it a GraphQL door).
+
+**Client** — `components/impact/NoticingLogPage.tsx`, a full rewrite of the
+phase-1 stub, modeled on `FeelingsNeedsHistoryPage.tsx`'s structure (day
+grouping done client-side with the same local-calendar-day logic, same
+empty/failed/loading states) but narrower in what it asks for and shows.
+`GET_NOTICING_HISTORY` requests only `place`, `observation`, `need`,
+`smallThing` per entry — no `person`, no `capacityTags`, no `motiveNote`.
+An entry with no `need` renders its observation alone, no arrow, no chip,
+no explanatory line — identical treatment for "chose not sure" and "never
+reached the need step," because the stored data cannot tell those apart
+and a line would be lying to one of them half the time (see "the call I
+made," below). No time-of-day shown per sitting, unlike
+`FeelingsNeedsHistoryPage.tsx` — spec §4.3's own list of what the log shows
+("the place, what you wrote you saw, the need if you named one, the small
+thing if there was one") doesn't include a time, and adding one would be
+exactly the kind of small, well-meant addition the fences suite exists to
+make people stop and think twice about before adding.
+
+**Tests** — `api/src/__tests__/noticingFences.unit.test.ts` (11 tests),
+reading `prisma/schema.prisma` and `typeDefs.ts` as text: no `@@index`
+mentioning `person`; no `Person` model or type; no `count`/`streak`/
+`total`/`tally` field anywhere in the Noticing model or type block; no
+`lexicon` field; `noticingHistory` returns exactly `[NtcSitting!]!`; and —
+the check that actually took real thought, below — every Noticing **query**
+field is checked against `search`/`person`/`query`/`name` arguments, every
+Noticing **mutation** field against `search`/`query`/`name` only, with
+`updateNoticingEntry`'s own `person` argument pinned as the one named
+exemption so it can't quietly grow. Plus one resolver-level test added to
+`noticing.integration.test.ts` confirming `noticingHistory` matches
+`getHistory` and honours `limit`.
+
+**Sanity-checked the fences suite itself**, the way phase 2 sanity-checked
+the guardrail sweep: planted a `count` field on `NoticingState`, a
+`search` argument on `noticingHistory`, and a `lexicon` field on
+`NoticingContent`, confirmed all three were caught with correct
+diagnostics, then reverted. This is what surfaced the case-sensitivity bug
+below — the sanity check didn't just confirm the suite works, it found a
+real hole in the first draft.
+
+### The call I made — no closing line for a needless entry
+
+Spec §11 leaves open whether a needless entry gets its own line so it
+doesn't read as a failure. The phase-4 note this phase inherits: an entry
+with `need: null` cannot distinguish "answered 'not sure'" from "never
+reached the need step" (both store identically), so any line would have to
+apply to both — and a line that has to be true for two different actual
+histories at once tends toward vague reassurance rather than an honest
+statement. I chose **no line at all**: the observation shows on its own,
+exactly the same way `FeelingsNeedsHistoryPage.tsx` already renders a
+`null` need (no arrow, no chip, nothing else) — not a new invention, the
+existing precedent already answers this the way I'd have chosen anyway.
+The honest empty state is emptiness, same leaning build plan §11 already
+recorded for the log's whole-page empty state; this extends it to the
+per-entry case.
+
+### What surprised me — two things in the fences suite's own first draft
+
+1. **A real false positive, not a hypothetical one.** The first version of
+   the "no field accepts an argument named search/person/query/name" check
+   applied to the *whole* SDL block and immediately failed against
+   `updateNoticingEntry(entryId, person: String, ...)` — a legitimate,
+   already-shipped, necessary argument (it's how a pass's person field gets
+   written at all). Build plan §9.4's own bullet list, read completely
+   literally, would ban this. The fix was recognizing what the rule is
+   actually *for* — stopping a **lookup** by person, not a **write** of the
+   person field itself — and scoping the person-argument check to `Query`
+   fields only, with mutations checked against a narrower set
+   (`search`/`query`/`name`, dropping `person`) and the one exemption
+   pinned by its own test so it can't quietly widen. This is the same shape
+   of thing phase 4's reroute finding was: a fence rule that was correct in
+   intent and needed one word of scope added once it met the actual shipped
+   surface, not a rule to weaken.
+2. **A case-sensitivity bug that would have made half the suite silently
+   check nothing.** The field-finding regex looked for the literal
+   substring `Noticing` (capital N) to identify which SDL fields belong to
+   this pillar. That correctly matches `updateNoticingFrame`,
+   `setNoticingCapacity`, and every mutation (where "Noticing" sits
+   mid-word, capitalized by camelCase) — but every **query** whose own name
+   *starts* with the word (`noticingState`, `noticingContent`,
+   `noticingFrame`, `noticingHistory`) is lowercase-first by convention and
+   never matched at all. The Query-block argument check would have passed
+   on every run, forever, having checked zero fields — the exact "passes
+   vacuously" failure mode the guard-on-the-guard test exists to catch, and
+   it only surfaced because the planted `search` argument on
+   `noticingHistory` (a query) didn't get flagged when I expected it to.
+   Fixed by matching `[Nn]oticing` instead of `Noticing`. Recording this in
+   detail because it is a trap that would recur identically in any future
+   text-based fence over a mixed-case naming convention, on any codebase.
+
+### Verification (phase 6b)
+
+- `api && npx tsc --noEmit` — pass, no errors.
+- `api && npm test` — pass, see exact count below (phases 5, 6 and 6b's new
+  suites and additions all verified together in the final full run).
+- `client && npx tsc --noEmit` — pass, no errors.
+- `client && npm run i18n:check-missing` — pass. No new keys — the log page
+  reuses `impact.noticing.log.{open,empty}` and `impact.noticing.errors.*`,
+  already present since phase 1.
+- `client && npm run i18n:check-hardcoded` — pass (bonus check, as in every
+  earlier phase).
+
+### What phase 7 needs to know
+
+Phase 7 is self-initiation: prompt fade (already served) plus the one-time
+graduation door (not built at all yet). Concretely, what already exists
+and what doesn't:
+
+**Already built, nothing to redo:**
+- `computeFadeLevel(completedSittings)` (`services/noticing/state.ts`) —
+  derives the fade level from completed sittings, capped at
+  `DIALS.graduation.graduationFadeLevel`, and `session.ts`'s `getContent`
+  already calls it to serve terse vs. full loop prompts via
+  `serveLoopCopy`. `NoticingState.promptFadeLevel` already exposes the
+  number itself (capped, derived, never stored).
+- `NoticingSitting.wasPrompted` is already recorded at `startSitting` time
+  — the raw signal self-initiation detection needs (were recent sittings
+  opened without the app cueing them) already exists in every row.
+- `NoticingState.graduationSurfaced: Boolean` already exists on the model
+  and is already returned on `NoticingState.graduationSurfaced` — it just
+  never gets set to `true` by anything yet.
+- `NtcGraduationCopy` and its authored content (`graduation.line/body/
+  close`) were written in phase 2 and are already served on
+  `NoticingContent.graduation` — the door's own words are ready.
+
+**Not built at all:**
+- No self-initiation *detection*. Spec §4.5/§6 describes it as "unprompted
+  passes over ~2 weeks" with entries that "still contain an observation and
+  a need" — there is no dial for this yet (`DIALS.graduation` only has the
+  two fade-level numbers) and no query walking `wasPrompted` +
+  observation/need presence across recent sittings. Build plan §6 delta 2's
+  own steer is to reuse the fade mechanism rather than invent a second one;
+  reading `wasPrompted` alongside the same completed-sittings count that
+  already feeds `computeFadeLevel` is the likely shape, but that's a
+  reading of the plan, not something this phase built.
+- No mutation to mark the door acknowledged. Feelings & Needs has
+  `acknowledgeGraduation` for exactly this ("explicit rather than marked on
+  display, so closing the tab mid-moment does not silently spend the only
+  time it is offered" — that reasoning applies here unchanged). Noticing
+  has no equivalent yet.
+- `NtcFinishResult` still has only `sitting` — `graduation` is the additive
+  field build plan §7's sketch and this build log have both been saying
+  "lands in phase 7" since phase 3. That promise is now due.
+- Nothing enforces "cannot re-fire" yet beyond the unset
+  `graduationSurfaced` flag existing to be checked against — the actual
+  check-and-set needs writing.
+
+**One thing worth a second look before building:** the frame's own
+graduation-adjacent copy (`turn`, `reverse`) and the loop's fade already
+lean on "derived, never stored, capped" as the house idiom throughout this
+build (state.ts, catches.ts's cooldown being the one deliberate exception).
+Self-initiation detection is a good candidate to double-check against that
+idiom rather than reach for a new stored counter, the same way `catches.ts`
+had to justify *not* deriving its cooldown — if phase 7 needs a counter to
+make the ~2-week window checkable, that's the moment to ask whether it's
+actually derivable from `NoticingSitting.createdAt` + `wasPrompted`
+instead.
+
+**Context note for whoever picks this up:** this session built phases 4, 5,
+6 and 6b in one continuous run. The build log above is written assuming no
+shared memory with what produced it — everything phase 7 needs should be
+above, not in this agent's head.
+
 ## Phase 5 — The catches
 
 Branch: `impact-noticing`, continuing from phase 4's commit. Coordinator

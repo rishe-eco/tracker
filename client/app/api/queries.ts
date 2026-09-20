@@ -2604,6 +2604,31 @@ export const GET_ACTIVE_NOTICING_SITTING = `
   }
 `;
 
+/**
+ * The log's own, narrower field set (spec §4.3): place, observation, need,
+ * smallThing — and deliberately nothing else. No "person" here, even though
+ * the server has it: the log names what was noticed, never who, and the
+ * dossier fence (build plan §9.4) is as much about what this query does NOT
+ * ask for as about what the resolver refuses.
+ */
+const NOTICING_LOG_ENTRY_FIELDS = `
+  id
+  place
+  observation
+  need
+  smallThing
+`;
+
+export const GET_NOTICING_HISTORY = `
+  query NoticingHistory {
+    noticingHistory {
+      id
+      completedAt
+      entries { ${NOTICING_LOG_ENTRY_FIELDS} }
+    }
+  }
+`;
+
 export const START_NOTICING_SITTING = `
   mutation StartNoticingSitting($wasPrompted: Boolean) {
     startNoticingSitting(wasPrompted: $wasPrompted) { ${NOTICING_SITTING_FIELDS} }

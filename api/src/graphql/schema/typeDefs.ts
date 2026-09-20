@@ -2221,6 +2221,16 @@ export const typeDefs = gql`
 
     "Noticing: the day-one frame's own progress, for resuming mid-frame. Null means it has never been started."
     noticingFrame: NtcFrame
+
+    """
+    Noticing: the person's own record, reverse-chronological (spec §4.3). No
+    search, no person filter, no argument here or anywhere in this block
+    named search, person, query or name — that's the dossier fence, and the
+    fences suite holds this SDL to it as a red build, not a rule to remember.
+    Returns completed sittings only; grouping into days is the client's job,
+    because a day is a local-timezone concept the server does not know.
+    """
+    noticingHistory(limit: Int): [NtcSitting!]!
   }
 
   type AuthPayload {

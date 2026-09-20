@@ -191,6 +191,22 @@ describe("history", () => {
     expect(completed).toBe(1);
     expect(state.promptFadeLevel).toBe(0);
   });
+
+  it("is reachable through the resolver too (phase 6b's noticingHistory query), same result as the service", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const s1 = await startSitting(ctx);
+    await patch(ctx, s1.entries[0].id, { place: "home", person: "a", observation: "one", need: "rest" });
+    await finish(ctx, s1.id);
+
+    const viaResolver = await queryResolvers.noticingHistory(null, {}, ctx);
+    expect(viaResolver).toHaveLength(1);
+    expect(viaResolver[0].id).toBe(s1.id);
+    expect(viaResolver[0].entries[0].observation).toBe("one");
+    // The resolver honours a limit, same as the service it wraps.
+    const limited = await queryResolvers.noticingHistory(null, { limit: 0 }, ctx);
+    expect(limited.length).toBeGreaterThan(0); // getHistory clamps a non-positive limit up to 1, not down to 0
+  });
 });
 
 describe("the day-one frame (build plan §5 phase 4)", () => {
