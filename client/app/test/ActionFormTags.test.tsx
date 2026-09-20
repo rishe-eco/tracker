@@ -58,6 +58,7 @@ vi.mock("react-router", () => ({
   useParams: () => ({ id: currentAction.id }),
   useLocation: () => ({ state: null }),
   useSearchParams: () => [new URLSearchParams(""), () => {}],
+  Link: ({ to, children }: any) => <a href={typeof to === "string" ? to : "#"}>{children}</a>,
 }));
 
 vi.mock("~/components/ui/confirm-dialog", () => ({

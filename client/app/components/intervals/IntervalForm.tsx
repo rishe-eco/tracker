@@ -38,7 +38,8 @@ import {
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import RecurrenceControl, { toDateTimeLocal, fromDateTimeLocal } from "~/components/schedule/RecurrenceControl";
 import TagPicker from "~/components/tags/TagPicker";
-import { GET_TAGS, SET_INTERVAL_TAGS, SET_ROUTINE_TAGS } from "~/api/queries";
+import { useTagVocabulary } from "~/components/tags/useTagVocabulary";
+import { SET_INTERVAL_TAGS, SET_ROUTINE_TAGS } from "~/api/queries";
 import { cn } from "~/lib/utils";
 import { useSubmitGuard } from "~/utils/useSubmitGuard";
 
@@ -193,14 +194,11 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
   const [estimatedTimeMinutes, setEstimatedTimeMinutes] = useState<string>("");
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const { availableTags, createTag } = useTagVocabulary();
   const [tagIds, setTagIds] = useState<string[]>([]);
 
   const minDateTimeLocal = format(new Date(), "yyyy-MM-dd") + "T00:00";
 
-  useEffect(() => {
-    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
-  }, []);
 
   // Time Themes: tags on an existing interval/routine commit immediately, like
   // the rest of this edit-context form's inline-editable fields (Convention
@@ -672,7 +670,7 @@ export default function IntervalForm({ mode }: { mode: ScheduleFormMode }) {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-2">{t("tags.label")}</Label>
-          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} />
+          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} onCreateTag={createTag} />
           <p className="text-xs text-muted-foreground">
             {mode === "interval" ? t("tags.intervalSeedNote") : t("tags.routineSeedNote")}
           </p>
