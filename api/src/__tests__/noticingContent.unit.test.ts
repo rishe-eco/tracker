@@ -91,13 +91,26 @@ describe("the id-discipline rule (build plan §4)", () => {
 });
 
 describe("the three catches (build plan §8)", () => {
-  it.each(SURFACES)("%s: declares hint slots that match the hints authored", (_locale, surface) => {
-    const slotsByType = new Map(CATCH_SPECS.map((c) => [c.type, c.hintSlots]));
-    const mismatched = surface.catches
-      .filter((c) => c.hints.length !== slotsByType.get(c.type))
-      .map((c) => `${c.type}: ${slotsByType.get(c.type)} slots vs ${c.hints.length} hints`);
-    expect(mismatched).toEqual([]);
-  });
+  it.each(SURFACES)(
+    "%s: every trigger's hints — and the fallback — match the declared slot count",
+    (_locale, surface) => {
+      const slotsByType = new Map(CATCH_SPECS.map((c) => [c.type, c.hintSlots]));
+      const mismatched = surface.catches.flatMap((c) => {
+        const slots = slotsByType.get(c.type)!;
+        const problems: string[] = [];
+        for (const t of c.triggers) {
+          if (t.hints.length !== slots) {
+            problems.push(`${c.type}/"${t.match}": ${slots} slots vs ${t.hints.length} hints`);
+          }
+        }
+        if (c.fallbackHints.length !== slots) {
+          problems.push(`${c.type} fallback: ${slots} slots vs ${c.fallbackHints.length} hints`);
+        }
+        return problems;
+      });
+      expect(mismatched).toEqual([]);
+    }
+  );
 
   it.each(SURFACES)("%s: gives every catch type a non-empty trigger list", (_locale, surface) => {
     const broken = surface.catches.filter((c) => c.triggers.length === 0).map((c) => c.type);
@@ -106,7 +119,7 @@ describe("the three catches (build plan §8)", () => {
 
   it.each(SURFACES)("%s: never duplicates a trigger within one catch type", (_locale, surface) => {
     const dupes = surface.catches
-      .filter((c) => new Set(c.triggers.map((t) => t.toLowerCase())).size !== c.triggers.length)
+      .filter((c) => new Set(c.triggers.map((t) => t.match.toLowerCase())).size !== c.triggers.length)
       .map((c) => c.type);
     expect(dupes).toEqual([]);
   });
@@ -126,9 +139,11 @@ describe("the three catches (build plan §8)", () => {
         const fieldsB = fieldsByType.get(b)!;
         const sharesField = [...fieldsA].some((f) => fieldsB.has(f));
         if (!sharesField) continue;
-        const triggersA = new Set(byType.get(a)!.triggers.map((t) => t.toLowerCase()));
+        const triggersA = new Set(byType.get(a)!.triggers.map((t) => t.match.toLowerCase()));
         for (const t of byType.get(b)!.triggers) {
-          if (triggersA.has(t.toLowerCase())) collisions.push(`"${t}" claimed by both ${a} and ${b}`);
+          if (triggersA.has(t.match.toLowerCase())) {
+            collisions.push(`"${t.match}" claimed by both ${a} and ${b}`);
+          }
         }
       }
     }
@@ -148,30 +163,61 @@ describe("the three catches (build plan §8)", () => {
     expect(broken).toEqual([]);
   });
 
-  it.each(SURFACES)("%s: composes a rendered line for every catch type, with the word substituted", (locale, surface) => {
-    const pack = buildNoticingPack(locale);
-    for (const c of surface.catches) {
-      const rendered = pack.catches.find((k) => k.type === c.type)!;
-      const line = rendered.line.replace("{{word}}", "example");
-      expect(line).toContain("example");
-      expect(line).not.toContain("{{word}}");
+  it.each(SURFACES)(
+    "%s: composes a rendered line for every catch type, with the word substituted",
+    (locale, surface) => {
+      const pack = buildNoticingPack(locale);
+      for (const c of surface.catches) {
+        const rendered = pack.catches.find((k) => k.type === c.type)!;
+        const line = rendered.line.replace("{{word}}", "example");
+        expect(line).toContain("example");
+        expect(line).not.toContain("{{word}}");
+      }
     }
+  );
+
+  it.each(SURFACES)("%s: gives each trigger its own sharp hints, not a shared generic set", (_locale, surface) => {
+    // The phase-2 review defect: a fixed set of hints under every trigger of
+    // a type reads as the tool visibly not listening. Every trigger's hints
+    // must be authored for it specifically — checked here as "no two
+    // triggers with slots > 0 share the exact same hint set" for the type
+    // that actually has slots (`strategy`); `read`/`protective` are exempt
+    // since their slot count is 0 and every hints array is vacuously [].
+    const strategy = surface.catches.find((c) => c.type === "strategy")!;
+    if (strategy.triggers.length === 0 || strategy.triggers[0].hints.length === 0) return;
+    const seen = new Map<string, string>();
+    const shared: string[] = [];
+    for (const t of strategy.triggers) {
+      const key = [...t.hints].sort().join("|");
+      const prior = seen.get(key);
+      if (prior) shared.push(`"${t.match}" repeats "${prior}"'s hints`);
+      else seen.set(key, t.match);
+    }
+    // A little repetition can be legitimate (two genuinely similar acts), but
+    // if every single trigger shares one identical set, the hints were never
+    // actually per-trigger — that is the exact regression this test exists
+    // to catch.
+    expect(shared.length).toBeLessThan(strategy.triggers.length - 1);
   });
 
   it.each(SURFACES)("%s: phrases every hint as a question, never an assertion", (_locale, surface) => {
     const asserted = surface.catches
-      .flatMap((c) => c.hints.map((h) => ({ type: c.type, h })))
+      .flatMap((c) => [
+        ...c.triggers.flatMap((t) => t.hints.map((h) => ({ type: c.type, h }))),
+        ...c.fallbackHints.map((h) => ({ type: c.type, h })),
+      ])
       .filter(({ h }) => !/[?؟]\s*$/.test(h))
       .map(({ type, h }) => `${type}: ${h}`);
     expect(asserted).toEqual([]);
   });
 
-  it("gives the protective catch no hints and a route, per spec §4.4 N6-c", () => {
+  it("gives the protective catch no hints anywhere and a route, per spec §4.4 N6-c", () => {
     const protective = SPEC.catches.find((c) => c.type === "protective")!;
     expect(protective.hintSlots).toBe(0);
     for (const [, surface] of SURFACES) {
       const s = surface.catches.find((c) => c.type === "protective")!;
-      expect(s.hints).toEqual([]);
+      expect(s.triggers.every((t) => t.hints.length === 0)).toBe(true);
+      expect(s.fallbackHints).toEqual([]);
       expect(s.routeTo).toBeTruthy();
     }
   });

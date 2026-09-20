@@ -80,7 +80,10 @@ const NEEDS_EN: PaletteEntrySurface[] = [
   { id: "a_seat", label: "a seat" },
   { id: "a_hand", label: "a hand" },
   { id: "to_know_whats_going_on", label: "to know what's going on" },
-  { id: "to_know_its_not_just_them", label: "to know it isn't just them" },
+  // Label shortened from the id's full phrase (coordinator review, phase 2) —
+  // the id stays precise for the persisted value; the chip doesn't have to
+  // carry the whole sentence to mean the same thing.
+  { id: "to_know_its_not_just_them", label: "that it isn't just them" },
   { id: "direction", label: "direction" },
   { id: "to_be_left_alone", label: "to be left alone" },
   { id: "nothing_right_now", label: "nothing from anyone right now" },
@@ -136,9 +139,19 @@ const FRAME_EN: FrameSurface = {
       { id: "somewhat", label: "somewhat" },
       { id: "very", label: "very" },
     ],
+    // The body is the research finding and holds regardless of the guess.
+    // The line is the framing, and it MUST key off the actual guess (fixed
+    // from a phase-2 defect): a single unconditional "most people guess
+    // this low" told whoever picked `very` that they were wrong about the
+    // one thing they got right. `very`'s line still reports rather than
+    // congratulates — it confirms the guess, it doesn't award it.
     correction: {
-      line: "Most people guess this low.",
-      body: "The people who study it find the opposite: others are usually gladder than you'd guess, less bothered by being asked than you'd guess — and offering usually feels better than expected, for the one who offers too.",
+      lineByGuess: {
+        not_very: "Most people guess low here.",
+        somewhat: "That's closer to it than most guesses land.",
+        very: "You guessed high. Most people don't.",
+      },
+      body: "People tend to underestimate how glad someone would be, and overestimate the inconvenience. Offering usually feels better than expected too — for the one who offers.",
     },
   },
 };
@@ -181,7 +194,8 @@ const LOOP_EN: LoopCopySurface = {
 const CATCHES_EN: CatchLexiconSurface[] = [
   {
     // N6-a — evaluative adjectives and attributed states standing in for an
-    // observation (spec §4.4). Matches `observation` only.
+    // observation (spec §4.4). Matches `observation` only. No hints — the
+    // whole move is handing the sentence back, not offering a replacement.
     type: "read",
     triggers: [
       "rude",
@@ -199,30 +213,32 @@ const CATCHES_EN: CatchLexiconSurface[] = [
       "cold",
       "stuck up",
       "annoying",
-    ],
+    ].map((match) => ({ match, hints: [] })),
     line: "'{{word}}' is your read on it. What did you actually see?",
-    hints: [],
+    fallbackHints: [],
   },
   {
     // N6-b — a concrete act sitting where a need belongs (spec §4.4).
-    // Matches `need` and `smallThing`. The three hints are deliberately fixed
-    // rather than per-trigger — a wider spread than any one strategy needs,
-    // which is what keeps them an offer rather than the "right" answer.
+    // Matches `need` and `smallThing`. Hints are per-trigger (phase-2 review
+    // correction): "rest?" offered under "a lawyer" is the tool visibly not
+    // listening, which teaches something worse than an imperfect mapping.
     type: "strategy",
     triggers: [
-      "a ride",
-      "money",
-      "a job",
-      "someone to call them",
-      "a loan",
-      "a place to stay",
-      "someone to talk to",
-      "a babysitter",
-      "a lawyer",
-      "a favor",
+      { match: "a ride", hints: ["direction?", "support?"] },
+      { match: "money", hints: ["safety?", "ease?"] },
+      { match: "a job", hints: ["safety?", "to matter?"] },
+      { match: "someone to call them", hints: ["connection?", "to be seen?"] },
+      { match: "a loan", hints: ["safety?", "ease?"] },
+      { match: "a place to stay", hints: ["safety?", "rest?"] },
+      { match: "someone to talk to", hints: ["connection?", "understanding?"] },
+      { match: "a babysitter", hints: ["rest?", "support?"] },
+      { match: "a lawyer", hints: ["safety?", "direction?"] },
+      { match: "a favor", hints: ["support?", "connection?"] },
     ],
     line: "{{word}} is one way to meet it. What's underneath?",
-    hints: ["rest?", "support?", "safety?"],
+    // Used only if a matched word somehow isn't among the triggers above —
+    // an escape hatch, not the common case.
+    fallbackHints: ["support?", "safety?"],
   },
   {
     // N6-c — the VFI protective register (spec §4.4). Matches `smallThing`
@@ -239,16 +255,19 @@ const CATCHES_EN: CatchLexiconSurface[] = [
       "i owe them",
       "obligated",
       "supposed to",
-    ],
+    ].map((match) => ({ match, hints: [] })),
     line: "'{{word}}' is worth a look before this becomes a plan.",
-    hints: [],
+    fallbackHints: [],
     routeTo: "reflect",
   },
 ];
 
 const CATCH_COPY_EN: CatchCopySurface = {
   dismiss: "leave it — that's what I meant",
-  note: "your words, reflected back.",
+  // "reflected back" was counselling register and inaccurate — the catch
+  // contrasts, it doesn't reflect. This just states what it is: their own
+  // material, with nothing corrected.
+  note: "your own words — nothing added, nothing corrected.",
 };
 
 // ─── Capacity portrait — accreted, never shown as who was helped ────────────
@@ -285,10 +304,15 @@ const CAPACITY_EN: CapacityCopySurface = {
 };
 
 const GRADUATION_EN: GraduationSurface = {
-  // Spec §4.5's exact line and close sentence. A capability, stated once —
-  // there is nothing here that could be lost, and no number appears anywhere.
+  // Spec §4.5's exact opening line. A capability, stated once — there is
+  // nothing here that could be lost, and no number appears anywhere.
+  //
+  // `body`'s second sentence was rewritten (coordinator review, phase 2):
+  // it borrowed Feelings & Needs' scaffolding image almost exactly, which
+  // names what the APP stopped doing. Noticing's door is about looking, not
+  // about a support being removed — so it names what the PERSON can do.
   line: "You've been looking on your own lately.",
-  body: "That's the whole thing. It's yours now — the prompts were only ever the scaffolding.",
+  body: "That's the whole thing. You don't need a prompt to look anymore — you just do.",
   close: "Carry on whenever you want it.",
 };
 

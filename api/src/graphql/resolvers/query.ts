@@ -13,6 +13,7 @@ import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../service
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
 import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
 import { getNoticingState } from "../../services/noticing/state";
+import { getContent as getNoticingContent, getActiveSitting as getActiveNoticingSitting } from "../../services/noticing/session";
 
 /**
  * Clarity Lab has its own fields (`clarityModules`, `clarityProgress`) rather
@@ -402,4 +403,8 @@ export const queryResolvers = {
   ),
 
   noticingState: requireAuth((_, __, ctx) => getNoticingState(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  noticingContent: requireAuth((_, __, ctx) => getNoticingContent(ctx.prisma, ctx.user.id, ctx.locale)),
+
+  activeNoticingSitting: requireAuth((_, __, ctx) => getActiveNoticingSitting(ctx.prisma, ctx.user.id)),
 };

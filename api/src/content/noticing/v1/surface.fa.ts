@@ -66,7 +66,9 @@ const NEEDS_FA: PaletteEntrySurface[] = [
   // translation.
   { id: "a_hand", label: "یک دست یاری" },
   { id: "to_know_whats_going_on", label: "دانستن اینکه چه خبر است" },
-  { id: "to_know_its_not_just_them", label: "دانستن اینکه تنها او نیست" },
+  // Shortened to match the English label's shortening (coordinator review,
+  // phase 2) — the id stays precise, the chip doesn't need the full sentence.
+  { id: "to_know_its_not_just_them", label: "اینکه تنها او نیست" },
   { id: "direction", label: "راهنمایی" },
   { id: "to_be_left_alone", label: "تنها گذاشته‌شدن" },
   { id: "nothing_right_now", label: "فعلاً هیچ‌چیز از کسی" },
@@ -114,9 +116,16 @@ const FRAME_FA: FrameSurface = {
       { id: "somewhat", label: "تا حدی" },
       { id: "very", label: "خیلی" },
     ],
+    // Keyed on the guess (fixed alongside the English defect, phase 2):
+    // a single unconditional "most people guess low" told whoever picked
+    // «خیلی» they were wrong about the one thing they got right.
     correction: {
-      line: "بیشتر آدم‌ها این را کمتر از واقعیت حدس می‌زنند.",
-      body: "کسانی که این را بررسی کرده‌اند برعکسش را می‌بینند: آدم‌ها معمولاً خوشحال‌تر از چیزی‌اند که حدس می‌زنی، از خواسته‌شدن کمتر معذب می‌شوند، و پیشنهاددادن هم برای خودِ پیشنهاددهنده حسِ بهتری دارد از آنچه فکر می‌کنی.",
+      lineByGuess: {
+        not_very: "بیشتر آدم‌ها همین‌جا کم حدس می‌زنند.",
+        somewhat: "این به واقعیت نزدیک‌تر از بیشتر حدس‌هاست.",
+        very: "بالا حدس زدی. بیشتر آدم‌ها این‌طور نیستند.",
+      },
+      body: "آدم‌ها معمولاً کمتر از واقعیت فکر می‌کنند که طرف چقدر خوشحال می‌شود، و بیشتر از واقعیت فکر می‌کنند که چقدر مزاحمت ایجاد می‌کنند. برای کسی که پیشنهاد می‌دهد هم، این کار معمولاً حسِ بهتری دارد از آنچه فکر می‌کند.",
     },
   },
 };
@@ -160,26 +169,28 @@ const CATCHES_FA: CatchLexiconSurface[] = [
       "مغرور",
       "آزاردهنده",
       "بی‌توجه",
-    ],
+    ].map((match) => ({ match, hints: [] })),
     line: "'{{word}}' برداشتِ توست. واقعاً چه دیدی؟",
-    hints: [],
+    fallbackHints: [],
   },
   {
+    // Hints are per-trigger (fixed alongside the English defect, phase 2) —
+    // sharp to the specific concrete act, not a generic set of three.
     type: "strategy",
     triggers: [
-      "یک سواری",
-      "پول",
-      "یک شغل",
-      "کسی که بهش زنگ بزند",
-      "وام",
-      "جایی برای ماندن",
-      "کسی برای حرف‌زدن",
-      "پرستار بچه",
-      "وکیل",
-      "یک لطف",
+      { match: "یک سواری", hints: ["راهنمایی؟", "حمایت؟"] },
+      { match: "پول", hints: ["امنیت؟", "آرامش؟"] },
+      { match: "یک شغل", hints: ["امنیت؟", "مهم بودن؟"] },
+      { match: "کسی که بهش زنگ بزند", hints: ["ارتباط؟", "دیده‌شدن؟"] },
+      { match: "وام", hints: ["امنیت؟", "آرامش؟"] },
+      { match: "جایی برای ماندن", hints: ["امنیت؟", "استراحت؟"] },
+      { match: "کسی برای حرف‌زدن", hints: ["ارتباط؟", "درک شدن؟"] },
+      { match: "پرستار بچه", hints: ["استراحت؟", "حمایت؟"] },
+      { match: "وکیل", hints: ["امنیت؟", "راهنمایی؟"] },
+      { match: "یک لطف", hints: ["حمایت؟", "ارتباط؟"] },
     ],
     line: "{{word}} یک راه برای رفع آن است. زیرش چیست؟",
-    hints: ["استراحت؟", "حمایت؟", "امنیت؟"],
+    fallbackHints: ["حمایت؟", "امنیت؟"],
   },
   {
     type: "protective",
@@ -193,16 +204,18 @@ const CATCHES_FA: CatchLexiconSurface[] = [
       "به آن‌ها مدیونم",
       "مجبورم",
       "قرار است",
-    ],
+    ].map((match) => ({ match, hints: [] })),
     line: "'{{word}}' پیش از اینکه این به یک برنامه تبدیل شود، ارزش نگاه‌کردن دارد.",
-    hints: [],
+    fallbackHints: [],
     routeTo: "reflect",
   },
 ];
 
 const CATCH_COPY_FA: CatchCopySurface = {
   dismiss: "بگذار همین بماند — منظورم همین بود",
-  note: "حرف‌های خودت‌اند، فقط بازتاب داده شده.",
+  // «بازتاب داده شده» (reflected) was counselling register and inaccurate —
+  // the catch contrasts, it doesn't reflect.
+  note: "حرف‌های خودت‌اند — نه چیزی اضافه شده، نه چیزی اصلاح شده.",
 };
 
 const CAPACITY_FA: CapacityCopySurface = {
@@ -237,8 +250,11 @@ const CAPACITY_FA: CapacityCopySurface = {
 };
 
 const GRADUATION_FA: GraduationSurface = {
+  // `body`'s second sentence rewritten (coordinator review, phase 2): the
+  // scaffolding image named what the app stopped doing; this names what the
+  // person can do.
   line: "این اواخر خودت داری توجه می‌کنی.",
-  body: "تمام ماجرا همین است. حالا مال خودت شده — یادآوری‌ها فقط داربست بودند.",
+  body: "تمام ماجرا همین است. دیگر چیزی لازم نیست یادت بیندازد که نگاه کنی — خودت این کار را می‌کنی.",
   close: "هروقت خواستی ادامه بده.",
 };
 

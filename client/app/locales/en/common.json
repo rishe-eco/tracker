@@ -428,6 +428,10 @@
       "title": "Noticing",
       "subtitle": "One place, one person, what you saw — and what it might point to. No streaks, nothing to keep up.",
       "comingSoon": "This part of Noticing isn't built yet.",
+      "nav": {
+        "next": "Next",
+        "back": "back"
+      },
       "frame": {
         "cardTitle": "Start here, once",
         "cardBody": "A one-time warm-up before the daily loop begins.",
@@ -437,7 +441,8 @@
         "cardTitle": "Today's loop",
         "cardBody": "Where you were, who was there, what you saw — and what it might point to.",
         "start": "Start today's loop",
-        "length": "about 3 minutes"
+        "length": "about 3 minutes",
+        "addAnother": "see someone else"
       },
       "log": {
         "open": "What you've noticed",

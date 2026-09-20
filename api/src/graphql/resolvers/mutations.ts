@@ -76,6 +76,12 @@ import {
   updateEntry,
 } from "../../services/feelingsNeeds/session";
 import { completeFrame } from "../../services/feelingsNeeds/state";
+import {
+  addPass as addNoticingPass,
+  finishSitting as finishNoticingSitting,
+  startSitting as startNoticingSitting,
+  updateEntry as updateNoticingEntry,
+} from "../../services/noticing/session";
 
 const MAX_ESTIMATED_MINUTES = 24 * 60; // 24 hours
 
@@ -1679,6 +1685,23 @@ mutations.finishLoopSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
 
 mutations.acknowledgeGraduation = requireAuth(async (_, __: any, ctx) =>
   acknowledgeGraduation(ctx.prisma, ctx.user.id)
+);
+
+mutations.startNoticingSitting = requireAuth(async (_, { wasPrompted }: any, ctx) =>
+  startNoticingSitting(ctx.prisma, ctx.user.id, { wasPrompted: wasPrompted ?? false })
+);
+
+mutations.updateNoticingEntry = requireAuth(async (_, args: any, ctx) => {
+  const { entryId, ...patch } = args;
+  return updateNoticingEntry(ctx.prisma, ctx.user.id, entryId, patch);
+});
+
+mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>
+  addNoticingPass(ctx.prisma, ctx.user.id, sittingId)
+);
+
+mutations.finishNoticingSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
+  finishNoticingSitting(ctx.prisma, ctx.user.id, sittingId)
 );
 
 export const mutationResolvers = mutations;

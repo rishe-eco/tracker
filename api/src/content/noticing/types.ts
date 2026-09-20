@@ -67,14 +67,25 @@ export type FrameBeatOneSurface = {
   };
 };
 
+export type WelcomeGuessId = "not_very" | "somewhat" | "very";
+
 /**
  * Beat 2 — the welcome-calibration prediction (spec §4.1). Shown once, as a
  * correction to a guess the person just made — never as a standing statistic.
+ *
+ * `lineByGuess` is keyed on purpose (phase-2 review correction): the research
+ * finding is that people underestimate, so a single unconditional line
+ * ("most people guess this low") is simply wrong for whoever picked `very` —
+ * it tells the one person who got it right that they didn't. The `body` is
+ * the finding itself and holds regardless of the guess; only the framing
+ * around it depends on what was actually picked. The `very` line still
+ * reports rather than congratulates — it confirms a guess, it doesn't award
+ * one (same register as `reverse.knowResponse`).
  */
 export type FrameBeatTwoSurface = {
   prompt: string;
-  options: { id: "not_very" | "somewhat" | "very"; label: string }[];
-  correction: { line: string; body: string };
+  options: { id: WelcomeGuessId; label: string }[];
+  correction: { lineByGuess: Record<WelcomeGuessId, string>; body: string };
 };
 
 export type FrameSurface = {
@@ -153,7 +164,11 @@ export type CatchTypeId = "read" | "strategy" | "protective";
 /** The `NoticingEntry` fields a catch is allowed to be matched against. Never `"person"`. */
 export type NoticingEntryField = "observation" | "need" | "smallThing" | "motiveNote";
 
-/** Locale-invariant: how many hint chips this catch type's surface supplies. */
+/**
+ * Locale-invariant: how many hint chips **every** trigger's hints (and the
+ * fallback) must carry, for `strategy`. 0 for `read` and `protective`, which
+ * never offer hints at all.
+ */
 export type CatchLexiconSpec = {
   type: CatchTypeId;
   hintSlots: number;
@@ -162,18 +177,35 @@ export type CatchLexiconSpec = {
 };
 
 /**
- * Per-locale realization. `triggers` are the match strings — a closed set,
- * the whole detector, no model. Never shipped to the client: detection runs
+ * One trigger and the hints sharp to it. Per-trigger rather than one set per
+ * catch type (phase-2 review correction) — offering "rest?" under *"a
+ * lawyer"* is the tool visibly not listening, which teaches something worse
+ * than a wrong mapping does. Both `match` and `hints` are per-locale: the
+ * trigger is a word in a language, and so is what it's paired with.
+ */
+export type CatchTriggerHints = {
+  /** The match string — a closed set, the whole detector, no model. */
+  match: string;
+  /** Candidate needs, sharp to this trigger. Always phrased as questions. */
+  hints: string[];
+};
+
+/**
+ * Per-locale realization. Never shipped to the client: detection runs
  * server-side (`services/noticing/catches.ts`, phase 5) and the client only
  * receives a catch that already fired.
  */
 export type CatchLexiconSurface = {
   type: CatchTypeId;
-  triggers: string[];
+  triggers: CatchTriggerHints[];
   /** The gentle contrast line, framed as a question, not a correction. */
   line: string;
-  /** Candidate needs offered as chips. Empty for `protective`, which routes instead of offering. */
-  hints: string[];
+  /**
+   * Hints for a trigger not worth hand-authoring separately — an escape
+   * hatch, not the common case. Empty for `read` and `protective`, which
+   * never offer hints at all.
+   */
+  fallbackHints: string[];
   /** `protective` only — routes to the Reflect handoff instead of an answer. */
   routeTo?: string;
 };
@@ -284,6 +316,10 @@ export function toPublicPack(pack: NoticingPack): PublicNoticingPack {
  * quotes the person's own word back to them (spec §4.4's own examples all
  * do: "'difficult' is your read on it", "'should' is worth a look"), which is
  * what keeps the contrast about their material rather than a canned line.
+ *
+ * The hints returned are that trigger's own (`CatchTriggerHints.hints`) —
+ * sharp to what was actually typed — falling back to `fallbackHints` only
+ * for a trigger that wasn't worth hand-authoring separately.
  */
 export function renderCatch(
   pack: NoticingPack,
@@ -292,9 +328,10 @@ export function renderCatch(
 ): { line: string; hints: string[]; dismiss: string; note: string; routeTo?: string } | null {
   const lexicon = pack.catches.find((c) => c.type === type);
   if (!lexicon) return null;
+  const trigger = lexicon.triggers.find((t) => t.match.toLowerCase() === matchedWord.toLowerCase());
   return {
     line: lexicon.line.replace("{{word}}", matchedWord),
-    hints: lexicon.hints,
+    hints: trigger?.hints ?? lexicon.fallbackHints,
     dismiss: pack.catchCopy.dismiss,
     note: pack.catchCopy.note,
     routeTo: lexicon.routeTo,

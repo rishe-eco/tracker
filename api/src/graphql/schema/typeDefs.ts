@@ -1782,8 +1782,12 @@ export const typeDefs = gql`
   #
   # A Tracker-namespaced tool, same staging arrangement as Feelings & Needs
   # (Learn Module 1, above) but sharing no code with it — Noticing authors its
-  # own needs palette (build plan §4). Phase 1 lands only this one type and
-  # query; the content pack, the loop and the catches follow in later phases.
+  # own needs palette (build plan §4). Phase 3 lands the spine: the content
+  # pack, the active-sitting query, and the loop mutations. The catch payload
+  # (phase 5) and the graduation door (phase 7) are deliberately absent from
+  # NtcEntryResult and NtcFinishResult below — both land later as additive
+  # fields, not breaking changes, which is why the result types exist already
+  # rather than the mutations returning NtcSitting directly.
   """
   The tool home's state: enough to route into the frame or the loop, no more.
   Deliberately has no sitting count and no field named count, streak, total or
@@ -1801,6 +1805,206 @@ export const typeDefs = gql`
     graduationSurfaced: Boolean!
     "How far the app has withdrawn its prompts (build plan §6). Derived, capped, never shown."
     promptFadeLevel: Int!
+  }
+
+  "One place, one cue, or one need — the label the person sees. Ids are stable; labels can be edited freely."
+  type NtcPaletteEntry {
+    id: String!
+    label: String!
+  }
+
+  type NtcFrameIntro {
+    title: String!
+    body: String!
+    begin: String!
+  }
+
+  type NtcFrameMoment {
+    prompt: String!
+    helper: String
+    "Offered beside the prompt, not after a failed attempt — the reroute is a first-class path, not a fallback."
+    reroutePrompt: String!
+    rerouteLabel: String!
+  }
+
+  type NtcFrameUnsaidNeed {
+    prompt: String!
+    helper: String
+    otherLabel: String!
+  }
+
+  type NtcFrameVisibleCues {
+    prompt: String!
+    helper: String
+    otherLabel: String!
+  }
+
+  "No question — the juxtaposition itself, reporting what the person just wrote rather than asserting a lesson."
+  type NtcFrameTurn {
+    line: String!
+  }
+
+  type NtcFrameReverse {
+    prompt: String!
+    knowLabel: String!
+    noIdeaLabel: String!
+    knowResponse: String!
+    noIdeaResponse: String!
+  }
+
+  type NtcFrameBeatOne {
+    moment: NtcFrameMoment!
+    unsaidNeed: NtcFrameUnsaidNeed!
+    visibleCues: NtcFrameVisibleCues!
+    turn: NtcFrameTurn!
+    reverse: NtcFrameReverse!
+  }
+
+  type NtcFrameOption {
+    id: String!
+    label: String!
+  }
+
+  """
+  Keyed on the guess, not one line for everyone (phase-2 review correction):
+  the research finding is that people underestimate, so a single line told
+  whoever guessed "very" that they were wrong about the one thing they got
+  right. "body" is the finding itself and holds regardless of the guess.
+  """
+  type NtcFrameCorrectionLines {
+    notVery: String!
+    somewhat: String!
+    very: String!
+  }
+
+  type NtcFrameCorrection {
+    lineByGuess: NtcFrameCorrectionLines!
+    body: String!
+  }
+
+  type NtcFrameBeatTwo {
+    prompt: String!
+    options: [NtcFrameOption!]!
+    correction: NtcFrameCorrection!
+  }
+
+  type NtcFrameCopy {
+    intro: NtcFrameIntro!
+    beatOne: NtcFrameBeatOne!
+    beatTwo: NtcFrameBeatTwo!
+  }
+
+  """
+  The loop's step prompts, already resolved to the person's current fade
+  level (build plan §6) — there is no separate "terse" field to choose
+  between, because the server has already chosen. Withdrawing the scaffold
+  is the mechanism; a client that saw both forms and picked one would be a
+  second, silent copy of the dial.
+  """
+  type NtcLoopCopy {
+    placePrompt: String!
+    placeOtherLabel: String!
+    personPrompt: String!
+    "Persistent, under the person field — not a modal, not dismissible-forever."
+    personThirdPartyWarning: String!
+    observationPrompt: String!
+    needPrompt: String!
+    needOtherLabel: String!
+    needNotSure: String!
+    smallThingPrompt: String!
+    smallThingSkip: String!
+    "Asked only when a small thing was written — the whole of the capacity accretion (phase 6)."
+    capacityPrompt: String!
+    capacityOtherLabel: String!
+    "The one-line close: '✓ noticed', already formed."
+    close: String!
+    addAnotherAsk: String!
+    "Shown once the soft cap is reached — closes warmly, never as a rule."
+    addAnotherCapped: String!
+    finish: String!
+    recapHeading: String!
+    recapNotRelated: String!
+  }
+
+  "Head / hands / heart — accreted from what the person HAD, never who they helped (phase 6)."
+  type NtcCapacityCopy {
+    prompt: String!
+    headChips: [NtcPaletteEntry!]!
+    handsChips: [NtcPaletteEntry!]!
+    heartChips: [NtcPaletteEntry!]!
+    otherLabel: String!
+  }
+
+  "A door, not an award. No count anywhere in this type or what it carries."
+  type NtcGraduationCopy {
+    line: String!
+    body: String!
+    close: String!
+  }
+
+  "Which of the needs pool to show now. Places and cues are shown whole; the needs pool (20) is wider than the screen (6)."
+  type NtcDisplaySelection {
+    needIds: [String!]!
+  }
+
+  """
+  The authored content pack, already localized and fade-resolved. Note what
+  is absent: no lexicon field of any kind — the three catch lexicons never
+  reach a browser (build plan §9.4's public-content fence).
+  """
+  type NoticingContent {
+    contentVersion: String!
+    locale: String!
+    reviewStatus: String!
+    places: [NtcPaletteEntry!]!
+    cues: [NtcPaletteEntry!]!
+    needs: [NtcPaletteEntry!]!
+    display: NtcDisplaySelection!
+    capacity: NtcCapacityCopy!
+    frame: NtcFrameCopy!
+    loop: NtcLoopCopy!
+    graduation: NtcGraduationCopy!
+    thirdPartyWarning: String!
+    "So the UI can retire the repeat prompt rather than fail on it."
+    repeatSoftCap: Int!
+  }
+
+  """
+  One pass. Passes within a sitting are parallel and are never
+  cross-referenced — there is no field here that points at another pass, and
+  none ever will (spec §4.2).
+  """
+  type NtcEntry {
+    id: ID!
+    passIndex: Int!
+    place: String
+    "Free text, deliberately un-indexed server-side — see the schema comment on NoticingEntry.person."
+    person: String
+    observation: String
+    "Palette id or free text. Null is 'not sure' — a complete pass, not a missing answer."
+    need: String
+    smallThing: String
+    "JSON string, head/hands/heart. Set only once a small thing exists (phase 6)."
+    capacityTags: String
+    "The Reflect handoff answer (phase 6). Nothing is computed from it."
+    motiveNote: String
+  }
+
+  type NtcSitting {
+    id: ID!
+    completedAt: String
+    createdAt: String!
+    entries: [NtcEntry!]!
+  }
+
+  "The result of committing one step. catch arrives in phase 5 as an additive field."
+  type NtcEntryResult {
+    sitting: NtcSitting!
+  }
+
+  "Closing a sitting. graduation arrives in phase 7 as an additive field."
+  type NtcFinishResult {
+    sitting: NtcSitting!
   }
 
   """
@@ -1941,8 +2145,14 @@ export const typeDefs = gql`
     """
     loopHistory(limit: Int): [FnLoopSitting!]!
 
-    "Noticing: the tool home's state — enough to route into the frame or the loop. Phase 1."
+    "Noticing: the tool home's state — enough to route into the frame or the loop."
     noticingState: NoticingState!
+
+    "Noticing: the authored content pack, localized and fade-resolved."
+    noticingContent: NoticingContent!
+
+    "Noticing: today's still-open sitting, if there is one. Null means start fresh."
+    activeNoticingSitting: NtcSitting
   }
 
   type AuthPayload {
@@ -2504,6 +2714,44 @@ export const typeDefs = gql`
     offered. Idempotent; nothing is incremented behind it.
     """
     acknowledgeGraduation: Boolean!
+
+    # ── Impact · Noticing: the loop ───────────────────────────────────────
+    # The wizard commits every step as it goes; there is deliberately no
+    # "submit the loop" mutation. Partial state is valid state — see
+    # services/noticing/session.ts's docblock. Not gated on the day-one
+    # frame — see NoticingState.frameDone's note.
+
+    """
+    Open a sitting and its first pass. Returns the still-open sitting instead
+    if one exists, so a reload cannot split one practice across two rows.
+    wasPrompted records whether the app cued this — input to the fade-level
+    inference (phase 7), never a metric.
+    """
+    startNoticingSitting(wasPrompted: Boolean): NtcSitting!
+
+    """
+    Commit one step of one pass. Every field is optional; an omitted field is
+    left alone, and an explicit null clears it — which is how "not sure" is
+    recorded for need: a complete pass, not a missing answer.
+    """
+    updateNoticingEntry(
+      entryId: ID!
+      place: String
+      person: String
+      observation: String
+      need: String
+      smallThing: String
+    ): NtcEntryResult!
+
+    """
+    Add a pass for another distinct person. Refuses past the soft cap — the
+    bound is what keeps a plural sitting from becoming an inventory of
+    people rather than a distributed noticing practice.
+    """
+    addNoticingPass(sittingId: ID!): NtcSitting!
+
+    "Close the sitting. Drops a trailing pass left completely blank."
+    finishNoticingSitting(sittingId: ID!): NtcFinishResult!
 
     "Time Themes: create a tag. Rejects a duplicate name for this user; color must be an allowed palette key."
     createTag(name: String!, color: String!): Tag!

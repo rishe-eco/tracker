@@ -2472,8 +2472,6 @@ export const SUBMIT_MONITORING_SELF_AUDIT = `
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
 // ── Impact · Noticing (Act 1) ──────────────────────────────────────────────
-// Phase 1 only: one query. The content pack, loop and history documents land
-// in later phases alongside the resolvers that back them.
 export const GET_NOTICING_STATE = `
   query NoticingState {
     noticingState {
@@ -2483,6 +2481,117 @@ export const GET_NOTICING_STATE = `
       frameDone
       graduationSurfaced
       promptFadeLevel
+    }
+  }
+`;
+
+export const GET_NOTICING_CONTENT = `
+  query NoticingContent {
+    noticingContent {
+      contentVersion
+      reviewStatus
+      repeatSoftCap
+      places { id label }
+      cues { id label }
+      needs { id label }
+      display { needIds }
+      loop {
+        placePrompt placeOtherLabel
+        personPrompt personThirdPartyWarning
+        observationPrompt
+        needPrompt needOtherLabel needNotSure
+        smallThingPrompt smallThingSkip
+        capacityPrompt capacityOtherLabel
+        close addAnotherAsk addAnotherCapped finish
+        recapHeading recapNotRelated
+      }
+      frame {
+        intro { title body begin }
+        beatOne {
+          moment { prompt helper reroutePrompt rerouteLabel }
+          unsaidNeed { prompt helper otherLabel }
+          visibleCues { prompt helper otherLabel }
+          turn { line }
+          reverse { prompt knowLabel noIdeaLabel knowResponse noIdeaResponse }
+        }
+        beatTwo {
+          prompt
+          options { id label }
+          correction { lineByGuess { notVery somewhat very } body }
+        }
+      }
+      capacity {
+        prompt
+        headChips { id label }
+        handsChips { id label }
+        heartChips { id label }
+        otherLabel
+      }
+      graduation { line body close }
+      thirdPartyWarning
+    }
+  }
+`;
+
+/** Every loop mutation returns the whole sitting, so the client renders one shape. */
+const NOTICING_SITTING_FIELDS = `
+  id
+  completedAt
+  entries {
+    id
+    passIndex
+    place
+    person
+    observation
+    need
+    smallThing
+  }
+`;
+
+export const GET_ACTIVE_NOTICING_SITTING = `
+  query ActiveNoticingSitting {
+    activeNoticingSitting { ${NOTICING_SITTING_FIELDS} }
+  }
+`;
+
+export const START_NOTICING_SITTING = `
+  mutation StartNoticingSitting($wasPrompted: Boolean) {
+    startNoticingSitting(wasPrompted: $wasPrompted) { ${NOTICING_SITTING_FIELDS} }
+  }
+`;
+
+export const UPDATE_NOTICING_ENTRY = `
+  mutation UpdateNoticingEntry(
+    $entryId: ID!
+    $place: String
+    $person: String
+    $observation: String
+    $need: String
+    $smallThing: String
+  ) {
+    updateNoticingEntry(
+      entryId: $entryId
+      place: $place
+      person: $person
+      observation: $observation
+      need: $need
+      smallThing: $smallThing
+    ) {
+      sitting { ${NOTICING_SITTING_FIELDS} }
+    }
+  }
+`;
+
+export const ADD_NOTICING_PASS = `
+  mutation AddNoticingPass($sittingId: ID!) {
+    addNoticingPass(sittingId: $sittingId) { ${NOTICING_SITTING_FIELDS} }
+  }
+`;
+
+export const FINISH_NOTICING_SITTING = `
+  mutation FinishNoticingSitting($sittingId: ID!) {
+    finishNoticingSitting(sittingId: $sittingId) {
+      sitting { ${NOTICING_SITTING_FIELDS} }
     }
   }
 `;

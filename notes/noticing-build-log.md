@@ -377,3 +377,232 @@ suites are not vacuously green.
   the specific meaning (this is different from generic "understanding,"
   which is already on the list). Flagging rather than shortening on my own
   judgment, since the length may be a legitimate cost of precision here.
+
+## Phase 2 corrections (coordinator review, applied at the start of phase 3)
+
+Five corrections landed before phase 3 work started; all five are in the
+`content/noticing/` files and both test suites, not a separate commit.
+
+1. **Beat 2's correction was a standing statistic — a real defect.** A single
+   unconditional `"Most people guess this low."` fired regardless of the
+   guess, so picking `very` (the one guess the finding doesn't contradict)
+   got told they were wrong. Fixed: `FrameBeatTwoSurface.correction` is now
+   `{ lineByGuess: Record<"not_very"|"somewhat"|"very", string>, body }`.
+   `very`'s line ("You guessed high. Most people don't.") reports rather
+   than congratulates. Added a guardrail test asserting all three lines
+   exist and that `very`'s line never says "guess low" or "you were right".
+2. **Strategy-catch hints made per-trigger, not one fixed set.** Changed
+   `CatchLexiconSurface.triggers` from `string[]` to
+   `{ match: string; hints: string[] }[]`, plus a `fallbackHints` escape
+   hatch. `renderCatch` now looks up the matched trigger's own hints,
+   falling back only if the word isn't found. `hintSlots` for `strategy`
+   dropped from 3 to 2 to match what got authored (spec says "two or
+   three"; two per trigger felt right once each was actually being
+   written).
+3. **`catchCopy.note` rewritten** — "your words, reflected back" was
+   counselling register and inaccurate (the catch contrasts, it doesn't
+   reflect). Now: "your own words — nothing added, nothing corrected."
+4. **Graduation's second line rewritten** — dropped the borrowed scaffolding
+   image ("the prompts were only ever the scaffolding"), which named what
+   the *app* stopped doing. Now names what the *person* can do: "You don't
+   need a prompt to look anymore — you just do."
+5. **`to_know_its_not_just_them`'s label shortened** to "that it isn't just
+   them"; the id is unchanged (it's the persisted value and stays precise).
+
+All five applied in both `surface.en.ts` and `surface.fa.ts`. Two of my own
+test assertions caught real mistakes while applying these: `CATCH_SPECS`
+still said `hintSlots: 3` after I'd authored 2 hints per trigger (content
+suite caught it), and the guardrail suite's trigger-path exclusion regex
+(`isTriggerPath`) still matched the old `.triggers[N]` shape and silently
+stopped excluding anything once the shape changed to `.triggers[N].match`,
+which let `"i owe them"` (a `protective` trigger) get flagged by the
+no-streak-or-debt sweep. Both fixed; noted here because they're exactly the
+kind of thing a shape change can break quietly.
+
+## Phase 3 — The spine
+
+Branch: `impact-noticing`, continuing from phase 2's commit.
+
+### What landed
+
+**Service** — `api/src/services/noticing/session.ts`: `getContent`,
+`startSitting`, `getActiveSitting`, `updateEntry`, `addPass`,
+`finishSitting`, `getHistory`. Modeled closely on
+`feelingsNeeds/session.ts`'s three structural rules (commits as it goes,
+soft-capped repeat, passes never cross-referenced), written fresh against
+Noticing's own model — no shared code or import.
+
+One deliberate divergence, stated in the file's docblock: `startSitting`
+does **not** gate on `isFrameDone`, unlike Feelings & Needs. This was
+already decided in phase 1 (`NoticingState.frameDone` "does NOT gate the
+loop") — phase 3 is where it actually mattered, since this is the first
+code that could have quietly added the gate back by copying the precedent
+too literally.
+
+Also landed, per the brief:
+- `selectNeedIds` — a plain round-robin over the 20-need pool, keyed on
+  completed sittings (not random, not tier-weighted — see the function's
+  own docblock for why a static "first six forever" would defeat the reason
+  the pool is wider than Module 1's).
+- `serveLoopCopy` — the fade-level copy withdrawal. **One threshold, not
+  two.** The brief described a 3-level scheme (0 authored / 1 drops helper
+  lines / 2+ terse) mirroring Feelings & Needs exactly, but Noticing's loop
+  copy has no helper-line fields at all — every step is one line by design
+  (spec §4.2's table has no secondary line for any loop step, and this
+  phase's own "what feels right" section says "if a step needs a paragraph
+  of explanation, the step is wrong"). There is nothing to drop at an
+  intermediate level, so I implemented `level <= 0` → authored,
+  `level >= 1` → terse, and said so in the docblock rather than inventing
+  helper lines just to fill a three-tier shape that phase 2's content
+  didn't call for. Flagging this explicitly since it's a place I changed the
+  mechanism, not just the numbers.
+
+**GraphQL** — one SDL block: `NoticingContent` and its constituent types
+(`NtcFrameCopy`, `NtcLoopCopy`, `NtcCapacityCopy`, `NtcGraduationCopy`,
+`NtcDisplaySelection`), `NtcSitting`/`NtcEntry`, `NtcEntryResult` and
+`NtcFinishResult` (both deliberately minimal now — `catch` and `graduation`
+land as additive fields in phases 5 and 7, which is the whole reason these
+are result objects rather than the mutations returning `NtcSitting`
+directly). Query: `noticingContent`, `activeNoticingSitting`. Mutations:
+`startNoticingSitting`, `updateNoticingEntry`, `addNoticingPass`,
+`finishNoticingSitting`. No `noticingHistory` query yet — the brief's
+GraphQL list didn't include it, and the log page that would need it is
+phase 6b, so the integration test exercises `getHistory` directly against
+the service instead of through GraphQL.
+
+Two GraphQL-boundary reshapes happen in `session.ts`'s `getContent`, both
+because GraphQL SDL can't express what the content types can: `capacity.chips`
+(a `{head,hands,heart}` record) becomes `headChips`/`handsChips`/`heartChips`,
+and `correction.lineByGuess`'s `not_very` key becomes `notVery`. Both are
+pure reshapes of already-public data, not new logic.
+
+Hit the same backtick-in-docblock gotcha from phase 1 three more times
+while writing the SDL (a "`body`", a "`catch`", a "`graduation`" in
+docblock comments) — `tsc --noEmit` catches it immediately with a
+non-obvious "module declaration" error, so it cost seconds each time, but
+noting again in case phase 4 onward hits it too.
+
+**Client** — `components/impact/NoticingLoopPage.tsx`, a full rewrite of
+the phase-1 stub: place (chips + escape) → person (free text, third-party
+warning under the field) → observation (free text) → need (chips + escape +
+"not sure") → optional small thing → close (one line + observation→need
+pair) → optional repeat → recap. `components/impact/arrows.ts` duplicates
+`learn/arrows.ts`'s tiny RTL-arrow hook rather than importing it, to keep
+the two component trees fully independent (they migrate to separate
+standalone apps later, per build plan §1). `GET_NOTICING_CONTENT`,
+`GET_ACTIVE_NOTICING_SITTING`, `START_NOTICING_SITTING`,
+`UPDATE_NOTICING_ENTRY`, `ADD_NOTICING_PASS`, `FINISH_NOTICING_SITTING`
+added to `queries.ts`. `impact.noticing.nav.{next,back}` and
+`impact.noticing.loop.addAnother` added to both locales.
+
+**Tests** — `api/src/__tests__/noticing.integration.test.ts` (9 tests):
+opens without the frame done, commits each step independently, runs the
+loop end to end, records a "not sure" pass as complete, resumes today's
+open sitting instead of duplicating it, drops a trailing blank pass on
+finish, refuses `addPass` past the soft cap, and history returns only
+completed sittings (newest first) without an abandoned sitting inflating
+the count that feeds the fade level. Also had to add the four Noticing
+tables to `test/helpers.ts`'s `clearDb()` — they weren't there yet, and
+without them the Noticing integration tests would have leaked rows across
+test files sharing the same test database.
+
+### Decisions the brief didn't specify (interaction, not structure)
+
+Per the ask — these are the places a spec can't reach and where "feels like
+a form" actually gets decided:
+
+1. **Back-navigation re-hydrates free-text fields from the server, not from
+   whatever was last typed.** `person`/`observation`/`smallThing` are plain
+   `useState` strings, but a `useEffect` keyed on `[step, pass]` resets them
+   from `pass.person`/`pass.observation`/`pass.smallThing` every time the
+   step becomes active. So going back to "person" always shows what's
+   actually committed for this pass, not a stale local draft. This wasn't
+   specified anywhere — I chose "trust the server's own record on
+   re-entry" over "preserve whatever's in the box," on the theory that a
+   pass is meant to be resumable across a closed tab, and a text field that
+   silently disagreed with the database would be a worse bug than losing an
+   uncommitted edit.
+2. **Landing on the loop with a sitting already open resumes at the first
+   *core* field that's empty (place → person → observation), or at "need"
+   if all three are filled** — mirroring Feelings & Needs' own resolution
+   of the same ambiguity (`need` and `smallThing` are both skippable, so an
+   empty one can't be told apart from a skipped one). Concretely: someone
+   who picked a need and was mid-sentence on the small-thing field, then
+   closed the tab, lands back on "need" (one extra, harmless tap) rather
+   than "small". I copied this exact tradeoff from the precedent rather
+   than inventing a different one, since it's the same shape of ambiguity.
+3. **A step "mid-entry" is a single-line `Input` plus a `Next` button** for
+   the three free-text steps (person, observation, small thing) — no
+   secondary helper text, no placeholder copy beyond what phase 2 authored,
+   and `Next` stays disabled until the field is non-blank for person and
+   observation (not for the small thing, which is optional by design). This
+   is the most direct reading of "if a step needs a paragraph, the step is
+   wrong," but it's my call, not a spec quote.
+4. **"not sure" on the need step is a committing action, not a bare local
+   skip.** Clicking it calls `updateNoticingEntry` with `need: null` and
+   *then* advances, whereas skipping the small thing just moves the step
+   forward without writing anything (there's nothing to write — the field
+   is already `null` by default). I treated "not sure" as a real, distinct
+   answer worth persisting immediately (matching spec §4.2's "null is a
+   complete pass, not a missing answer") rather than something to leave for
+   whenever the pass next gets read.
+5. **The third-party warning is a fixed line under the person input,
+   rendered only while that step is on screen** — not a global banner, not
+   something that persists onto later steps once the person's name has been
+   entered. Spec §7 says "persistent, quiet... not dismissible-forever" but
+   doesn't say whether "persistent" means "for the whole sitting" or "for
+   as long as the field is visible." I read it as the latter (the warning
+   belongs to the field, not the sitting), since showing it on the
+   observation or need screens — after the person's name is already
+   written and can't be un-written — would be closing the barn door.
+
+### What surprised me
+
+- Writing `serveLoopCopy` is what surfaced that Noticing's loop prompts have
+  no helper-line fields at all — a structural fact I'd authored in phase 1
+  and wordsmithed in phase 2 without ever noticing its consequence for the
+  fade mechanism specifically. The brief's 3-level description assumed the
+  Feelings & Needs shape; the content didn't have that shape to withdraw
+  from. Neither phase 1 nor phase 2's tests caught this because nothing
+  before phase 3 exercised the fade path against real loop copy.
+- The `lineByGuess`/`headChips` reshaping at the `getContent` boundary is a
+  translation step that didn't exist in Feelings & Needs' precedent at all
+  (nothing in its content needs per-guess branching or a record-shaped
+  palette), so there was no example to mirror — I invented the "reshape at
+  the query boundary, keep the content types clean" split myself. Worth a
+  second look at Gate A whether this is the right seam, or whether the
+  content types should just match the GraphQL shape directly and skip the
+  translation.
+
+### Verification (phase 3)
+
+- `api && npx tsc --noEmit` — pass, no errors.
+- `api && npm test` — pass, 60 files / 1015 tests (1015 = 998 from phase 2
+  + 9 new in `noticing.integration.test.ts` + 8 net new from the phase-2
+  correction assertions added to the content/guardrail suites).
+- `client && npx tsc --noEmit` — pass, no errors.
+- `client && npm run i18n:check-missing` — pass.
+- `client && npm run i18n:check-hardcoded` — pass (bonus check, as in
+  earlier phases).
+- Bonus: `schema.unit.test.ts` (the repo's own SDL-parses-and-resolves
+  check) — pass, confirming the new SDL block builds a valid executable
+  schema with every resolver matched.
+
+### What phase 4 needs to know
+
+- The frame's GraphQL surface (`NtcFrameCopy` and children) is fully wired
+  and served by `noticingContent` already — phase 4 only needs to build
+  `NoticingFramePage.tsx` against it and the `completeNoticingFrame`
+  mutation (not yet written; `NoticingFrame` rows are still never created
+  by any code path).
+- `isFrameDone` was fixed in phase 2 to check `completedAt`, not row
+  existence — phase 4's frame-completion mutation needs to actually set
+  `completedAt` at the end of beat 2, not create the row with it already
+  set (that was the original phase-1 bug).
+- `resumeStep`'s "land on the ambiguous step" tradeoff (decision 2 above)
+  exists in `NoticingLoopPage.tsx` now; if phase 4's frame wizard has the
+  same skippable-field-at-the-end shape, the same tradeoff will come up
+  there too.
+- No catch UI exists yet in the loop wizard — `updateEntry`'s result always
+  carries `catch: null`, and the client doesn't render anything for it.
+  Phase 5 adds both sides together.

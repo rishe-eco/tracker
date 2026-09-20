@@ -38,15 +38,17 @@ function allStrings(value: unknown, path = ""): [string, string][] {
 const STRINGS_EN = allStrings(SURFACE_EN);
 
 /**
- * `catches[].triggers` hold words a *person* might type — several of them are
- * exactly the corrective, demanding or judgmental language the app's own
- * voice must avoid ("should", "lazy", "have to"). Sweeping them as if they
- * were app copy would be checking the wrong thing; they are the material the
- * catches exist to notice, not the app noticing out loud. Excluded from every
- * general sweep below; the catch-specific tests in `noticingContent` cover
- * the trigger lists on their own terms.
+ * `catches[].triggers[].match` holds words a *person* might type — several
+ * of them are exactly the corrective, demanding or judgmental language the
+ * app's own voice must avoid ("should", "lazy", "have to"). Sweeping them as
+ * if they were app copy would be checking the wrong thing; they are the
+ * material the catches exist to notice, not the app noticing out loud.
+ * Excluded from every general sweep below. **Not** excluded: `.hints` beneath
+ * a trigger — those ARE the app's voice (the offered questions) and stay
+ * covered by every sweep, including the question-mark check in
+ * `noticingContent`.
  */
-const isTriggerPath = (path: string) => /\.triggers\[\d+\]$/.test(path);
+const isTriggerPath = (path: string) => /\.triggers\[\d+\]\.match$/.test(path);
 
 const offendingEN = (re: RegExp, only?: (path: string) => boolean) =>
   STRINGS_EN.filter(([p, v]) => !isTriggerPath(p) && (only ? only(p) : true) && re.test(v)).map(
@@ -160,9 +162,12 @@ describe("every optional step names its skip in plain words", () => {
 });
 
 describe("the catches ask, never assert", () => {
-  it("phrases every hint as a question", () => {
+  it("phrases every hint as a question — every trigger's own, and the fallback", () => {
     const asserted = SURFACE_EN.catches
-      .flatMap((c) => c.hints.map((h) => ({ type: c.type, h })))
+      .flatMap((c) => [
+        ...c.triggers.flatMap((t) => t.hints.map((h) => ({ type: c.type, h }))),
+        ...c.fallbackHints.map((h) => ({ type: c.type, h })),
+      ])
       .filter(({ h }) => !h.trim().endsWith("?"))
       .map(({ type, h }) => `${type}: ${h}`);
     expect(asserted).toEqual([]);
@@ -182,11 +187,54 @@ describe("the catches ask, never assert", () => {
     expect(SURFACE_EN.catchCopy.dismiss.trim()).not.toBe("");
   });
 
+  it("the note states their own material plainly, without counselling register", () => {
+    // Phase-2 review defect: "reflected back" is counselling register and
+    // inaccurate — the catch contrasts, it doesn't reflect.
+    expect(SURFACE_EN.catchCopy.note).not.toMatch(/reflect(ed|s|ion)?/i);
+  });
+
   it("the protective catch does not argue — it routes instead of countering", () => {
     const protective = SURFACE_EN.catches.find((c) => c.type === "protective")!;
-    expect(protective.hints).toEqual([]);
+    expect(protective.triggers.every((t) => t.hints.length === 0)).toBe(true);
+    expect(protective.fallbackHints).toEqual([]);
     expect(protective.routeTo).toBeTruthy();
     expect(protective.line).not.toMatch(/\b(no|instead you should|that's not true)\b/i);
+  });
+
+  it("the strategy catch's hints are sharp to the trigger, not one generic set", () => {
+    const strategy = SURFACE_EN.catches.find((c) => c.type === "strategy")!;
+    const aRide = strategy.triggers.find((t) => t.match === "a ride")!;
+    const aLawyer = strategy.triggers.find((t) => t.match === "a lawyer")!;
+    // Not a blanket "no two triggers may ever share a hint" (some overlap
+    // between genuinely similar acts is fine) — this pins the specific case
+    // the review called out: offering the same three hints under every
+    // trigger regardless of what was actually typed.
+    expect(new Set(strategy.triggers.map((t) => t.hints.join("|"))).size).toBeGreaterThan(1);
+    expect(aRide.hints).not.toEqual(aLawyer.hints);
+  });
+});
+
+describe("beat 2's correction is keyed on the guess, not a standing statistic", () => {
+  const optionIds = frame.beatTwo.options.map((o) => o.id);
+
+  it("supplies a line for every option the person can actually pick", () => {
+    for (const id of optionIds) {
+      expect(frame.beatTwo.correction.lineByGuess[id]?.trim()).toBeTruthy();
+    }
+  });
+
+  it("never tells the very-guesser they were wrong about the one thing they got right", () => {
+    // The phase-2 review defect, pinned directly: whoever picked `very` must
+    // not be told people guess low, and must not be told they were simply
+    // right — the finding confirms them, it doesn't award them.
+    const veryLine = frame.beatTwo.correction.lineByGuess.very;
+    expect(veryLine).not.toMatch(/\bguess(es)? (this )?low\b/i);
+    expect(veryLine).not.toMatch(/\byou('re| were) right\b/i);
+  });
+
+  it("keeps the finding itself constant regardless of the guess", () => {
+    // The body is the research and doesn't change; only the framing does.
+    expect(frame.beatTwo.correction.body.trim()).toBeTruthy();
   });
 });
 
@@ -283,8 +331,16 @@ describe("the guardrails in Persian", () => {
     // «غلط» / «اشتباه» wrong, «نباید» you shouldn't, «درست نیست» that's not right.
     expect(catchCopy).not.toMatch(/غلط|اشتباه|نباید|درست نیست/);
     const protective = SURFACE_FA.catches.find((c) => c.type === "protective")!;
-    expect(protective.hints).toEqual([]);
+    expect(protective.triggers.every((t) => t.hints.length === 0)).toBe(true);
     expect(protective.routeTo).toBeTruthy();
+  });
+
+  it("keeps the welcome-prediction correction keyed on the guess, not one line for everyone", () => {
+    // The same defect, checked in Persian: the very-guesser must not be told
+    // people guess low.
+    for (const id of ["not_very", "somewhat", "very"] as const) {
+      expect(faFrame.beatTwo.correction.lineByGuess[id]?.trim()).toBeTruthy();
+    }
   });
 
   it("keeps moving — never asks why or for an explanation", () => {

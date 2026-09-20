@@ -123,7 +123,7 @@ export const SHARED_WITH_MODULE1_NEED_IDS = [
  */
 export const CATCH_SPECS: CatchLexiconSpec[] = [
   { type: "read", hintSlots: 0, matchesFields: ["observation"] },
-  { type: "strategy", hintSlots: 3, matchesFields: ["need", "smallThing"] },
+  { type: "strategy", hintSlots: 2, matchesFields: ["need", "smallThing"] },
   { type: "protective", hintSlots: 0, matchesFields: ["smallThing", "motiveNote"] },
 ];
 
