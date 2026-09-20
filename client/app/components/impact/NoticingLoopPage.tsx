@@ -124,8 +124,6 @@ type Step =
   | "need"
   | "small"
   | "catch"
-  | "capacity"
-  | "reflect"
   | "close"
   | "recap"
   | "graduated";
@@ -150,6 +148,10 @@ export default function NoticingLoopPage() {
   // component acknowledges it on dismissal (closeGraduation below), so a
   // person who never saw this render is offered it again next time.
   const [graduation, setGraduation] = useState<Graduation | null>(null);
+  // Waved off for this pass only, and never written anywhere: skipping the
+  // motive line is not an answer to it (spec §4.6 — nothing in Noticing is
+  // gated on it, and a stored 'declined' would be a record of a refusal).
+  const [motiveWaved, setMotiveWaved] = useState(false);
 
   /**
    * Retire the door, then leave.
@@ -508,7 +510,7 @@ export default function NoticingLoopPage() {
                 // only exists because there's an offered act to ask about
                 // (spec §4.2) — skipping straight to "close" when nothing
                 // was written is not a shortcut, it's the correct shape.
-                void commitEntry({ smallThing: trimmed || null }, trimmed ? "capacity" : "close");
+                void commitEntry({ smallThing: trimmed || null }, "close");
               }}
             >
               <Input value={smallText} onChange={(e) => setSmallText(e.target.value)} />
@@ -583,97 +585,78 @@ export default function NoticingLoopPage() {
           </section>
         )}
 
-        {step === "capacity" && (
-          <section className="space-y-4">
-            <p className="text-sm">{content.capacity.prompt}</p>
-            {(
-              [
-                { category: "head", chips: content.capacity.headChips },
-                { category: "hands", chips: content.capacity.handsChips },
-                { category: "heart", chips: content.capacity.heartChips },
-              ] as const
-            ).map(({ category, chips }) => (
-              <div key={category} className="flex flex-wrap gap-2">
-                {chips.map((chip) => (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    disabled={busy}
-                    className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
-                    onClick={() =>
-                      void commitCapacity(JSON.stringify({ category, tag: chip.id }), "reflect")
-                    }
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-            {!capacityOwn ? (
-              <button
-                type="button"
-                onClick={() => setCapacityOwn(true)}
-                className="rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground"
-              >
-                {content.capacity.otherLabel}
-              </button>
-            ) : (
-              <form
-                className="flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!capacityOwnText.trim()) return;
-                  void commitCapacity(
-                    JSON.stringify({ category: null, tag: capacityOwnText.trim() }),
-                    "reflect"
-                  );
-                }}
-              >
-                <Input
-                  autoFocus
-                  value={capacityOwnText}
-                  onChange={(e) => setCapacityOwnText(e.target.value)}
-                  placeholder={content.capacity.otherLabel}
-                />
-                <Button type="submit" disabled={busy || !capacityOwnText.trim()}>
-                  {t("impact.noticing.nav.next")}
-                </Button>
-              </form>
-            )}
-          </section>
-        )}
-
-        {step === "reflect" && (
-          <section className="space-y-4">
-            <p className="text-sm">{content.reflect.prompt}</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
-                onClick={() => void commitMotive("capacity_and_care", "close")}
-              >
-                {content.reflect.capacityLabel}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
-                onClick={() => void commitMotive("obligation", "close")}
-              >
-                {content.reflect.obligationLabel}
-              </button>
-            </div>
-            {/* Nothing in Noticing gates on this (spec §4.6) — skipping
-                commits nothing, same as the small thing's own skip. */}
-            <QuietAction onClick={() => setStep("close")}>{content.reflect.skip}</QuietAction>
-          </section>
-        )}
-
         {step === "close" && (
           <section className="space-y-5">
             <p className="text-sm">{c.close}</p>
             <PairLine observation={pass.observation ?? ""} need={labelOf(content.needs, pass.need)} />
+
+            {/* Both of these belong to the close, not to the loop (spec §4.2:
+                "the close adds one question and nothing else"). They were
+                built as separate steps with their own headers, which made an
+                offer feel like it had two more hoops after it. Inline and
+                quiet instead: each disappears once answered, Finish is always
+                on screen, so neither is ever owed.
+
+                The motive line is the Reflect handoff (spec §4.6), kept here
+                rather than on its own surface — but it is the one that must
+                stay waveable. Asking "was this obligation?" after every kind
+                act is the self-auditing the pillar warns about; the N6-c
+                catch already routes the people whose own words raised it. */}
+            {pass.smallThing && !pass.capacityTags && (
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-xs text-muted-foreground">{content.capacity.prompt}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { category: "head", chips: content.capacity.headChips },
+                      { category: "hands", chips: content.capacity.handsChips },
+                      { category: "heart", chips: content.capacity.heartChips },
+                    ] as const
+                  ).flatMap(({ category, chips }) =>
+                    chips.map((chip) => (
+                      <button
+                        key={`${category}-${chip.id}`}
+                        type="button"
+                        disabled={busy}
+                        className="rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+                        onClick={() =>
+                          void commitCapacity(JSON.stringify({ category, tag: chip.id }), "close")
+                        }
+                      >
+                        {chip.label}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {pass.smallThing && !pass.motiveNote && !motiveWaved && (
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-xs text-muted-foreground">{content.reflect.prompt}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    onClick={() => void commitMotive("capacity_and_care", "close")}
+                  >
+                    {content.reflect.capacityLabel}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    onClick={() => void commitMotive("obligation", "close")}
+                  >
+                    {content.reflect.obligationLabel}
+                  </button>
+                  <QuietAction onClick={() => setMotiveWaved(true)}>
+                    {content.reflect.skip}
+                  </QuietAction>
+                </div>
+              </div>
+            )}
 
             {/* Finishing is the primary action; the repeat is a quiet
                 secondary — making it prominent would invite the inventory
@@ -692,6 +675,7 @@ export default function NoticingLoopPage() {
                       setNeedOwn(false);
                       setNeedOwnText("");
                       setSmallText("");
+                      setMotiveWaved(false);
                       void (async () => {
                         setBusy(true);
                         const res = await call({

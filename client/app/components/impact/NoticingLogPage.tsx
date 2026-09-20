@@ -60,19 +60,39 @@ export default function NoticingLogPage() {
   const { t } = useTranslation();
   const { fmt } = useAppDate();
   const { leadsTo } = useArrows();
-  const { call } = useApi();
+  const { call, getLastError } = useApi();
 
   const [sittings, setSittings] = useState<Sitting[] | null>(null);
   const [pools, setPools] = useState<{ places: Palette[]; needs: Palette[] } | null>(null);
   const [failed, setFailed] = useState(false);
+  // The server's own message, not just that something went wrong. `call`
+  // returns null on a GraphQL error and keeps the reason in getLastError();
+  // swallowing it left this page saying "couldn't load" and nothing else,
+  // which is the least useful thing it could say to the one person able to
+  // act on it.
+  const [reason, setReason] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setFailed(false);
-    const [h, c] = await Promise.all([
-      call({ query: GET_NOTICING_HISTORY }),
-      call({ query: GET_NOTICING_CONTENT }),
-    ]);
+    setReason(null);
+    // Sequential, not Promise.all: the two share one useApi instance, so
+    // concurrent calls overwrite each other's lastError and the surviving
+    // message may belong to the call that succeeded.
+    let h: any = null;
+    let c: any = null;
+    let why: string | null = null;
+    try {
+      h = await call({ query: GET_NOTICING_HISTORY });
+      if (!h?.noticingHistory) why = getLastError();
+      if (!why) {
+        c = await call({ query: GET_NOTICING_CONTENT });
+        if (!c?.noticingContent) why = getLastError();
+      }
+    } catch (e: any) {
+      why = e?.message ?? String(e);
+    }
     if (!h?.noticingHistory || !c?.noticingContent) {
+      setReason(why);
       setFailed(true);
       return;
     }
@@ -89,6 +109,9 @@ export default function NoticingLogPage() {
       <InternalPageLayout title={t("impact.noticing.log.open")}>
         <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-6">
           <p className="text-sm">{t("impact.noticing.errors.couldNotLoad")}</p>
+          {reason && (
+            <p className="break-words font-mono text-xs text-muted-foreground">{reason}</p>
+          )}
           <Button variant="outline" onClick={() => void load()}>
             {t("impact.noticing.errors.retry")}
           </Button>
