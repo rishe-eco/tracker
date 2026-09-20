@@ -2471,6 +2471,22 @@ export const SUBMIT_MONITORING_SELF_AUDIT = `
 
 // ── Learn · Feelings & Needs (Module 1) ──────────────────────────────────────
 
+// ── Impact · Noticing (Act 1) ──────────────────────────────────────────────
+// Phase 1 only: one query. The content pack, loop and history documents land
+// in later phases alongside the resolvers that back them.
+export const GET_NOTICING_STATE = `
+  query NoticingState {
+    noticingState {
+      contentVersion
+      locale
+      reviewStatus
+      frameDone
+      graduationSurfaced
+      promptFadeLevel
+    }
+  }
+`;
+
 export const GET_FEELINGS_NEEDS_STATE = `
   query FeelingsNeedsState {
     feelingsNeedsState {

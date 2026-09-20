@@ -371,7 +371,10 @@
     "openSkills": "Open AI Training Lab",
     "learnTitle": "Feelings & Needs",
     "learnDescription": "A short daily practice: notice what you feel, find a word for it, and the need underneath.",
-    "openFeelingsNeeds": "Open Feelings & Needs"
+    "openFeelingsNeeds": "Open Feelings & Needs",
+    "noticingTitle": "Noticing",
+    "noticingDescription": "A quick daily habit: one place, one person, what you saw — and what it might point to.",
+    "openNoticing": "Open Noticing"
   },
   "learn": {
     "feelingsNeeds": {
@@ -416,6 +419,36 @@
       },
       "errors": {
         "couldNotLoad": "Couldn't load Feelings & Needs just now.",
+        "retry": "Try again"
+      }
+    }
+  },
+  "impact": {
+    "noticing": {
+      "title": "Noticing",
+      "subtitle": "One place, one person, what you saw — and what it might point to. No streaks, nothing to keep up.",
+      "comingSoon": "This part of Noticing isn't built yet.",
+      "frame": {
+        "cardTitle": "Start here, once",
+        "cardBody": "A one-time warm-up before the daily loop begins.",
+        "begin": "Begin"
+      },
+      "loop": {
+        "cardTitle": "Today's loop",
+        "cardBody": "Where you were, who was there, what you saw — and what it might point to.",
+        "start": "Start today's loop",
+        "length": "about 3 minutes"
+      },
+      "log": {
+        "open": "What you've noticed",
+        "empty": "Nothing here yet. It fills up as you go."
+      },
+      "banners": {
+        "draftLocale": "This language is a draft — the wording has not had a native review yet.",
+        "contentNotYourLanguage": "The practice itself — the place, cue and need words — is not in your language yet. Noticing works better in the language you're actually noticing in, so this is a real limit of the prototype rather than a cosmetic one."
+      },
+      "errors": {
+        "couldNotLoad": "Couldn't load Noticing just now.",
         "retry": "Try again"
       }
     }

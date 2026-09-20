@@ -1,0 +1,116 @@
+/**
+ * Noticing — per-user state.
+ *
+ * Its own module (mirroring `services/feelingsNeeds/state.ts`), because the
+ * session runner (phase 3), the frame (phase 4) and the graduation logic
+ * (phase 7) all need it and importing it between them would cycle. Shares no
+ * code with `services/feelingsNeeds/` (build plan §3).
+ *
+ * The prototype is English-only. Locale is fixed to "en" here rather than
+ * stored per-user, same reasoning as Feelings & Needs: the `fa` surface is a
+ * declared draft, so there is nothing yet to choose between.
+ *
+ * Unlike `FeelingsNeedsState`, `NoticingState` (the GraphQL type) carries no
+ * sitting count — build plan §7's sketch omits it deliberately, and the
+ * house rule for this tool is stricter than Module 1's: no counter, streak,
+ * total or tally field in any Noticing model, type or resolver. Completed
+ * sittings are still read here to derive the fade level, but that number is
+ * never returned to the caller.
+ */
+
+import type { PrismaClient } from "@prisma/client";
+import { CURRENT_VERSION, DIALS, getNoticingPack, type Locale } from "../../content/noticing";
+
+/**
+ * How far the app has withdrawn its own prompts (build plan §6 delta 2,
+ * mirroring Feelings & Needs' P7 exactly).
+ *
+ * Derived from finished sittings, never stored — a cached number beside the
+ * sittings is a number that can disagree with them. Capped at the graduation
+ * dial: past that point there is nothing left to withdraw, and a number that
+ * kept climbing would be a score in everything but name.
+ */
+export function computeFadeLevel(completedSittings: number): number {
+  const raw = Math.floor(completedSittings / DIALS.graduation.sittingsPerFadeStep);
+  return Math.min(raw, DIALS.graduation.graduationFadeLevel);
+}
+
+/**
+ * Look the NoticingState up, creating it on first contact.
+ *
+ * Create-then-recover rather than `upsert`: the tool home may fire more than
+ * one query in parallel on a brand-new account, both find nothing, both
+ * insert, and the loser hits the `userId` unique constraint. Losing that race
+ * is the ordinary outcome, not an error — re-read the winner's row.
+ */
+export async function ensureNoticingState(prisma: PrismaClient, userId: string) {
+  const existing = await prisma.noticingState.findUnique({ where: { userId } });
+  if (existing) return existing;
+
+  try {
+    return await prisma.noticingState.create({
+      data: { userId, contentVersion: CURRENT_VERSION },
+    });
+  } catch (e: any) {
+    if (e?.code !== "P2002") throw e;
+    const created = await prisma.noticingState.findUnique({ where: { userId } });
+    if (!created) throw e;
+    return created;
+  }
+}
+
+/**
+ * Whether the day-one frame has been done. Derived from the `NoticingFrame`
+ * row rather than a flag kept beside it — the row is the event, and a
+ * boolean mirroring it would only ever be a second thing to forget to write.
+ *
+ * Informational only: per spec §4.1 and build plan §5 phase 4, this does
+ * **not** gate the loop. Someone can run the loop having never done the
+ * frame; the frame is a rehearsal of the loop's own inference, not a
+ * precondition for it (build plan §5, ordering notes).
+ */
+export async function isFrameDone(prisma: PrismaClient, userId: string): Promise<boolean> {
+  const done = await prisma.noticingFrame.findUnique({
+    where: { userId },
+    select: { userId: true },
+  });
+  return done !== null;
+}
+
+export type NoticingState = {
+  contentVersion: string;
+  /** The language the *content* came back in — see the note on `reviewStatus`. */
+  locale: Locale;
+  reviewStatus: "draft" | "reviewed";
+  frameDone: boolean;
+  graduationSurfaced: boolean;
+  /**
+   * How far the app has withdrawn its own prompts. Derived, not stored, and
+   * capped — a dial the app reads, never a level the person is shown.
+   */
+  promptFadeLevel: number;
+};
+
+/** The tool home's state: enough to route into the frame or the loop, no more. */
+export async function getNoticingState(
+  prisma: PrismaClient,
+  userId: string,
+  locale: Locale
+): Promise<NoticingState> {
+  const state = await ensureNoticingState(prisma, userId);
+  const pack = getNoticingPack(state.contentVersion, locale);
+  // Completed only — an abandoned sitting is not a rep (build plan §9.5).
+  // Read here to derive the fade level; never returned as its own field.
+  const completedSittings = await prisma.noticingSitting.count({
+    where: { userId, completedAt: { not: null } },
+  });
+
+  return {
+    contentVersion: state.contentVersion,
+    locale,
+    reviewStatus: pack.reviewStatus,
+    frameDone: await isFrameDone(prisma, userId),
+    graduationSurfaced: state.graduationSurfaced,
+    promptFadeLevel: computeFadeLevel(completedSittings),
+  };
+}

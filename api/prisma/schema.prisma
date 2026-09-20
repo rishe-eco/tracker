@@ -327,6 +327,9 @@ model User {
   loopState           LoopState?
   tags                Tag[]
   timeThemes          TimeTheme[]
+  noticingFrame       NoticingFrame?
+  noticingSittings    NoticingSitting[]
+  noticingState       NoticingState?
 }
 
 /// A personal access token for the public API. The secret is never stored —
@@ -693,6 +696,115 @@ model LoopState {
   /// The capability moment ("this runs on its own now") is surfaced exactly
   /// once. A door you've walked through can't be lost — this is what stops it
   /// from re-firing, and there is deliberately no counter behind it.
+  graduationSurfaced Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Impact · Noticing (Act 1) ───────────────────────────────────────────────
+// Spec: ecosystem/working/impact-build/01-noticing-spec.md.
+// Build plan: ecosystem/working/impact-build/04-build-plan.md §6.
+//
+// A Tracker-namespaced tool, same staging arrangement as Feelings & Needs.
+// LLM-free by design — the three catches in Tier 3 run on authored lexicons,
+// never a model. Content (place/cue/need palettes, frame and loop copy, catch
+// lexicons) lives in api/src/content/noticing/, versioned like code; these
+// tables hold only per-user state.
+//
+// Noticing authors its own needs palette rather than sharing Feelings & Needs'
+// twelve — see build-plan §4. Nothing here shares code with
+// api/src/content/feelings-needs/ or api/src/services/feelingsNeeds/.
+//
+// The named absences, enforced by the fences suite (build-plan §9.4): no
+// `count`, `streak`, `total` or `tally` field anywhere below; no `Person`
+// model; no index that mentions `person`.
+
+/// Tier 1, once. Beat 1 is five steps; beat 2 is the welcome prediction.
+model NoticingFrame {
+  id            String   @id @default(uuid())
+  userId        String   @unique // the frame happens once
+  /// Beat 1 step 1 — the recalled episode, one line.
+  moment        String?
+  /// Step 2 — the person's own unsaid need. Palette key or free text.
+  unsaidNeed    String?
+  /// Step 3 — JSON string: cue chip keys plus any free text.
+  visibleCues   String?
+  /// Took the "a time you wished someone had" reroute. Not a failure flag:
+  /// the reroute is a first-class path through the frame.
+  wishedInstead Boolean  @default(false)
+  /// The beat-2 prediction, kept only so the correction can be shown once
+  /// against what they actually guessed.
+  welcomeGuess  String?
+  completedAt   DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// One sitting of the noticing loop; passes within a sitting are parallel,
+/// never related.
+model NoticingSitting {
+  id          String          @id @default(uuid())
+  userId      String
+  wasPrompted Boolean         @default(false)
+  /// Null while open, which is what makes a sitting resumable — every step
+  /// commits as it goes. Not a completion metric: nothing is shown a total.
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     NoticingEntry[]
+
+  @@index([userId, createdAt])
+}
+
+/// One pass: place → person → observation → need → optional small thing.
+model NoticingEntry {
+  id           String          @id @default(uuid())
+  sittingId    String
+  /// 0-based position within the sitting. A soft cap bounds how many passes a
+  /// sitting can hold, so it can never become an inventory of people.
+  passIndex    Int
+  place        String?
+  /// Free text, deliberately UN-INDEXED. There is no Person entity, no
+  /// autocomplete across entries, no cross-entry lookup, and no index on this
+  /// column — building the index is what would turn this tool into a dossier.
+  /// Any future sharing surface MUST de-identify this field; do not add a share
+  /// path without one. See 00-act1-concept.md §6, 01-noticing-spec.md §7.
+  person       String?
+  observation  String?
+  /// Palette key (Noticing's own needs palette) or free text. Null is "not
+  /// sure", which is a complete pass and not a missing answer.
+  need         String?
+  /// Null by default. Skipped is the ordinary outcome, not an omission.
+  smallThing   String?
+  /// JSON string, head/hands/heart. Only written when smallThing is set, and
+  /// it records what the person HAD — never who they helped.
+  capacityTags String?
+  /// The Reflect handoff answer. Stored; nothing is computed from it.
+  motiveNote   String?
+  /// JSON string of catch types that fired on this pass. Read for cooldown
+  /// only — never aggregated, never shown.
+  caughtTypes  String?
+  createdAt    DateTime        @default(now())
+  sitting      NoticingSitting @relation(fields: [sittingId], references: [id], onDelete: Cascade)
+
+  @@index([sittingId])
+}
+
+/// Per-user drivers for cooldowns and the one-time graduation moment. No
+/// counter of achievement anywhere on this model.
+model NoticingState {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  /// Pinned at enrolment. The words should not change under someone
+  /// mid-practice.
+  contentVersion     String
+  /// JSON string, catch type → ISO date of the last touch. A cooldown, not a
+  /// counter: it records WHEN something last happened, never how often. Kept
+  /// here rather than derived from `caughtTypes` because a dismissed catch is
+  /// still a touch and the entry row cannot know that. See 04-build-plan.md §6.
+  lastCatchAt        String?
+  /// A door you have walked through cannot be lost, which is what stops it
+  /// re-firing — and there is deliberately no counter behind it.
   graduationSurfaced Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

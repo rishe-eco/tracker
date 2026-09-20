@@ -84,6 +84,16 @@ export default function ToolsHomePage() {
           {t("toolsHome.openFeelingsNeeds")}
         </Button>
       </section>
+
+      <section className="rounded-lg border bg-card p-5">
+        <div className="mb-4 space-y-1">
+          <h2 className="text-lg font-semibold">{t("toolsHome.noticingTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("toolsHome.noticingDescription")}</p>
+        </div>
+        <Button onClick={() => navigate("/tools/impact/noticing")}>
+          {t("toolsHome.openNoticing")}
+        </Button>
+      </section>
     </main>
   );
 }

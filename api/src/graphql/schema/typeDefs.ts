@@ -1776,6 +1776,33 @@ export const typeDefs = gql`
     graduation: FnGraduation
   }
 
+  # ── Impact · Noticing (Act 1) ────────────────────────────────────────────
+  # Spec: ecosystem/working/impact-build/01-noticing-spec.md.
+  # Build plan: ecosystem/working/impact-build/04-build-plan.md §7.
+  #
+  # A Tracker-namespaced tool, same staging arrangement as Feelings & Needs
+  # (Learn Module 1, above) but sharing no code with it — Noticing authors its
+  # own needs palette (build plan §4). Phase 1 lands only this one type and
+  # query; the content pack, the loop and the catches follow in later phases.
+  """
+  The tool home's state: enough to route into the frame or the loop, no more.
+  Deliberately has no sitting count and no field named count, streak, total or
+  tally — the fences suite (build plan §9.4) holds this SDL block to that.
+  """
+  type NoticingState {
+    contentVersion: String!
+    "The locale of the practice content — see FeelingsNeedsState.locale for the same distinction."
+    locale: String!
+    "draft | reviewed — a draft locale is a known state, surfaced not hidden."
+    reviewStatus: String!
+    "Whether the day-one frame has been done. Does NOT gate the loop (spec §4.1, build plan §5)."
+    frameDone: Boolean!
+    "The one-time capability moment has been shown. A door, not a score."
+    graduationSurfaced: Boolean!
+    "How far the app has withdrawn its prompts (build plan §6). Derived, capped, never shown."
+    promptFadeLevel: Int!
+  }
+
   """
   One skill's line on the AI Training Lab hub. Progress only — no headline
   metric appears here, because the six labs' metrics are on six different
@@ -1913,6 +1940,9 @@ export const typeDefs = gql`
     are grouped client-side because a day is a local-timezone concept.
     """
     loopHistory(limit: Int): [FnLoopSitting!]!
+
+    "Noticing: the tool home's state — enough to route into the frame or the loop. Phase 1."
+    noticingState: NoticingState!
   }
 
   type AuthPayload {

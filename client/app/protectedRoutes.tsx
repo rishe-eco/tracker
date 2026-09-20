@@ -41,6 +41,10 @@ import FeelingsNeedsPage from "./components/learn/FeelingsNeedsPage";
 import FeelingsNeedsLoopPage from "./components/learn/FeelingsNeedsLoopPage";
 import FeelingsNeedsHistoryPage from "./components/learn/FeelingsNeedsHistoryPage";
 import FeelingsNeedsFramePage from "./components/learn/FeelingsNeedsFramePage";
+import NoticingPage from "./components/impact/NoticingPage";
+import NoticingFramePage from "./components/impact/NoticingFramePage";
+import NoticingLoopPage from "./components/impact/NoticingLoopPage";
+import NoticingLogPage from "./components/impact/NoticingLogPage";
 import { Navigate } from "react-router";
 
 export default [
@@ -155,6 +159,25 @@ export default [
   {
     path: "/tools/learn/feelings-needs/history",
     element: <FeelingsNeedsHistoryPage />,
+  },
+  {
+    // Impact · Noticing (Act 1). A new second-level namespace, staged inside
+    // Tracker exactly as Feelings & Needs is (build plan §2) — migrates to
+    // Impact's standalone app later.
+    path: "/tools/impact/noticing",
+    element: <NoticingPage />,
+  },
+  {
+    path: "/tools/impact/noticing/frame",
+    element: <NoticingFramePage />,
+  },
+  {
+    path: "/tools/impact/noticing/loop",
+    element: <NoticingLoopPage />,
+  },
+  {
+    path: "/tools/impact/noticing/log",
+    element: <NoticingLogPage />,
   },
   {
     path: "/tools/journals/:id",
