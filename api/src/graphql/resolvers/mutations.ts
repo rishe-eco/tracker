@@ -1702,7 +1702,7 @@ mutations.startNoticingSitting = requireAuth(async (_, { wasPrompted }: any, ctx
 
 mutations.updateNoticingEntry = requireAuth(async (_, args: any, ctx) => {
   const { entryId, ...patch } = args;
-  return updateNoticingEntry(ctx.prisma, ctx.user.id, entryId, patch);
+  return updateNoticingEntry(ctx.prisma, ctx.user.id, entryId, patch, ctx.locale);
 });
 
 mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>

@@ -1787,11 +1787,12 @@ export const typeDefs = gql`
   # day-one frame's own progress query and mutations (NtcFrame,
   # updateNoticingFrame, completeNoticingFrame) — the frame does not gate the
   # loop and the loop does not gate the frame; see NoticingState.frameDone.
-  # The catch payload (phase 5) and the graduation door (phase 7) are
-  # deliberately absent from NtcEntryResult and NtcFinishResult below — both
-  # land later as additive fields, not breaking changes, which is why the
-  # result types exist already rather than the mutations returning NtcSitting
-  # directly.
+  # Phase 5 adds the catch payload (NtcCatch, on NtcEntryResult.catch) — the
+  # three lexicons themselves never reach this schema at all, only the one
+  # composed line a match actually produces. The graduation door (phase 7)
+  # is still deliberately absent from NtcFinishResult, landing later as an
+  # additive field, which is why that result type exists already rather than
+  # the mutation returning NtcSitting directly.
   """
   The tool home's state: enough to route into the frame or the loop, no more.
   Deliberately has no sitting count and no field named count, streak, total or
@@ -2030,9 +2031,26 @@ export const typeDefs = gql`
     entries: [NtcEntry!]!
   }
 
-  "The result of committing one step. catch arrives in phase 5 as an additive field."
+  """
+  A catch that just fired (N6, tier 3), composed server-side — the three
+  lexicons never ship to a browser (see NoticingContent's own note). hints
+  is empty for read and protective, which never offer one; protective's
+  routeTo carries the Reflect handoff (unbuilt — a link-out stub for now,
+  build plan §8).
+  """
+  type NtcCatch {
+    type: String!
+    line: String!
+    hints: [String!]!
+    dismiss: String!
+    note: String!
+    routeTo: String
+  }
+
+  "The result of committing one step. catch is null far more often than not — that's the point (build plan §5 phase 5)."
   type NtcEntryResult {
     sitting: NtcSitting!
+    catch: NtcCatch
   }
 
   "Closing a sitting. graduation arrives in phase 7 as an additive field."

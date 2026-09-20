@@ -56,9 +56,31 @@ export const DIALS = {
    * not passes — `NoticingState.lastCatchAt` is the map this dial is read
    * against. `perSitting` caps total catches (of any type) within one sitting,
    * on top of the per-type cooldown.
+   *
+   * Raised from the spec's provisional 3 to 5 (phase 5 judgment call). Read
+   * the three lexicons side by side: `read`'s triggers (rude, difficult,
+   * fine, cold, annoying...) are exactly the casual evaluative shorthand
+   * people reach for constantly when describing someone in a sentence or
+   * two, where `strategy`'s (a ride, a lawyer, a loan...) and `protective`'s
+   * (should, have to, guilty...) are narrower and gated behind an optional
+   * field skipped by default. At 3 days, `read` alone was on track to refire
+   * roughly twice a week indefinitely against ordinary language — a cadence
+   * closer to a running commentary on word choice than the distributed touch
+   * spec §4.4 asks for. `strategy`/`protective` were never going to be the
+   * type that hit this ceiling (their triggers are rarer and their fields
+   * are optional), so raising the one shared number mostly reins in `read`
+   * without meaningfully starving the other two.
+   *
+   * This is a uniform bump to one shared dial, not a structural fix: `read`
+   * plausibly deserves its own, longer cooldown rather than sharing one
+   * number with two types that were never going to strain it — the
+   * underlying state (`lastCatchAt`, keyed by type) already supports that
+   * split; only this dial's shape doesn't yet. Worth revisiting with real
+   * usage data (build plan §10's gates) rather than guessing a second number
+   * now.
    */
   catches: {
-    cooldownDays: 3,
+    cooldownDays: 5,
     perSitting: 1,
   },
 

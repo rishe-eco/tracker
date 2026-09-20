@@ -2625,6 +2625,7 @@ export const UPDATE_NOTICING_ENTRY = `
       smallThing: $smallThing
     ) {
       sitting { ${NOTICING_SITTING_FIELDS} }
+      catch { type line hints dismiss note routeTo }
     }
   }
 `;

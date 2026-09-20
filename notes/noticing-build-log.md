@@ -821,3 +821,233 @@ is being argued, it's just naming what was true and wasn't caught.
   against `NoticingEntry` fields only (`observation`, `need`, `smallThing`,
   `motiveNote`), and the frame's fields aren't in that list. The two phases
   don't intersect.
+
+## Phase 5 — The catches
+
+Branch: `impact-noticing`, continuing from phase 4's commit. Coordinator
+review corrected the reroute finding upstream into spec v0.5, attributed to
+the build; no code changes to Noticing followed from that review beyond what
+phase 4 already had.
+
+### What landed
+
+**Service** — `api/src/services/noticing/catches.ts`, the engine. Modeled on
+`feelingsNeeds/distinctions.ts` (word-boundary matching via a Unicode
+letter-ish lookaround rather than `\b`, longest-match-wins, `normalizeForMatch`
+for Persian's Arabic-fold/ZWNJ/diacritic handling) — read that file for the
+precedent, shares no code with it. `detectCatch(pack, type, text)` is the
+pure matcher, compiled and cached per `(pack, type)` in a `WeakMap`, same
+caching shape as the precedent. `maybeCatch(prisma, userId, pack, entry,
+changedFields)` is the whole decision: one per pass (reads
+`NoticingEntry.caughtTypes`), one per sitting (`DIALS.catches.perSitting`,
+counting sibling entries), per-type cooldown (`NoticingState.lastCatchAt`,
+a JSON map written the moment a catch is *surfaced*, never derived from
+entries — build plan §6 delta 3, restated in the file's own docblock because
+it's the one place this module structurally diverges from the precedent).
+`changedFields` is deliberately only the field(s) the current commit is
+actually writing — never a re-scan of the whole entry — so the catch fires
+at the moment a word is named, the same timing the mechanism depends on in
+Module 1.
+
+**Wiring** — `services/noticing/session.ts`'s `updateEntry` gained a
+required `locale` parameter (matching `feelingsNeeds/session.ts`'s own
+`updateEntry` shape) and now calls `maybeCatch` whenever `observation`,
+`need`, or `smallThing` is part of the current patch, returning the real
+`catch` field instead of the placeholder `null` phases 3–4 left it as.
+`person` is never a candidate — not filtered out by a runtime check, but
+simply never one of the three fields the code even looks at.
+
+**GraphQL** — `NtcCatch` (type, line, hints, dismiss, note, routeTo) and
+`NtcEntryResult.catch: NtcCatch`, both sketched in build-plan §7 but not
+actually written into the SDL until now. Resolver: `updateNoticingEntry` now
+passes `ctx.locale` through.
+
+**Schema correction** — `NoticingEntry.caughtTypes`'s comment in
+`schema.prisma` said "read for cooldown only," which phase 5 (per the
+coordinator's brief) explicitly contradicts: the cooldown lives on
+`NoticingState.lastCatchAt`, written at surface time, and `caughtTypes` is
+the one-per-pass gate plus the spec §12 learning signal. Fixed the comment;
+no schema change, no migration.
+
+**Client** — `NoticingLoopPage.tsx` gained a `"catch"` step (not in
+`STEP_DOTS` — an interruption, not a step) and a `pendingCatch` state
+carrying the surfaced catch plus `followUp`, the step the triggering commit
+would have gone to had nothing fired. `commitEntry` now detours to the catch
+step instead of `next` whenever the mutation result carries one;
+`hints.length > 0` gates whether the hint row renders at all (`read` and
+`protective` never have any); clicking a hint commits `{ need:
+stripQuestion(hint) }` to `followUp`; dismissing goes straight to
+`followUp` without committing anything. No new i18n keys — every string on
+the catch card comes from the server payload.
+
+**Dial change** — `DIALS.catches.cooldownDays` raised from the spec's
+provisional 3 to 5. See "the judgment call" below.
+
+**Tests** — `noticingCatches.unit.test.ts` (21 tests, new): the detector's
+word-boundary and longest-match behavior directly against `detectCatch`
+(including the real nesting case in the `read` lexicon, "dramatic" inside
+"being dramatic"); the field contract exercised through `updateEntry` field
+by field, including the case where a `smallThing` answer could read as both
+`strategy` and `protective` at once; one catch per pass and one per sitting;
+the per-type cooldown, including the specific claim that a catch nobody
+"accepted" still starts it (nothing in the test resembles an accept action
+between surfacing and checking the cooldown); cooldowns independent per
+type; `protective`'s no-hints-but-a-route shape and `strategy`'s
+per-trigger, all-questions hints; the `{{word}}` substitution. Also
+confirmed `noticing.integration.test.ts`, `noticingContent.unit.test.ts`,
+`noticingGuardrails.unit.test.ts` and `schema.unit.test.ts` all still pass
+unmodified against the new `catch` field and the `updateEntry` signature
+change.
+
+### Decisions the brief didn't specify
+
+1. **Priority order when two catch types could both fire on the same field.**
+   Only `strategy` and `protective` share a field (`smallThing`); `read`
+   never overlaps with either. When a `smallThing` answer contains both a
+   strategy trigger ("a ride") and a protective one ("should"), I check
+   `protective` first. Reasoning: protective is the motive check, and spec
+   §5's own failure modes (guilt accumulation, savior framing) are about
+   acting *from* obligation — putting the motive question in front of the
+   person before the concrete-act refinement gets any more attention reads
+   as more consistent with the pillar's priorities than the reverse. This is
+   a judgment call, not a spec quote; flagging it explicitly in case the
+   coordinator reads it the other way round.
+2. **`maybeCatch` takes already-committed, already-trimmed field values,
+   not the raw patch.** `session.ts` builds `changedFields` from the same
+   `trim()` output it just wrote to the row, so the matcher never sees
+   whitespace or a value that didn't actually get saved. This also means a
+   field set to `null` (e.g., "not sure" on `need`) is correctly inert —
+   `detectCatch` returns `null` immediately on empty input — without the
+   catch engine needing its own null-handling convention.
+3. **The client's `followUp` mechanism, not a hardcoded per-type
+   destination.** `feelingsNeedsLoopPage.tsx`'s catch handlers hardcode
+   where each action goes (`setStep("need")` on dismiss, `setStep("small")`
+   on a need-hint pick). Noticing's catch can fire from three different
+   steps (`observation`, `need`, `smallThing`), each with its own correct
+   next step, so hardcoding per-type destinations would have meant either
+   three near-identical catch-UI branches or a lookup table duplicating
+   information the commit call already has. Passing the intended `next`
+   through as `followUp` at the moment of the interrupted commit was cheaper
+   and cannot drift out of sync with the step order, because it isn't a
+   second copy of it.
+4. **A hint always writes to `need`, never to `smallThing`, regardless of
+   which field the catch fired on.** Spec §4.4's own strategy example ("a
+   ride is one way to meet it. What's underneath?") is asking what need the
+   concrete act serves, and that answer belongs in the `need` field whether
+   the strategy word was typed *as* the need or hiding inside the small
+   thing. Concretely: catching "a ride" in `smallThing` and having a hint
+   fill in `need` retroactively answers a question the person may have
+   skipped earlier ("not sure") — which I treated as a feature (the "not
+   sure" they gave earlier wasn't a lie, it just hadn't been prompted yet)
+   rather than something to guard against.
+
+### What surprised me
+
+- **`NtcCatch` and `NtcEntryResult.catch` didn't exist in the SDL at all.**
+  Build-plan §7's sketch shows both, and phases 3–4's comments referred to
+  the catch field as something that would "arrive as an additive field" —
+  reading that, I expected to find a stub type already sitting in
+  `typeDefs.ts` waiting for a resolver. It wasn't there; the sketch was
+  exactly that, a sketch, and phase 5 is where it actually gets written.
+  Cheap to add, but worth flagging since "the type already exists, only the
+  resolver is missing" was a wrong assumption I carried in from the build
+  log's own phase-4 language before checking.
+- Writing the priority-order comment (decision 1) is what made me notice
+  `read` has no field overlap with the other two at all — it's the only
+  type that ever touches `observation`. The `CATCH_PRIORITY` list still
+  orders it last for completeness, but nothing in the current lexicons ever
+  exercises that position. Worth remembering if a future catch type ever
+  gets added to `observation`'s contract: that's the first time this
+  ordering would do real work outside of `smallThing`.
+
+### The judgment call — where does a touch become a spellchecker
+
+Read side by side, the three lexicons are not equally likely to fire.
+`strategy`'s triggers ("a ride," "a lawyer," "a loan") and `protective`'s
+("should," "guilty," "the least I can do") are concrete and somewhat
+self-selecting for context — they mostly show up when someone is actually
+naming an act or catching themselves mid-obligation, and both only get
+checked against `smallThing`/`need`, fields that are optional or often
+answered "not sure." `read`'s list — rude, difficult, fine, cold, annoying,
+being dramatic — is exactly the casual evaluative shorthand people reach for
+constantly when describing someone in a sentence or two, and it runs against
+`observation`, the one field every single pass fills in.
+
+At the spec's original `cooldownDays: 3`, a person whose ordinary voice
+tends toward that shorthand (which is most people, some of the time) would
+plausibly retrip `read` roughly every 3-4 days indefinitely — call it twice
+a week, forever, with no decay and no relationship to whether the last one
+landed well. That reads less like the distributed touch spec §4.4 asks for
+and more like a standing commentary on word choice, precisely the "grammar
+checker" `feelingsNeeds/distinctions.ts`'s own docblock names as the failure
+mode to stay clear of. `strategy` and `protective` were never going to be
+the ones that hit this ceiling — their trigger lists are narrower and their
+fields are skipped by default — so the risk is concentrated entirely in one
+of the three types sharing one shared number with the other two.
+
+**What I changed:** raised `DIALS.catches.cooldownDays` from 3 to 5,
+uniformly. This is a real, if modest, adjustment — it mostly reins in `read`
+(the type actually likely to hit the ceiling) without meaningfully starving
+`strategy`/`protective` (which were far from it to begin with).
+
+**What I didn't change, and think is a better fix later:** a single shared
+`cooldownDays` sitting on top of a *per-type* `lastCatchAt` map is already a
+slight mismatch in shape — the state was authored expecting each type to
+have its own rhythm, and the dial doesn't yet let it. The structurally
+cleaner fix is a per-type cooldown (`read` longer than `strategy`/
+`protective`), which the state shape already supports for free. I didn't do
+it now because guessing a *second* number with no usage data is worse than
+adjusting the one number that's actually in front of me — this is exactly
+what build plan §10's gates are for, and it's a five-minute change once
+there's real text to look at rather than lexicons on a page.
+
+**On `perSitting: 1`:** left alone. It's already justified by the spec's own
+prose ("two in one sitting reads as correction"), not merely provisional in
+the way the cooldown number was, and at one per sitting there's no room left
+to tighten it without disabling the mechanism outright. If anything is too
+rare, it will be this — but making it rarer is a strictly worse failure mode
+than making it too frequent (silence teaches nothing; a repeated point at
+least tries), so I left it exactly where the spec put it.
+
+### Verification (phase 5)
+
+- `api && npx tsc --noEmit` — pass, no errors.
+- `api && npm test` — pass, see exact count below.
+- `client && npx tsc --noEmit` — pass, no errors.
+- `client && npm run i18n:check-missing` — pass.
+- `client && npm run i18n:check-hardcoded` — pass (bonus check, as in earlier
+  phases).
+
+### What phase 6 needs to know
+
+- `NtcCatch.routeTo` is already carried end to end (server composes it,
+  GraphQL exposes it, the client receives it on `pendingCatch.routeTo`) but
+  the client does **nothing** with it yet — the protective catch's card
+  looks identical to read's (line, no hints, dismiss, note). Phase 6's
+  Reflect handoff stub is where `routeTo` actually earns a distinct
+  treatment (a link-out, however thin) and where `motiveNote` gets an actual
+  write path via `setNoticingMotive`. Until then, protective's `routeTo` is
+  structurally present and functionally inert.
+- `protective`'s `matchesFields` includes `motiveNote`, but nothing writes
+  that field yet — `maybeCatch` will simply never be asked to check it until
+  phase 6 wires `setNoticingMotive`. When it does, that mutation should
+  build its own `changedFields` the same way `updateEntry` does here (one
+  key, the trimmed value, only when the field is actually part of the
+  patch) rather than reusing `updateEntry`'s, since they're different
+  mutations committing different fields at different times — but the
+  one-per-pass gate (`caughtTypes`) is shared across the whole entry
+  regardless of which mutation writes to it: if `smallThing` already used
+  this pass's one catch, a `motiveNote` written moments later on the same
+  entry will correctly get nothing.
+- The needs-hint retroactive-fill behavior (decision 4) means a person who
+  answered "not sure" on `need` and later gets a `strategy` catch on
+  `smallThing` can end up with a non-null `need` they never directly chose
+  from the need step's own chips. Nothing downstream currently depends on
+  `need`'s provenance (there's no `needSource` field the way Feelings &
+  Needs has `feelingSource`), so this is inert today, but worth knowing if
+  a future phase wants to distinguish "chosen at the need step" from
+  "filled in by a catch hint."
+- Cooldown tuning is a paper exercise until phase 8's feel-test — the
+  judgment call above changed one number based on reading the lexicons, not
+  on any real usage. Treat `cooldownDays: 5` as no more settled than the
+  original `3` was.

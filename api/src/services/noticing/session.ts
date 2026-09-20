@@ -39,6 +39,7 @@ import {
   type NoticingPack,
 } from "../../content/noticing";
 import { computeFadeLevel, ensureNoticingState } from "./state";
+import { maybeCatch, type SurfacedCatch } from "./catches";
 import { withUserLock } from "../userLock";
 
 /**
@@ -307,18 +308,19 @@ export type EntryPatch = {
  * `userId` of its own — so the check has to walk up to the sitting rather
  * than trust the entry.
  *
- * Returns a result object (`{ sitting, catch }`) rather than the sitting
- * directly, on purpose: phase 5 adds catch detection here (the field
- * contract already lives on the content spec as `matchesFields`, so the
- * matcher reads it rather than reimplements it), and shaping the return as
- * a result now means that lands as an additive change, not a breaking one.
- * `catch` is always `null` until then.
+ * Returns a result object (`{ sitting, catch }`). `catch` (phase 5) fires
+ * only on the field(s) actually committed by THIS call — never a re-scan of
+ * the whole entry — because the catch fires at the moment a word is named,
+ * which is the mechanism, not a UX preference (see `catches.ts`'s own
+ * docblock). `locale` is needed only for that: which lexicon a trigger is
+ * matched against has to be the language the words were actually typed in.
  */
 export async function updateEntry(
   prisma: PrismaClient,
   userId: string,
   entryId: string,
-  patch: EntryPatch
+  patch: EntryPatch,
+  locale: Locale
 ) {
   const entry = await prisma.noticingEntry.findUnique({
     where: { id: entryId },
@@ -343,12 +345,27 @@ export async function updateEntry(
     },
   });
 
+  // Only the catch-eligible fields this call is actually setting — "person"
+  // is never included here regardless of what EntryPatch carries, since it
+  // is not one of the three fields below (build plan §8's fence: no lexicon
+  // is ever matched against it).
+  const catchFields: Partial<Record<"observation" | "need" | "smallThing", string | null>> = {};
+  if (patch.observation !== undefined) catchFields.observation = trim(patch.observation);
+  if (patch.need !== undefined) catchFields.need = trim(patch.need);
+  if (patch.smallThing !== undefined) catchFields.smallThing = trim(patch.smallThing);
+
+  let surfaced: SurfacedCatch | null = null;
+  if (Object.keys(catchFields).length > 0) {
+    const pack = await packFor(prisma, userId, locale);
+    surfaced = await maybeCatch(prisma, userId, pack, entry, catchFields);
+  }
+
   const sitting = await prisma.noticingSitting.findUniqueOrThrow({
     where: { id: entry.sittingId },
     include: SITTING_WITH_ENTRIES,
   });
 
-  return { sitting, catch: null as null };
+  return { sitting, catch: surfaced };
 }
 
 /**

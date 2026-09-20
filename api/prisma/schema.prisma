@@ -788,8 +788,13 @@ model NoticingEntry {
   capacityTags String?
   /// The Reflect handoff answer. Stored; nothing is computed from it.
   motiveNote   String?
-  /// JSON string of catch types that fired on this pass. Read for cooldown
-  /// only — never aggregated, never shown.
+  /// JSON string of catch types that fired on this pass. NOT the cooldown
+  /// source (that's NoticingState.lastCatchAt, written when a catch is
+  /// surfaced rather than derived from these rows — build-plan §6 delta 3).
+  /// This field is the one-catch-per-pass gate (a pass that already has one
+  /// never gets a second) and the raw material for the learning signal spec
+  /// §12 describes: whether the read catch fires less over time on the same
+  /// person's text. Never aggregated across passes, never shown.
   caughtTypes  String?
   createdAt    DateTime        @default(now())
   sitting      NoticingSitting @relation(fields: [sittingId], references: [id], onDelete: Cascade)

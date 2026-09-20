@@ -49,6 +49,16 @@ type Entry = {
 };
 type Sitting = { id: string; completedAt: string | null; entries: Entry[] };
 
+/** A catch that just fired (N6, tier 3, phase 5), composed server-side. */
+type SurfacedCatch = {
+  type: string;
+  line: string;
+  hints: string[];
+  dismiss: string;
+  note: string;
+  routeTo: string | null;
+};
+
 type FrameStep = { prompt: string; helper: string | null };
 type Content = {
   repeatSoftCap: number;
@@ -79,7 +89,7 @@ type LoopCopy = {
   recapNotRelated: string;
 };
 
-type Step = "place" | "person" | "observation" | "need" | "small" | "close" | "recap";
+type Step = "place" | "person" | "observation" | "need" | "small" | "catch" | "close" | "recap";
 
 // Position, not progress — the dots say where you are in the shape of a
 // pass, not how much is "done". A pass that ends at "need" (not sure) is
@@ -104,6 +114,10 @@ export default function NoticingLoopPage() {
   const [needOwn, setNeedOwn] = useState(false);
   const [needOwnText, setNeedOwnText] = useState("");
   const [smallText, setSmallText] = useState("");
+  // `followUp` is wherever this commit's own `next` would have gone had no
+  // catch fired — the catch is an interruption, not a step, so dismissing
+  // it (or taking a hint) always resumes exactly where the pass was headed.
+  const [pendingCatch, setPendingCatch] = useState<(SurfacedCatch & { followUp: Step }) | null>(null);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -159,6 +173,15 @@ export default function NoticingLoopPage() {
     if (step === "small") setSmallText(pass.smallThing ?? "");
   }, [step, pass]);
 
+  /**
+   * Commit one step of the current pass. Separate from a plain "always go to
+   * `next`" helper because naming an observation, a need or a small thing can
+   * surface a catch (N6, tier 3, phase 5) — and when it does, the catch takes
+   * precedence over wherever the step was headed, the same way
+   * `FeelingsNeedsLoopPage.tsx`'s own catch interrupts its loop. It never
+   * blocks: `followUp` (below) always carries the step this commit would
+   * have gone to anyway, so dismissing the catch loses nothing.
+   */
   const commitEntry = useCallback(
     async (fields: Record<string, unknown>, next?: Step) => {
       if (!pass) return null;
@@ -170,8 +193,14 @@ export default function NoticingLoopPage() {
         return null;
       }
       const updated = res.updateNoticingEntry.sitting as Sitting;
+      const surfaced: SurfacedCatch | null = res.updateNoticingEntry.catch ?? null;
       setSitting(updated);
-      if (next) setStep(next);
+      if (surfaced && next) {
+        setPendingCatch({ ...surfaced, followUp: next });
+        setStep("catch");
+      } else if (next) {
+        setStep(next);
+      }
       return updated;
     },
     [call, pass]
@@ -368,6 +397,55 @@ export default function NoticingLoopPage() {
           </section>
         )}
 
+        {step === "catch" && pendingCatch && (
+          <section className="space-y-4">
+            {/* Their own word, quoted back — the contrast has to land on
+                their material, not a canned example. The original text is
+                never edited or blocked by this — it's already saved. */}
+            <div className="rounded-md border border-sky-500/40 bg-sky-500/10 p-3">
+              <p className="text-sm leading-relaxed">{pendingCatch.line}</p>
+            </div>
+
+            {/* read and protective offer no hints at all — read hands the
+                sentence back rather than replacing it, and protective
+                routes to the (unbuilt) Reflect handoff instead of arguing. */}
+            {pendingCatch.hints.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {pendingCatch.hints.map((hint) => (
+                  <button
+                    key={hint}
+                    disabled={busy}
+                    className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    onClick={() => {
+                      const followUp = pendingCatch.followUp;
+                      setPendingCatch(null);
+                      void commitEntry({ need: stripQuestion(hint) }, followUp);
+                    }}
+                  >
+                    {hint}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Load-bearing, not politeness. A catch the person cannot
+                decline is a quiz, and a quiz produces defensiveness instead
+                of the contrast actually landing. */}
+            <div className="flex items-center justify-between border-t pt-3">
+              <QuietAction
+                onClick={() => {
+                  const followUp = pendingCatch.followUp;
+                  setPendingCatch(null);
+                  setStep(followUp);
+                }}
+              >
+                {pendingCatch.dismiss}
+              </QuietAction>
+              <span className="text-[11px] text-muted-foreground">{pendingCatch.note}</span>
+            </div>
+          </section>
+        )}
+
         {step === "close" && (
           <section className="space-y-5">
             <p className="text-sm">{c.close}</p>
@@ -441,6 +519,11 @@ export default function NoticingLoopPage() {
       </div>
     </InternalPageLayout>
   );
+}
+
+/** Strip the trailing "?" a hint is always authored with, before it's committed as an answer. */
+function stripQuestion(hint: string) {
+  return hint.replace(/[?؟]+$/, "").trim();
 }
 
 /**
