@@ -302,11 +302,29 @@ export type EntryPatch = {
 };
 
 /**
+ * Load an entry the caller owns, on an open sitting. Ownership is inherited
+ * from the sitting — `NoticingEntry` carries no `userId` of its own — so the
+ * check has to walk up rather than trust the entry. Shared by every mutation
+ * that touches one entry (`updateEntry`, `setCapacity`, `setMotive`) so the
+ * ownership/finished-sitting check can't drift between them.
+ */
+async function ownedEntry(prisma: PrismaClient, userId: string, entryId: string) {
+  const entry = await prisma.noticingEntry.findUnique({
+    where: { id: entryId },
+    include: { sitting: { select: { userId: true, completedAt: true } } },
+  });
+  if (!entry || entry.sitting.userId !== userId) throw new Error("Not found");
+  if (entry.sitting.completedAt) {
+    throw new Error("This sitting is already finished.");
+  }
+  return entry;
+}
+
+const trim = (v: string | null | undefined) =>
+  v === undefined ? undefined : v === null ? null : v.trim() || null;
+
+/**
  * Commit one step of one pass.
- *
- * Ownership is inherited from the sitting — `NoticingEntry` carries no
- * `userId` of its own — so the check has to walk up to the sitting rather
- * than trust the entry.
  *
  * Returns a result object (`{ sitting, catch }`). `catch` (phase 5) fires
  * only on the field(s) actually committed by THIS call — never a re-scan of
@@ -322,17 +340,7 @@ export async function updateEntry(
   patch: EntryPatch,
   locale: Locale
 ) {
-  const entry = await prisma.noticingEntry.findUnique({
-    where: { id: entryId },
-    include: { sitting: { select: { userId: true, completedAt: true } } },
-  });
-  if (!entry || entry.sitting.userId !== userId) throw new Error("Not found");
-  if (entry.sitting.completedAt) {
-    throw new Error("This sitting is already finished.");
-  }
-
-  const trim = (v: string | null | undefined) =>
-    v === undefined ? undefined : v === null ? null : v.trim() || null;
+  const entry = await ownedEntry(prisma, userId, entryId);
 
   await prisma.noticingEntry.update({
     where: { id: entryId },
@@ -366,6 +374,78 @@ export async function updateEntry(
   });
 
   return { sitting, catch: surfaced };
+}
+
+/**
+ * Record the post-offer capacity accretion (spec §4.2, §4.6; build plan §5
+ * phase 6) — asked once, only when a small thing was written, and built
+ * only from what the person HAD, never from who they helped: `capacityTags`
+ * is a JSON string the client composes (category plus a chip id or free
+ * text, the same opaque-string convention as the frame's `visibleCues`) and
+ * the server stores without reading. No name ever passes through this call.
+ *
+ * Returns just the sitting, matching build plan §7's own sketch — no result
+ * wrapper the way `updateEntry` needs one, because nothing here can surface
+ * a catch (`capacityTags` is not in any catch type's `matchesFields`).
+ */
+export async function setCapacity(prisma: PrismaClient, userId: string, entryId: string, capacityTags: string) {
+  const entry = await ownedEntry(prisma, userId, entryId);
+  await prisma.noticingEntry.update({
+    where: { id: entryId },
+    data: { capacityTags: trim(capacityTags) },
+  });
+  return prisma.noticingSitting.findUniqueOrThrow({
+    where: { id: entry.sittingId },
+    include: SITTING_WITH_ENTRIES,
+  });
+}
+
+/**
+ * Record the Reflect handoff's motive answer (spec §4.6) — thin, because
+ * Reflect itself is unbuilt: nothing is computed from this, and nothing in
+ * Noticing gates on it. Returns just the sitting (build plan §7's sketch),
+ * unlike `updateEntry`'s `{ sitting, catch }` shape.
+ *
+ * Builds its OWN `changedFields` rather than reusing `updateEntry`'s (a
+ * phase-5 note, restated because it would be easy to fold these back
+ * together later): this is a different mutation, committing a different
+ * field, at a different moment in the pass. In practice `motiveNote` here
+ * only ever holds one of the two fixed tokens the client's closed pick
+ * offers (`content/noticing/v1/surface.en.ts`'s `reflect.capacityLabel` /
+ * `obligationLabel` ids), which the `protective` lexicon can never match —
+ * so the `maybeCatch` call below is inert today, not dead: it keeps the
+ * cooldown/one-per-pass bookkeeping correct for the day `motiveNote` becomes
+ * free text (or Reflect gives this its own richer surface), rather than
+ * requiring someone to remember to wire it in later. There is also nowhere
+ * in this mutation's return shape to surface a catch even if one somehow
+ * fired — matching build plan §7's own sketch (`NtcSitting!`, no wrapper) —
+ * so a match here would be recorded but never shown, same as any other
+ * catch gate quietly doing its job in the background.
+ */
+export async function setMotive(
+  prisma: PrismaClient,
+  userId: string,
+  entryId: string,
+  motiveNote: string,
+  locale: Locale
+) {
+  const entry = await ownedEntry(prisma, userId, entryId);
+  const trimmed = trim(motiveNote);
+
+  await prisma.noticingEntry.update({
+    where: { id: entryId },
+    data: { motiveNote: trimmed },
+  });
+
+  if (trimmed) {
+    const pack = await packFor(prisma, userId, locale);
+    await maybeCatch(prisma, userId, pack, entry, { motiveNote: trimmed });
+  }
+
+  return prisma.noticingSitting.findUniqueOrThrow({
+    where: { id: entry.sittingId },
+    include: SITTING_WITH_ENTRIES,
+  });
 }
 
 /**

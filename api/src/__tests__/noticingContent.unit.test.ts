@@ -281,6 +281,9 @@ describe("the client-safe projection", () => {
     expect(publicPack.frame.beatOne.turn.line).toBeTruthy();
     expect(publicPack.graduation.line).toBeTruthy();
     expect(publicPack.thirdPartyWarning).toBeTruthy();
+    // The Reflect handoff's copy is ordinary UI chrome, not a lexicon — it
+    // must survive the client-safe projection the way capacity/graduation do.
+    expect(publicPack.reflect.prompt).toBeTruthy();
   });
 });
 
@@ -322,6 +325,13 @@ describe("the frame and loop copy", () => {
       expect(turn.wishedLine).not.toBe(turn.line);
     }
   );
+
+  it.each(SURFACES)("%s: authors a two-way pick for the Reflect handoff, both labels non-empty (phase 6)", (_l, surface) => {
+    expect(surface.reflect.prompt.trim()).not.toBe("");
+    expect(surface.reflect.capacityLabel.trim()).not.toBe("");
+    expect(surface.reflect.obligationLabel.trim()).not.toBe("");
+    expect(surface.reflect.skip.trim()).not.toBe("");
+  });
 
   it.each(SURFACES)("%s: offers a three-way welcome prediction", (_l, surface) => {
     expect(surface.frame.beatTwo.options.map((o) => o.id).sort()).toEqual(

@@ -248,6 +248,24 @@ export type CapacityCopySurface = {
   otherLabel: string;
 };
 
+// ─── The Reflect handoff (spec §4.6) ──────────────────────────────────────────
+
+/**
+ * The Reflect handoff's own copy — deliberately thin, since Reflect itself
+ * is unbuilt (spec §4.6). A two-way pick, not free text: "is this from
+ * capacity and care, or from obligation?" reads as a closed question
+ * everywhere else this register is used (the frame's `reverse` step, beat
+ * 2's guess), and a closed pick is what `motiveNote` is spec'd to store —
+ * "the answer", singular, not an elaboration. Skippable, like everything
+ * past the need step: spec §4.6 says nothing gates on it.
+ */
+export type ReflectCopySurface = {
+  prompt: string;
+  capacityLabel: string;
+  obligationLabel: string;
+  skip: string;
+};
+
 // ─── Self-initiation (N7) ─────────────────────────────────────────────────────
 
 /** The one-time capability moment. A door, not a score. */
@@ -278,6 +296,7 @@ export type NoticingSurface = {
   catches: CatchLexiconSurface[];
   catchCopy: CatchCopySurface;
   capacity: CapacityCopySurface;
+  reflect: ReflectCopySurface;
   graduation: GraduationSurface;
   thirdPartyWarning: string;
 };
@@ -295,6 +314,7 @@ export type NoticingPack = {
   catches: (CatchLexiconSurface & { hintSlots: number; matchesFields: NoticingEntryField[] })[];
   catchCopy: CatchCopySurface;
   capacity: CapacityCopySurface;
+  reflect: ReflectCopySurface;
   graduation: GraduationSurface;
   thirdPartyWarning: string;
 };
@@ -317,6 +337,7 @@ export type PublicNoticingPack = {
   frame: FrameSurface;
   loop: LoopCopySurface;
   capacity: CapacityCopySurface;
+  reflect: ReflectCopySurface;
   graduation: GraduationSurface;
   thirdPartyWarning: string;
 };

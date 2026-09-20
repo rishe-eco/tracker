@@ -1969,6 +1969,19 @@ export const typeDefs = gql`
     otherLabel: String!
   }
 
+  """
+  The Reflect handoff's own copy (spec §4.6) — deliberately thin, since
+  Reflect itself is unbuilt. A closed, two-way pick rather than free text;
+  motiveNote (on NtcEntry) stores which side was picked. Skippable — nothing
+  in Noticing gates on the answer.
+  """
+  type NtcReflectCopy {
+    prompt: String!
+    capacityLabel: String!
+    obligationLabel: String!
+    skip: String!
+  }
+
   "A door, not an award. No count anywhere in this type or what it carries."
   type NtcGraduationCopy {
     line: String!
@@ -1995,6 +2008,7 @@ export const typeDefs = gql`
     needs: [NtcPaletteEntry!]!
     display: NtcDisplaySelection!
     capacity: NtcCapacityCopy!
+    reflect: NtcReflectCopy!
     frame: NtcFrameCopy!
     loop: NtcLoopCopy!
     graduation: NtcGraduationCopy!
@@ -2818,6 +2832,22 @@ export const typeDefs = gql`
       need: String
       smallThing: String
     ): NtcEntryResult!
+
+    """
+    Record the post-offer capacity accretion (spec §4.2, §4.6; build plan §5
+    phase 6) — asked once, only when a small thing was written. Built only
+    from what the person HAD, never from who they helped: capacityTags is an
+    opaque JSON string the client composes, the same convention as the
+    frame's visibleCues. No name ever passes through this mutation.
+    """
+    setNoticingCapacity(entryId: ID!, capacityTags: String!): NtcSitting!
+
+    """
+    Record the Reflect handoff's motive answer (spec §4.6) — a link-out stub
+    while Reflect is unbuilt. Nothing is computed from this, and nothing in
+    Noticing gates on it.
+    """
+    setNoticingMotive(entryId: ID!, motiveNote: String!): NtcSitting!
 
     """
     Add a pass for another distinct person. Refuses past the soft cap — the

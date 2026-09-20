@@ -12,6 +12,8 @@ import {
   FINISH_NOTICING_SITTING,
   GET_ACTIVE_NOTICING_SITTING,
   GET_NOTICING_CONTENT,
+  SET_NOTICING_CAPACITY,
+  SET_NOTICING_MOTIVE,
   START_NOTICING_SITTING,
   UPDATE_NOTICING_ENTRY,
 } from "~/api/queries";
@@ -46,6 +48,8 @@ type Entry = {
   observation: string | null;
   need: string | null;
   smallThing: string | null;
+  capacityTags: string | null;
+  motiveNote: string | null;
 };
 type Sitting = { id: string; completedAt: string | null; entries: Entry[] };
 
@@ -60,6 +64,24 @@ type SurfacedCatch = {
 };
 
 type FrameStep = { prompt: string; helper: string | null };
+
+/** Head / hands / heart — accreted from what the person HAD, never who they helped (phase 6). */
+type CapacityCopy = {
+  prompt: string;
+  headChips: PaletteEntry[];
+  handsChips: PaletteEntry[];
+  heartChips: PaletteEntry[];
+  otherLabel: string;
+};
+
+/** The Reflect handoff's own copy (spec §4.6) — thin, since Reflect is unbuilt. */
+type ReflectCopy = {
+  prompt: string;
+  capacityLabel: string;
+  obligationLabel: string;
+  skip: string;
+};
+
 type Content = {
   repeatSoftCap: number;
   places: PaletteEntry[];
@@ -67,6 +89,8 @@ type Content = {
   needs: PaletteEntry[];
   display: { needIds: string[] };
   loop: LoopCopy;
+  capacity: CapacityCopy;
+  reflect: ReflectCopy;
   frame: unknown; // Not read here — the frame page (phase 4) owns that half of the pack.
 };
 
@@ -89,7 +113,17 @@ type LoopCopy = {
   recapNotRelated: string;
 };
 
-type Step = "place" | "person" | "observation" | "need" | "small" | "catch" | "close" | "recap";
+type Step =
+  | "place"
+  | "person"
+  | "observation"
+  | "need"
+  | "small"
+  | "catch"
+  | "capacity"
+  | "reflect"
+  | "close"
+  | "recap";
 
 // Position, not progress — the dots say where you are in the shape of a
 // pass, not how much is "done". A pass that ends at "need" (not sure) is
@@ -114,10 +148,19 @@ export default function NoticingLoopPage() {
   const [needOwn, setNeedOwn] = useState(false);
   const [needOwnText, setNeedOwnText] = useState("");
   const [smallText, setSmallText] = useState("");
+  const [capacityOwn, setCapacityOwn] = useState(false);
+  const [capacityOwnText, setCapacityOwnText] = useState("");
   // `followUp` is wherever this commit's own `next` would have gone had no
   // catch fired — the catch is an interruption, not a step, so dismissing
   // it (or taking a hint) always resumes exactly where the pass was headed.
-  const [pendingCatch, setPendingCatch] = useState<(SurfacedCatch & { followUp: Step }) | null>(null);
+  // `triggeredField` is which field this commit was writing when the catch
+  // fired — needed so a hint can never overwrite an already-answered `need`
+  // with a suggestion offered about a DIFFERENT field (coordinator review,
+  // phase 5): a strategy catch on `smallThing` must not let its hint clobber
+  // a `need` the person already chose for themselves.
+  const [pendingCatch, setPendingCatch] = useState<
+    (SurfacedCatch & { followUp: Step; triggeredField: "observation" | "need" | "smallThing" | null }) | null
+  >(null);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -196,12 +239,52 @@ export default function NoticingLoopPage() {
       const surfaced: SurfacedCatch | null = res.updateNoticingEntry.catch ?? null;
       setSitting(updated);
       if (surfaced && next) {
-        setPendingCatch({ ...surfaced, followUp: next });
+        const triggeredField = (["observation", "need", "smallThing"] as const).find((f) => f in fields) ?? null;
+        setPendingCatch({ ...surfaced, followUp: next, triggeredField });
         setStep("catch");
       } else if (next) {
         setStep(next);
       }
       return updated;
+    },
+    [call, pass]
+  );
+
+  /**
+   * The post-offer capacity question (spec §4.2, §4.6; phase 6) — its own
+   * mutation, not `commitEntry`: `capacityTags` isn't in any catch type's
+   * `matchesFields`, so there's no catch to interrupt for, and no result
+   * wrapper to unwrap.
+   */
+  const commitCapacity = useCallback(
+    async (capacityTags: string, next: Step) => {
+      if (!pass) return;
+      setBusy(true);
+      const res = await call({ query: SET_NOTICING_CAPACITY, variables: { entryId: pass.id, capacityTags } });
+      setBusy(false);
+      if (!res?.setNoticingCapacity) {
+        setFailed(true);
+        return;
+      }
+      setSitting(res.setNoticingCapacity as Sitting);
+      setStep(next);
+    },
+    [call, pass]
+  );
+
+  /** The Reflect handoff's motive answer (spec §4.6, phase 6) — a link-out stub, nothing computed from it. */
+  const commitMotive = useCallback(
+    async (motiveNote: string, next: Step) => {
+      if (!pass) return;
+      setBusy(true);
+      const res = await call({ query: SET_NOTICING_MOTIVE, variables: { entryId: pass.id, motiveNote } });
+      setBusy(false);
+      if (!res?.setNoticingMotive) {
+        setFailed(true);
+        return;
+      }
+      setSitting(res.setNoticingMotive as Sitting);
+      setStep(next);
     },
     [call, pass]
   );
@@ -381,7 +464,12 @@ export default function NoticingLoopPage() {
               className="flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                void commitEntry({ smallThing: smallText.trim() || null }, "close");
+                const trimmed = smallText.trim();
+                // The capacity question (and, past it, the Reflect handoff)
+                // only exists because there's an offered act to ask about
+                // (spec §4.2) — skipping straight to "close" when nothing
+                // was written is not a shortcut, it's the correct shape.
+                void commitEntry({ smallThing: trimmed || null }, trimmed ? "capacity" : "close");
               }}
             >
               <Input value={smallText} onChange={(e) => setSmallText(e.target.value)} />
@@ -408,8 +496,18 @@ export default function NoticingLoopPage() {
 
             {/* read and protective offer no hints at all — read hands the
                 sentence back rather than replacing it, and protective
-                routes to the (unbuilt) Reflect handoff instead of arguing. */}
-            {pendingCatch.hints.length > 0 && (
+                routes to the (unbuilt) Reflect handoff instead of arguing.
+                A hint may only ever FILL `need`, never REPLACE it (coordinator
+                review, phase 5): if this strategy catch fired on `smallThing`
+                and `need` is already answered, a hint here would silently
+                overwrite that answer with a suggestion about a different
+                field — a worse failure than the one the catch exists to fix.
+                The line alone still does the teaching; the person can edit
+                `need` themselves if it moved them. Firing ON `need` itself is
+                unaffected — there, `need`'s current value IS the trigger
+                phrase, not a separate answer to protect. */}
+            {pendingCatch.hints.length > 0 &&
+              !catchHintsBlockedByExistingNeed(pendingCatch.triggeredField, pass.need) && (
               <div className="flex flex-wrap gap-2">
                 {pendingCatch.hints.map((hint) => (
                   <button
@@ -443,6 +541,93 @@ export default function NoticingLoopPage() {
               </QuietAction>
               <span className="text-[11px] text-muted-foreground">{pendingCatch.note}</span>
             </div>
+          </section>
+        )}
+
+        {step === "capacity" && (
+          <section className="space-y-4">
+            <p className="text-sm">{content.capacity.prompt}</p>
+            {(
+              [
+                { category: "head", chips: content.capacity.headChips },
+                { category: "hands", chips: content.capacity.handsChips },
+                { category: "heart", chips: content.capacity.heartChips },
+              ] as const
+            ).map(({ category, chips }) => (
+              <div key={category} className="flex flex-wrap gap-2">
+                {chips.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    disabled={busy}
+                    className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    onClick={() =>
+                      void commitCapacity(JSON.stringify({ category, tag: chip.id }), "reflect")
+                    }
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {!capacityOwn ? (
+              <button
+                type="button"
+                onClick={() => setCapacityOwn(true)}
+                className="rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground"
+              >
+                {content.capacity.otherLabel}
+              </button>
+            ) : (
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!capacityOwnText.trim()) return;
+                  void commitCapacity(
+                    JSON.stringify({ category: null, tag: capacityOwnText.trim() }),
+                    "reflect"
+                  );
+                }}
+              >
+                <Input
+                  autoFocus
+                  value={capacityOwnText}
+                  onChange={(e) => setCapacityOwnText(e.target.value)}
+                  placeholder={content.capacity.otherLabel}
+                />
+                <Button type="submit" disabled={busy || !capacityOwnText.trim()}>
+                  {t("impact.noticing.nav.next")}
+                </Button>
+              </form>
+            )}
+          </section>
+        )}
+
+        {step === "reflect" && (
+          <section className="space-y-4">
+            <p className="text-sm">{content.reflect.prompt}</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+                onClick={() => void commitMotive("capacity_and_care", "close")}
+              >
+                {content.reflect.capacityLabel}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="rounded-full border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+                onClick={() => void commitMotive("obligation", "close")}
+              >
+                {content.reflect.obligationLabel}
+              </button>
+            </div>
+            {/* Nothing in Noticing gates on this (spec §4.6) — skipping
+                commits nothing, same as the small thing's own skip. */}
+            <QuietAction onClick={() => setStep("close")}>{content.reflect.skip}</QuietAction>
           </section>
         )}
 
@@ -524,6 +709,30 @@ export default function NoticingLoopPage() {
 /** Strip the trailing "?" a hint is always authored with, before it's committed as an answer. */
 function stripQuestion(hint: string) {
   return hint.replace(/[?؟]+$/, "").trim();
+}
+
+/**
+ * Whether a catch's hint chips must be hidden rather than offered (coordinator
+ * review, phase 5). A hint may only ever FILL `need`, never REPLACE it: if a
+ * strategy catch fired on `smallThing` while `need` already holds a separate,
+ * previously-chosen answer, showing hints would let one tap silently
+ * overwrite that answer with a suggestion about a different field — worse
+ * than the thing the catch exists to fix. The line alone still teaches;
+ * editing `need` afterward is the person's own choice, not the hint's.
+ *
+ * Firing ON `need` itself is unaffected: there, `need`'s current value IS the
+ * trigger phrase the catch just read, not a separate answer to protect, so
+ * hints stay offered.
+ *
+ * Exported for its own unit test (`noticingCatchHints.test.ts`) — this is the
+ * one piece of the catch UI worth pinning independently of rendering the
+ * whole wizard.
+ */
+export function catchHintsBlockedByExistingNeed(
+  triggeredField: "observation" | "need" | "smallThing" | null,
+  currentNeed: string | null
+): boolean {
+  return triggeredField === "smallThing" && !!currentNeed;
 }
 
 /**

@@ -2527,6 +2527,7 @@ export const GET_NOTICING_CONTENT = `
         heartChips { id label }
         otherLabel
       }
+      reflect { prompt capacityLabel obligationLabel skip }
       graduation { line body close }
       thirdPartyWarning
     }
@@ -2592,6 +2593,8 @@ const NOTICING_SITTING_FIELDS = `
     observation
     need
     smallThing
+    capacityTags
+    motiveNote
   }
 `;
 
@@ -2627,6 +2630,18 @@ export const UPDATE_NOTICING_ENTRY = `
       sitting { ${NOTICING_SITTING_FIELDS} }
       catch { type line hints dismiss note routeTo }
     }
+  }
+`;
+
+export const SET_NOTICING_CAPACITY = `
+  mutation SetNoticingCapacity($entryId: ID!, $capacityTags: String!) {
+    setNoticingCapacity(entryId: $entryId, capacityTags: $capacityTags) { ${NOTICING_SITTING_FIELDS} }
+  }
+`;
+
+export const SET_NOTICING_MOTIVE = `
+  mutation SetNoticingMotive($entryId: ID!, $motiveNote: String!) {
+    setNoticingMotive(entryId: $entryId, motiveNote: $motiveNote) { ${NOTICING_SITTING_FIELDS} }
   }
 `;
 

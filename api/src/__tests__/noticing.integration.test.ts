@@ -29,6 +29,11 @@ const patch = (ctx: any, entryId: string, fields: Record<string, unknown>) =>
 const finish = async (ctx: any, sittingId: string) =>
   (await mutationResolvers.finishNoticingSitting(null, { sittingId }, ctx)).sitting;
 
+const setCapacity = (ctx: any, entryId: string, capacityTags: string) =>
+  mutationResolvers.setNoticingCapacity(null, { entryId, capacityTags }, ctx);
+const setMotive = (ctx: any, entryId: string, motiveNote: string) =>
+  mutationResolvers.setNoticingMotive(null, { entryId, motiveNote }, ctx);
+
 const patchFrame = (ctx: any, fields: Record<string, unknown>) =>
   mutationResolvers.updateNoticingFrame(null, fields, ctx);
 const completeFrame = (ctx: any) => mutationResolvers.completeNoticingFrame(null, {}, ctx);
@@ -299,5 +304,99 @@ describe("the day-one frame (build plan §5 phase 4)", () => {
     // welcomeGuess deliberately never set, and completeNoticingFrame never called.
     const state = await queryResolvers.noticingState(null, {}, ctx);
     expect(state.frameDone).toBe(false);
+  });
+});
+
+describe("capacity and the Reflect handoff (build plan §5 phase 6)", () => {
+  it("stores the capacity accretion, opaquely, only for the entry that offered it", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    const entryId = sitting.entries[0].id;
+    await patch(ctx, entryId, {
+      place: "work",
+      person: "the new hire",
+      observation: "ate lunch alone again",
+      need: "connection",
+      smallThing: "asked them to join us tomorrow",
+    });
+
+    const updated = await setCapacity(ctx, entryId, JSON.stringify({ category: "heart", tag: "wanted_to" }));
+    const stored = updated.entries.find((e: any) => e.id === entryId)!;
+    expect(JSON.parse(stored.capacityTags)).toEqual({ category: "heart", tag: "wanted_to" });
+    // Opaque to the server — it's stored, not parsed or validated here.
+    expect(stored.capacityTags).not.toContain("the new hire");
+  });
+
+  it("records the motive answer and computes nothing from it", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    const entryId = sitting.entries[0].id;
+    await patch(ctx, entryId, { place: "home", person: "a friend", observation: "seemed low", smallThing: "checked in" });
+
+    const updated = await setMotive(ctx, entryId, "capacity_and_care");
+    const stored = updated.entries.find((e: any) => e.id === entryId)!;
+    expect(stored.motiveNote).toBe("capacity_and_care");
+    // Nothing in the returned state changes shape because of this answer —
+    // no field anywhere reflects it back as a score or a flag.
+    const state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(Object.keys(state)).toEqual([
+      "contentVersion",
+      "locale",
+      "reviewStatus",
+      "frameDone",
+      "graduationSurfaced",
+      "promptFadeLevel",
+    ]);
+  });
+
+  it("neither mutation is gated on the other, or on capacity/motive being asked at all", async () => {
+    // A pass can finish having answered neither — nothing in spec §4.6 makes
+    // either one required, and finishing must not need them.
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    await patch(ctx, sitting.entries[0].id, { place: "home", person: "a", observation: "b" });
+    const done = await finish(ctx, sitting.id);
+    expect(done.completedAt).not.toBeNull();
+    expect(done.entries[0].capacityTags).toBeNull();
+    expect(done.entries[0].motiveNote).toBeNull();
+  });
+
+  it("both refuse a finished sitting, same as updateNoticingEntry", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    const entryId = sitting.entries[0].id;
+    await patch(ctx, entryId, { place: "home", person: "a", observation: "b" });
+    await finish(ctx, sitting.id);
+
+    await expect(setCapacity(ctx, entryId, JSON.stringify({ category: "head", tag: "x" }))).rejects.toThrow(
+      /already finished/
+    );
+    await expect(setMotive(ctx, entryId, "obligation")).rejects.toThrow(/already finished/);
+  });
+
+  it("refuses an entry that belongs to another user", async () => {
+    const owner = await createTestUser({ email: "owner@example.com" });
+    const intruder = await createTestUser({ email: "intruder@example.com" });
+    const ownerCtx = makeCtx(owner);
+    const intruderCtx = makeCtx(intruder);
+
+    const sitting = await startSitting(ownerCtx);
+    const entryId = sitting.entries[0].id;
+
+    await expect(setCapacity(intruderCtx, entryId, JSON.stringify({ category: "head", tag: "x" }))).rejects.toThrow(
+      /Not found/
+    );
+    await expect(setMotive(intruderCtx, entryId, "obligation")).rejects.toThrow(/Not found/);
+  });
+
+  it("a motive answer never surfaces a catch — the mutation has nowhere to put one", async () => {
+    // motiveNote only ever holds one of the two fixed tokens the closed pick
+    // offers, so the protective lexicon can never actually match it, and
+    // setNoticingMotive's own return shape (NtcSitting, no wrapper) has no
+    // slot for one regardless.
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    const updated = await setMotive(ctx, sitting.entries[0].id, "obligation");
+    expect((updated as any).catch).toBeUndefined();
   });
 });

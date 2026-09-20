@@ -822,6 +822,146 @@ is being argued, it's just naming what was true and wasn't caught.
   `motiveNote`), and the frame's fields aren't in that list. The two phases
   don't intersect.
 
+## Phase 5 correction (coordinator review, applied at the start of phase 6)
+
+**The hint-accept overwrite bug.** `commitEntry({ need: stripQuestion(hint) },
+followUp)` wrote `need` unconditionally whenever a catch hint was clicked —
+correct when a `strategy` catch fires on `need` itself (the current value IS
+the trigger phrase, nothing to protect), wrong when it fires on `smallThing`
+while `need` already holds a separate, previously-chosen answer: the hint
+would silently replace that answer with a suggestion about a different
+field. Fixed with `catchHintsBlockedByExistingNeed(triggeredField,
+currentNeed)`, a small pure function exported from `NoticingLoopPage.tsx`
+and unit-tested on its own (`client/app/test/noticingCatchHints.test.ts`,
+4 tests) rather than only through a full render — `pendingCatch` now also
+carries `triggeredField` (which field this commit was writing when the
+catch fired), captured in `commitEntry` from the `fields` argument already
+in hand. The hint row is hidden (line still shows) exactly when
+`triggeredField === "smallThing" && need is already set`; every other case
+is unaffected, including the one place the fix must NOT trigger (firing on
+`need` itself).
+
+## Phase 6 — capacity + the Reflect handoff
+
+Branch: `impact-noticing`, continuing from phase 5's commit.
+
+### What landed
+
+**Content** — a new `ReflectCopySurface` type (`content/noticing/types.ts`)
+and `reflect` field on `NoticingSurface`/`NoticingPack`/`PublicNoticingPack`,
+authored in both locales: `prompt` (spec §4.6's exact quoted question),
+`capacityLabel`/`obligationLabel` (the two-way pick), `skip`. This didn't
+exist before phase 6 — spec §8's list of authored assets never named it,
+and build plan §7's own GraphQL sketch has `setNoticingMotive` as a mutation
+but no copy type to go with it. Authored now the same way phase 4 authored
+`wishedPrompt`/`wishedLine` when a phase's job needed copy an earlier phase
+hadn't anticipated.
+
+**Service** — `services/noticing/session.ts` gains `setCapacity` and
+`setMotive`, plus a shared `ownedEntry` helper extracted from `updateEntry`
+(the ownership/finished-sitting check, now written once instead of three
+times). Both new functions return just the sitting, matching build plan
+§7's own sketch (`NtcSitting!`, no result wrapper) — unlike `updateEntry`,
+neither can surface a catch through its return shape. `setMotive` still
+calls `maybeCatch` with its own `changedFields` (per the phase-5 note the
+coordinator flagged), even though `motiveNote` today only ever holds one of
+the two fixed tokens the closed pick offers and can never actually trip the
+`protective` lexicon — inert, not dead, so the cooldown/one-per-pass
+bookkeeping stays correct for whenever `motiveNote` becomes richer.
+
+**GraphQL** — `NtcReflectCopy` and `NoticingContent.reflect`;
+`setNoticingCapacity(entryId, capacityTags): NtcSitting!` and
+`setNoticingMotive(entryId, motiveNote): NtcSitting!`, both matching build
+plan §7's sketch exactly.
+
+**Client** — `NoticingLoopPage.tsx` gains two more tail steps after
+`small`, reached only when a small thing was actually written: `capacity`
+(head/hands/heart chips across three groups plus a free-text escape, each
+chip committing immediately) and `reflect` (a two-way pick, skippable,
+committing nothing on skip — same as the small thing's own skip). Skipping
+`small` goes straight to `close`, bypassing both; this is the correct
+shape, not a shortcut, since neither question has anything to ask about
+when there's no offered act. No capacity/reflect display anywhere — per
+the explicit instruction, the portrait accrues silently and this phase does
+not build a display surface.
+
+**Tests** — `noticing.integration.test.ts` gains a "capacity and the
+Reflect handoff" block: capacity stored opaquely and never containing the
+person's name; motive recorded with no computed side effect (pinned by
+asserting `noticingState`'s own key set is unchanged); neither mutation
+gated on the other or on being asked at all (a pass can finish having
+answered neither); both refuse a finished sitting and an entry owned by
+someone else, same as `updateEntry`; and a motive answer has no way to
+surface a catch even in principle, given the mutation's own return shape.
+`noticingContent.unit.test.ts` gains a structural check that both locales
+author all four `reflect` fields, plus a check that `reflect` survives
+`toPublicPack` (it's UI chrome, not a lexicon).
+
+### Decisions the brief didn't specify
+
+1. **The motive question is a closed, two-way pick, not free text.** Spec
+   §4.6 quotes it as a single question with an explicit "or" ("is this from
+   capacity and care, or from obligation?"), the same register as the
+   frame's `reverse` step and beat 2's guess — both closed picks elsewhere
+   in this pack. `motiveNote` stores one of two fixed tokens
+   (`capacity_and_care` / `obligation`), not an elaboration. This is also
+   what makes `setMotive`'s `maybeCatch` call inert today (see above) —
+   a deliberate consequence of reading the question as closed, not an
+   oversight.
+2. **Capacity commits per chip, immediately** — clicking a chip in any of
+   the three groups (or submitting the free-text escape) calls
+   `setNoticingCapacity` and advances straight to `reflect`, the same
+   "pick and go" pattern as the loop's place/need chips, rather than a
+   "choose, then confirm" two-step. Nothing in spec §4.2/§4.6 asks for a
+   confirmation step, and one would be one more click on a question that's
+   explicitly "the whole of the pillar's second move" — meant to be light.
+3. **`capacityTags`'s JSON shape is `{ category, tag }`**, not a bare chip
+   id — `category` is `"head" | "hands" | "heart"` for a chip pick, `null`
+   for the free-text escape, and `tag` is the chip id or the typed text.
+   Chosen so the (silent, unbuilt-display) portrait can eventually group by
+   category without re-deriving it from an id that doesn't carry it — the
+   same "opaque JSON, client composes, server never reads it" convention as
+   the frame's `visibleCues`.
+4. **No confirmation or summary of capacity/motive answers anywhere** —
+   not on the close screen, not in the recap. Spec §4.2 calls capacity "one
+   question and nothing else," and the instruction was explicit that the
+   portrait has no display surface in this pass; showing the answer back
+   even once, even briefly, would be a display surface in miniature.
+
+### What surprised me
+
+- Writing `ReflectCopySurface` is what surfaced that the Reflect handoff
+  had **no authored copy at all** going into phase 6, despite `motiveNote`
+  and `setNoticingMotive` both being named in build plan §7 since phase 3's
+  own sketch. The build plan's GraphQL sketch is thorough enough (full
+  mutation signatures, full result shapes) that I expected the copy
+  question to already be settled somewhere and just not yet typed — it
+  wasn't. Same shape of surprise as phase 5's `NtcCatch` not existing yet;
+  worth naming as a pattern now that it's happened twice: a build-plan
+  sketch showing a mutation's *signature* is not evidence its *copy* has
+  been authored.
+
+### Verification (phase 6)
+
+- `api && npx tsc --noEmit` — pass, no errors.
+- `api && npm test` — pass (exact count folded into phase 6b's number below,
+  since both were verified together before splitting into two commits).
+- `client && npx tsc --noEmit` — pass, no errors.
+- `client && npm run i18n:check-missing` — pass. No new keys were needed —
+  every string on the capacity and reflect steps comes from server content.
+
+### What phase 6b needs to know
+
+- `setCapacity`/`setMotive` both exist and are wired end to end; phase 6b's
+  log page must not surface `capacityTags` or `motiveNote` in any form —
+  confirmed already written that way, flagging only so the same discipline
+  holds if the log page is ever revisited.
+- The `ownedEntry` helper (`session.ts`) is now the one place
+  entry-ownership/finished-sitting checks live for `updateEntry`,
+  `setCapacity`, and `setMotive`. Any future entry-touching mutation
+  (nothing in phase 6b needs one) should use it too rather than
+  re-inlining the check a fourth time.
+
 ## Phase 5 — The catches
 
 Branch: `impact-noticing`, continuing from phase 4's commit. Coordinator

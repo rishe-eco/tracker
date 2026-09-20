@@ -31,6 +31,7 @@ import type {
   LoopCopySurface,
   NoticingSurface,
   PaletteEntrySurface,
+  ReflectCopySurface,
 } from "../types";
 
 // ─── Palettes ────────────────────────────────────────────────────────────────
@@ -312,6 +313,16 @@ const CAPACITY_EN: CapacityCopySurface = {
   otherLabel: "something else — type it",
 };
 
+// ─── The Reflect handoff — thin, since Reflect itself is unbuilt ────────────
+
+const REFLECT_EN: ReflectCopySurface = {
+  // Spec §4.6's exact quoted question.
+  prompt: "Is this from capacity and care, or from obligation?",
+  capacityLabel: "capacity and care",
+  obligationLabel: "obligation",
+  skip: "skip — nothing changes either way",
+};
+
 const GRADUATION_EN: GraduationSurface = {
   // Spec §4.5's exact opening line. A capability, stated once — there is
   // nothing here that could be lost, and no number appears anywhere.
@@ -338,6 +349,7 @@ export const SURFACE_EN: NoticingSurface = {
   catches: CATCHES_EN,
   catchCopy: CATCH_COPY_EN,
   capacity: CAPACITY_EN,
+  reflect: REFLECT_EN,
   graduation: GRADUATION_EN,
   thirdPartyWarning: "Someone else is in this entry. Write it as if they could read it.",
 };

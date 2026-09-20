@@ -26,6 +26,7 @@ import type {
   LoopCopySurface,
   NoticingSurface,
   PaletteEntrySurface,
+  ReflectCopySurface,
 } from "../types";
 
 const PLACES_FA: PaletteEntrySurface[] = [
@@ -255,6 +256,13 @@ const CAPACITY_FA: CapacityCopySurface = {
   otherLabel: "چیز دیگری — بنویس",
 };
 
+const REFLECT_FA: ReflectCopySurface = {
+  prompt: "این از سرِ توان و دلت بود، یا از سرِ وظیفه؟",
+  capacityLabel: "توان و دل",
+  obligationLabel: "وظیفه",
+  skip: "رد شو — این چیزی را عوض نمی‌کند",
+};
+
 const GRADUATION_FA: GraduationSurface = {
   // `body`'s second sentence rewritten (coordinator review, phase 2): the
   // scaffolding image named what the app stopped doing; this names what the
@@ -274,6 +282,7 @@ export const SURFACE_FA: NoticingSurface = {
   catches: CATCHES_FA,
   catchCopy: CATCH_COPY_FA,
   capacity: CAPACITY_FA,
+  reflect: REFLECT_FA,
   graduation: GRADUATION_FA,
   thirdPartyWarning: "یک نفر دیگر هم در این یادداشت هست. طوری بنویس که انگار او می‌تواند بخواندش.",
 };

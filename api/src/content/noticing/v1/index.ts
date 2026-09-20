@@ -58,6 +58,7 @@ export function buildNoticingPack(locale: Locale): NoticingPack {
     catches,
     catchCopy: surface.catchCopy,
     capacity: surface.capacity,
+    reflect: surface.reflect,
     graduation: surface.graduation,
     thirdPartyWarning: surface.thirdPartyWarning,
   };

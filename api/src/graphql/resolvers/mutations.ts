@@ -79,6 +79,8 @@ import { completeFrame } from "../../services/feelingsNeeds/state";
 import {
   addPass as addNoticingPass,
   finishSitting as finishNoticingSitting,
+  setCapacity as setNoticingCapacity,
+  setMotive as setNoticingMotive,
   startSitting as startNoticingSitting,
   updateEntry as updateNoticingEntry,
 } from "../../services/noticing/session";
@@ -1704,6 +1706,14 @@ mutations.updateNoticingEntry = requireAuth(async (_, args: any, ctx) => {
   const { entryId, ...patch } = args;
   return updateNoticingEntry(ctx.prisma, ctx.user.id, entryId, patch, ctx.locale);
 });
+
+mutations.setNoticingCapacity = requireAuth(async (_, { entryId, capacityTags }: any, ctx) =>
+  setNoticingCapacity(ctx.prisma, ctx.user.id, entryId, capacityTags)
+);
+
+mutations.setNoticingMotive = requireAuth(async (_, { entryId, motiveNote }: any, ctx) =>
+  setNoticingMotive(ctx.prisma, ctx.user.id, entryId, motiveNote, ctx.locale)
+);
 
 mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>
   addNoticingPass(ctx.prisma, ctx.user.id, sittingId)
