@@ -2270,6 +2270,10 @@
     "routineSeedNote": "Every action this routine gathers will carry these tags, locked.",
     "lockedFromInterval": "Inherited from the interval — edit the interval to change it.",
     "lockedFromRoutine": "Inherited from the routine — edit the routine to change it.",
+    "newTagInlinePlaceholder": "New tag…",
+    "createTag": "Create",
+    "manageLink": "Manage tags",
+    "emptyHint": "No tags yet — type a name to create your first one.",
     "errors": {
       "createFailed": "Could not create that tag.",
       "saveFailed": "Could not save that tag."

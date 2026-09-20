@@ -8,9 +8,10 @@ import { useAppDate } from "~/i18n/useAppDate";
 import { DatePickerGrid } from "~/components/ui/date-picker-grid";
 import { Badge } from "~/components/ui/badge";
 import InternalPageLayout from "~/layout/InternalPageLayout";
-import { ADD_ACTION, UPDATE_ACTION, GET_ACTION, DELETE_ACTION, GET_PROJECTS, GET_TAGS, SET_ACTION_TAGS } from "~/api/queries";
+import { ADD_ACTION, UPDATE_ACTION, GET_ACTION, DELETE_ACTION, GET_PROJECTS, SET_ACTION_TAGS } from "~/api/queries";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import TagPicker from "~/components/tags/TagPicker";
+import { useTagVocabulary } from "~/components/tags/useTagVocabulary";
 import { InlineEdit } from "~/components/ui/inline-edit";
 import { Pencil, Trash2 } from "lucide-react";
 import { useApi } from "~/api/useApi";
@@ -83,7 +84,7 @@ export default function ActionForm() {
   const [tempTbd, setTempTbd] = useState<Date | undefined>(undefined);
   const [projectId, setProjectId] = useState<string>(initialProjectId);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const { availableTags, createTag } = useTagVocabulary();
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [isGathered, setIsGathered] = useState(false);
   const [sourceType, setSourceType] = useState<string | null>(null);
@@ -106,7 +107,6 @@ export default function ActionForm() {
     call({ query: GET_PROJECTS }).then((res) => {
       setProjects((res?.projects ?? []) as ProjectOption[]);
     });
-    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
   }, [call]);
 
   // Time Themes: a new project-linked action's tags seed from the project
@@ -342,6 +342,7 @@ export default function ActionForm() {
               availableTags={availableTags}
               selectedTagIds={tagIds}
               onChange={handleTagsChange}
+              onCreateTag={createTag}
               locked={isGathered}
               lockedNote={
                 isGathered
@@ -535,6 +536,7 @@ export default function ActionForm() {
             availableTags={availableTags}
             selectedTagIds={tagIds}
             onChange={setTagIds}
+            onCreateTag={createTag}
             seededNote={projectId ? t("tags.projectSeedNote") : undefined}
           />
         </div>

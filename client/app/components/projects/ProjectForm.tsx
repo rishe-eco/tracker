@@ -9,9 +9,10 @@ import ActionPreview from "../actions/ActionPreview";
 import AddActionWidget from "../actions/AddActionWidget";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { useApi } from "../../api/useApi";
-import { ADD_GOAL_PROJECT, ADD_PROJECT, ADD_PROJECT_ACTION, DELETE_ACTION, DELETE_PROJECT, GET_ALL_GOALS, GET_PROJECT, UPDATE_PROJECT, GET_TAGS, SET_PROJECT_TAGS } from "~/api/queries";
+import { ADD_GOAL_PROJECT, ADD_PROJECT, ADD_PROJECT_ACTION, DELETE_ACTION, DELETE_PROJECT, GET_ALL_GOALS, GET_PROJECT, UPDATE_PROJECT, SET_PROJECT_TAGS } from "~/api/queries";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import TagPicker from "~/components/tags/TagPicker";
+import { useTagVocabulary } from "~/components/tags/useTagVocabulary";
 import { Pencil, Trash2 } from "lucide-react";
 import { parseDateOnly, toLocalDateString } from "~/utils/dateUtils";
 import { cn } from "~/lib/utils";
@@ -51,14 +52,11 @@ export default function ProjectForm() {
   const [deletedActionIds, setDeletedActionIds] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const { availableTags, createTag } = useTagVocabulary();
   const [tagIds, setTagIds] = useState<string[]>([]);
   const { call, getLastError } = useApi();
   const { submitting, run } = useSubmitGuard();
 
-  useEffect(() => {
-    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
-  }, []);
 
   // Time Themes: tags seed onto actions created under this project (copy at
   // create, editable after) — editing them here on an existing project
@@ -353,7 +351,7 @@ export default function ProjectForm() {
 
         <div className="space-y-2">
           <Label className="flex items-center gap-2">{t("tags.label")}</Label>
-          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} />
+          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={handleTagsChange} onCreateTag={createTag} />
           <p className="text-xs text-muted-foreground">{t("tags.projectSeedNote")}</p>
         </div>
 
