@@ -102,10 +102,50 @@ export const DIALS = {
    * `services/noticing/state.ts`). The spec frames the dial as "unprompted
    * passes over ~2 weeks"; `sittingsPerFadeStep` is this build's first-pass
    * translation of that into the same mechanism Module 1 already ships.
+   *
+   * Phase 7 finding, recorded here because it's what "unprompted" actually
+   * resolves to in this dial's own numbers: `NoticingSitting.wasPrompted` is
+   * always false in this build — nothing anywhere cues a sitting (no
+   * notifications, no nudges), and the client hardcodes
+   * `wasPrompted: false` on every open. Gating detection on that field would
+   * therefore fire for everyone from their very first sitting, which is a
+   * degenerate signal, not a self-initiation one. `sittingsPerFadeStep` /
+   * `graduationFadeLevel` (reached ⇒ the app has already stopped serving the
+   * full prompts) stand in as the honest proxy instead — see
+   * `services/noticing/session.ts`'s `graduationDue` for where this is
+   * actually spent, and notes/noticing-build-log.md's phase 7 section for
+   * the full argument.
    */
   graduation: {
     sittingsPerFadeStep: 5,
     graduationFadeLevel: 3,
+
+    /**
+     * How many of the most recent entries (from completed sittings, newest
+     * first) are checked for spec §4.5's "still" — entries that "still
+     * contain an observation and a need" — before the door can open. Named
+     * for what it inspects, not for a target to reach: the person is never
+     * shown this number and nothing counts up toward it.
+     *
+     * Deliberately a SEPARATE, smaller window than the fade dials above: the
+     * fade level answers "has enough practice happened that the app should
+     * have stopped explaining," a question about volume, over the whole
+     * history. This dial answers "now that it has stopped explaining, does
+     * the practice still look like noticing" — a question about the recent
+     * texture of it, which a 15+ sitting history would wash out if checked
+     * over its full length. Checking only the last few keeps the test
+     * honest to "still," not to "ever."
+     *
+     * `services/noticing/session.ts`'s `recentEntriesStillNotice` requires
+     * ALL of this many recent entries to carry both fields, not a majority —
+     * the stricter reading, chosen deliberately: the detect-don't-count
+     * decision already accepts under-firing as the safe failure (missing a
+     * graduation costs nothing; a door that opens on a practice that has
+     * actually gone quiet costs the whole point of it being a door). A
+     * fraction threshold would be a second number invented with no usage
+     * data behind it; requiring all of a small, fixed window is not.
+     */
+    qualityWindowEntries: 6,
   },
 
   /**

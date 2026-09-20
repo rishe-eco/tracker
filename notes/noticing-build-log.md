@@ -1365,3 +1365,123 @@ least tries), so I left it exactly where the spec put it.
   judgment call above changed one number based on reading the lexicons, not
   on any real usage. Treat `cooldownDays: 5` as no more settled than the
   original `3` was.
+
+---
+
+## Phase 7 — Self-initiation and the graduation door
+
+Started by an agent that hit its session limit partway through applying a
+coordinator correction; finished by the coordinator. Recorded that way
+because the seam is visible in the history and someone will otherwise
+wonder why one commit has two hands in it.
+
+### What landed
+
+- `DIALS.graduation.qualityWindowEntries` (6) — how many recent entries are
+  checked for spec §4.5's "still contain an observation and a need".
+- `services/noticing/session.ts`: `recentEntriesStillNotice`, `graduationDue`,
+  `acknowledgeGraduation`. `finishSitting` now takes `locale` and returns the
+  door when one is due.
+- SDL `NtcFinishResult.graduation` (the additive field phase 3 left room for)
+  and `Mutation.acknowledgeNoticingGraduation`.
+- Client: the "graduated" screen, dismissed via `closeGraduation`, which
+  acknowledges and then navigates.
+
+### The detector, and why it does not use `wasPrompted`
+
+Spec §4.5 describes self-initiation as the loop running "unprompted". The
+obvious reading is un-cued, and it is unbuildable: **`wasPrompted` is
+hardcoded `false` by every client in both this module and Feelings & Needs**,
+because nothing in Tracker has ever sent a reminder. A detector resting on
+it would fire for every user on their first qualifying sitting *while
+appearing to work*, which is the worst available outcome.
+
+The correct reading — and what D-21 (2026-08-01) actually prescribes — is
+that the **prompt being withdrawn is the scaffolding copy**, which is a
+thing that demonstrably happens here via the fade. So `graduationDue` is
+the fade level having reached its cap **plus** the quality window still
+holding. `wasPrompted` is vestigial in both modules; a test pins that it
+has no effect, and says that if a real cue mechanism ever lands, that test
+failing is the point rather than a regression to silence.
+
+Recorded upstream in `01-noticing-spec.md` §4.5 (v0.7), including the
+honest part: the fade is derived from a count. Never shown, never aimable,
+cannot be lost — but the inference is not count-free.
+
+### The correction that reshaped this phase
+
+The first draft wrote `graduationSurfaced` inside `finishSitting`, before
+the response carrying the door was returned, reasoning from a brief that
+said "impossible to see twice". That optimizes the wrong failure mode:
+
+- **Seen twice** (a retry): "it already said that." A shrug.
+- **Seen zero times** (response dropped after the write): the person
+  silently and permanently loses the only moment this mechanism exists to
+  deliver, with no recovery and no way for anyone to know.
+
+The governing principle is *a door you have walked through cannot be taken
+back* — a statement about never **un**-graduating, not about never
+rendering twice. So the flag is written on an explicit acknowledge from the
+client, matching `feelingsNeeds/session.ts`, whose own SDL docblock had
+already argued exactly this ("closing the tab mid-moment does not silently
+spend the only time it is offered"). Module 1 had it right; this phase
+briefly had it wrong and was corrected before shipping.
+
+### What was left unwired when the session ended, and fixed on pickup
+
+`acknowledgeGraduation` existed and was exported, but nothing referenced
+it — no SDL field, no resolver, no client call. As it stood, the door would
+have re-offered **forever**. Worth noting the trap in the fix: Feelings &
+Needs already exports a function of the same name into the same resolver
+file, so the import must be aliased (`acknowledgeGraduation as
+acknowledgeNoticingGraduation`). An unaliased import compiles and silently
+points the Noticing resolver at Module 1's flag.
+
+Three comments asserting the superseded design were also corrected — two in
+the client, one in the SDL — and two tests that encoded it were rewritten.
+
+### Verification (phase 7)
+
+| Command | Result |
+|---|---|
+| `api && npx tsc --noEmit` | pass |
+| `api && npm test` | pass — 62 files / 1079 tests |
+| `client && npx tsc --noEmit` | pass |
+| `client && npm run i18n:check-missing` | pass |
+| `client && npm run i18n:check-hardcoded` | pass |
+
+**A trap for whoever runs these next:** the suites share one SQLite file and
+do not tolerate concurrent runs. Running a targeted suite while the full one
+is going produces `PrismaClientKnownRequestError` failures scattered across
+*unrelated* files (verification, skills), which look like real breakage and
+are not. Run one at a time. Also, `npm test | tail` reports `tail`'s exit
+code, not vitest's — redirect to a file and check the summary instead.
+
+### What remains after phase 7
+
+**Phase 8 is not a code task.** It is the two-week feel-test in
+`03-spine-evaluation.md`: retrospective think-aloud, AttrakDiff + two IMI
+subscales, the objectification tripwire plus one interview question, and the
+Day Reconstruction Method for transfer — with a decision rule fixed before
+the data. There is also **Gate A**, a 3-day disconfirming smoke
+(`04-build-plan.md` §10) that belongs at the end of the spine phase and has
+not been run. Both need a person, not an agent.
+
+**Known-open, all recorded in the specs rather than the code:**
+- `catchCooldownDays` is one shared number; `read` fires far more readily
+  than the other two and the state (`lastCatchAt`, keyed by type) already
+  supports a per-type split. Deliberately not guessed before usage data.
+- The capacity portrait accrues but is never displayed. A one-screen
+  addition and a separate decision.
+- The needs palette is 20 wide with 6 on screen, rotated round-robin. If
+  the pool grows much further the rotation gets slow to come around.
+- `fa` is authored throughout but declared `draft` — no native review.
+- Persian names for the pillar and the tool are still open.
+
+**The module's own shape, for anyone arriving cold:** five test suites carry
+the design, not just the behaviour. `noticingGuardrails` holds the copy
+rules, `noticingFences` holds the structural refusals by reading
+`schema.prisma` and `typeDefs.ts` as text, and `noticingCatches` holds the
+per-field matching contract. If a change makes one of those fail, read the
+test's comment before changing the test — each names the failure it exists
+to prevent.

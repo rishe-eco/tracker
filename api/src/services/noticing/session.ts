@@ -28,6 +28,15 @@
  * informational only (`state.ts`) — the frame is a rehearsal of the loop's
  * own inference, not a precondition for it (spec §4.1, build plan §5
  * ordering notes). Module 1 gates; this deliberately does not.
+ *
+ * Phase 7 (self-initiation, spec §4.5) also lives here rather than in
+ * `state.ts`, for the same "the runner needs it, importing across would
+ * cycle" reason as everything else above: `graduationDue` (read from
+ * `finishSitting`) and `acknowledgeGraduation` (the client's own explicit
+ * follow-up call). See those functions' own docblocks for the detection
+ * itself and for why the door is re-offered on every close until
+ * acknowledged, mirroring the Feelings & Needs precedent exactly rather
+ * than diverging from it.
  */
 
 import type { PrismaClient } from "@prisma/client";
@@ -448,6 +457,95 @@ export async function setMotive(
   });
 }
 
+// ─── Self-initiation and the graduation door (spec §4.5, build plan §5 phase 7) ──
+
+/**
+ * Whether the recent stretch of entries "still" contains an observation and
+ * a need (spec §4.5) — the word that matters. This is not asking whether the
+ * practice ever had that shape; it's asking whether it still does, now that
+ * the prompts have withdrawn. Checked against the most recent
+ * `DIALS.graduation.qualityWindowEntries` entries, newest first, from
+ * completed sittings only.
+ *
+ * Requires ALL of them to carry both fields, not a majority. Fewer than the
+ * window size on record at all reads as "not yet," not as a failure — there
+ * isn't enough recent history yet to say anything held.
+ */
+async function recentEntriesStillNotice(prisma: PrismaClient, userId: string): Promise<boolean> {
+  const window = DIALS.graduation.qualityWindowEntries;
+  const entries = await prisma.noticingEntry.findMany({
+    where: { sitting: { userId, completedAt: { not: null } } },
+    orderBy: { createdAt: "desc" },
+    take: window,
+    select: { observation: true, need: true },
+  });
+  if (entries.length < window) return false;
+  return entries.every((e) => !!e.observation && !!e.need);
+}
+
+/**
+ * Whether the one-time graduation door is due (spec §4.5; the 2026-08-01
+ * detect-don't-count decision).
+ *
+ * "Unprompted for long enough" is read here as the prompt fade having
+ * reached its cap (`computeFadeLevel(completed) >= graduationFadeLevel`) —
+ * reusing the exact mechanism the loop's own prompt withdrawal already
+ * derives (build plan §6 delta 2's steer), rather than inventing a second
+ * one. Deliberately NOT `NoticingSitting.wasPrompted`: as this build stands,
+ * `wasPrompted` is always false — there is no cue mechanism anywhere in the
+ * product (no notifications, nothing that nudges), and
+ * `NoticingLoopPage.tsx` hardcodes `wasPrompted: false` on every open, the
+ * same as `FeelingsNeedsLoopPage.tsx` does for Module 1. Every sitting is
+ * "unprompted" by that field's own bookkeeping, for every person, from their
+ * very first sitting — a constant, not a signal. Detecting on it as written
+ * would make the door fire for everyone on day one, which is worse than not
+ * detecting at all: it would look like self-initiation had been measured
+ * when nothing had. The fade level is the one thing in this build that is
+ * actually earned through use rather than true by construction, which is
+ * why it stands in here. (See notes/noticing-build-log.md's phase 7 section
+ * for the fuller argument, and `noticing.integration.test.ts`'s "pins what
+ * unprompted means" test, which fails on purpose if this reasoning is ever
+ * reversed without updating it deliberately.)
+ *
+ * The content half — spec's "entries that still contain an observation and
+ * a need" — is `recentEntriesStillNotice`, checked second (and only) once
+ * the fade half already holds, so the cheap completed-sittings count is
+ * always tried before the heavier entries query.
+ */
+async function graduationDue(prisma: PrismaClient, userId: string): Promise<boolean> {
+  const state = await ensureNoticingState(prisma, userId);
+  if (state.graduationSurfaced) return false;
+  const completed = await countCompletedSittings(prisma, userId);
+  if (computeFadeLevel(completed) < DIALS.graduation.graduationFadeLevel) return false;
+  return recentEntriesStillNotice(prisma, userId);
+}
+
+/**
+ * Mark the door walked through — explicit, on the client's own follow-up
+ * call, rather than written the moment `finishSitting` decides to surface
+ * it. Mirrors `feelingsNeeds/session.ts`'s `acknowledgeGraduation` exactly,
+ * on the same reasoning (coordinator review, phase 7): the governing
+ * principle is "a door you have walked through cannot be taken back," which
+ * is a statement about never UN-graduating, not about never rendering the
+ * door twice. Weigh the two failure modes a design here has to choose
+ * between. Writing the flag at surface time makes a dropped response (the
+ * mutation succeeds server-side, but the client never renders it — a
+ * refresh, a crash, a flaky connection) cost the person the ONLY time this
+ * is ever offered, silently and permanently, with no way for anyone —
+ * including this person — to ever know it happened. Writing it here instead
+ * means the worst case is the door rendering again on a later close before
+ * it's acknowledged, which reads as "it already said that" — a shrug, not a
+ * loss. An earlier draft of this phase wrote the flag inside `finishSitting`
+ * itself, reasoning from "impossible to see twice"; that optimizes for the
+ * wrong failure mode and was corrected before shipping. Idempotent, and
+ * there is nothing behind it to increment.
+ */
+export async function acknowledgeGraduation(prisma: PrismaClient, userId: string) {
+  await ensureNoticingState(prisma, userId);
+  await prisma.noticingState.update({ where: { userId }, data: { graduationSurfaced: true } });
+  return true;
+}
+
 /**
  * Add another pass, for a second distinct person.
  *
@@ -481,13 +579,28 @@ export async function addPass(prisma: PrismaClient, userId: string, sittingId: s
  * tapping "see someone else today?" and changing your mind doesn't leave an
  * empty row in what the recap shows back.
  *
- * The one-time graduation door (phase 7) is deliberately not checked here —
- * `finishSitting` returns only `{ sitting }` for now, and phase 7 adds a
- * `graduation` field the same additive way phase 5 adds `catch` above.
+ * The one-time graduation door (spec §4.5, phase 7): checked after the
+ * sitting is already marked complete, so the pass that just closed counts
+ * toward it — the moment lands on the run that earned it, not the one
+ * after. `locale` is needed only for this, to serve the graduation copy in
+ * the language the request arrived in, same as `packFor` everywhere else.
+ *
+ * Deliberately does NOT write `graduationSurfaced` here. It only reads
+ * whether the door is due and, if so, serves the copy — the write happens
+ * on the client's own explicit `acknowledgeGraduation` call. So a due-but-
+ * unacknowledged graduation resurfaces on every subsequent close, which is
+ * correct: see `acknowledgeGraduation`'s own docblock for why re-offering,
+ * not single-write, is what the "cannot be taken back" principle actually
+ * asks for.
  */
-export async function finishSitting(prisma: PrismaClient, userId: string, sittingId: string) {
+export async function finishSitting(
+  prisma: PrismaClient,
+  userId: string,
+  sittingId: string,
+  locale: Locale
+) {
   const sitting = await ownedSitting(prisma, userId, sittingId);
-  if (sitting.completedAt) return { sitting };
+  if (sitting.completedAt) return { sitting, graduation: null };
 
   const trailing = sitting.entries[sitting.entries.length - 1];
   if (sitting.entries.length > 1 && trailing && isBlankEntry(trailing)) {
@@ -500,5 +613,9 @@ export async function finishSitting(prisma: PrismaClient, userId: string, sittin
     include: SITTING_WITH_ENTRIES,
   });
 
-  return { sitting: completed };
+  const due = await graduationDue(prisma, userId);
+  if (!due) return { sitting: completed, graduation: null };
+
+  const pack = await packFor(prisma, userId, locale);
+  return { sitting: completed, graduation: pack.graduation };
 }

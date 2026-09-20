@@ -1789,10 +1789,15 @@ export const typeDefs = gql`
   # loop and the loop does not gate the frame; see NoticingState.frameDone.
   # Phase 5 adds the catch payload (NtcCatch, on NtcEntryResult.catch) — the
   # three lexicons themselves never reach this schema at all, only the one
-  # composed line a match actually produces. The graduation door (phase 7)
-  # is still deliberately absent from NtcFinishResult, landing later as an
-  # additive field, which is why that result type exists already rather than
-  # the mutation returning NtcSitting directly.
+  # composed line a match actually produces. Phase 7 adds the self-initiation
+  # door: NtcFinishResult.graduation, the additive field this result type
+  # existed to make room for since phase 3 (rather than the mutation
+  # returning NtcSitting directly). finishNoticingSitting decides whether
+  # the door is due; acknowledgeNoticingGraduation is what retires it, on
+  # the client's own follow-up call. Deliberately two steps: writing the
+  # flag at surface time would let a dropped response spend the only time
+  # this is ever offered, silently and unrecoverably. See
+  # services/noticing/session.ts's graduationDue and acknowledgeGraduation.
   """
   The tool home's state: enough to route into the frame or the loop, no more.
   Deliberately has no sitting count and no field named count, streak, total or
@@ -2067,9 +2072,15 @@ export const typeDefs = gql`
     catch: NtcCatch
   }
 
-  "Closing a sitting. graduation arrives in phase 7 as an additive field."
+  """
+  Closing a sitting. graduation is non-null exactly once, ever, per person —
+  the sitting whose close earns the one-time capability door (spec §4.5).
+  Already committed server-side by the time this is on the wire: seeing this
+  field non-null IS the door, not a preview of one still to be confirmed.
+  """
   type NtcFinishResult {
     sitting: NtcSitting!
+    graduation: NtcGraduationCopy
   }
 
   """
@@ -2868,6 +2879,14 @@ export const typeDefs = gql`
 
     "Close the sitting. Drops a trailing pass left completely blank."
     finishNoticingSitting(sittingId: ID!): NtcFinishResult!
+
+    """
+    Mark the Noticing door walked through. Explicit rather than written when
+    the door is surfaced, so a dropped response re-offers it on a later close
+    instead of spending it unseen. Idempotent; nothing is incremented behind
+    it. Distinct from acknowledgeGraduation above, which is Module 1's.
+    """
+    acknowledgeNoticingGraduation: Boolean!
 
     "Time Themes: create a tag. Rejects a duplicate name for this user; color must be an allowed palette key."
     createTag(name: String!, color: String!): Tag!

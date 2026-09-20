@@ -2676,10 +2676,17 @@ export const ADD_NOTICING_PASS = `
   }
 `;
 
+export const ACKNOWLEDGE_NOTICING_GRADUATION = `
+  mutation AcknowledgeNoticingGraduation {
+    acknowledgeNoticingGraduation
+  }
+`;
+
 export const FINISH_NOTICING_SITTING = `
   mutation FinishNoticingSitting($sittingId: ID!) {
     finishNoticingSitting(sittingId: $sittingId) {
       sitting { ${NOTICING_SITTING_FIELDS} }
+      graduation { line body close }
     }
   }
 `;

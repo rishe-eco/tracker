@@ -77,6 +77,7 @@ import {
 } from "../../services/feelingsNeeds/session";
 import { completeFrame } from "../../services/feelingsNeeds/state";
 import {
+  acknowledgeGraduation as acknowledgeNoticingGraduation,
   addPass as addNoticingPass,
   finishSitting as finishNoticingSitting,
   setCapacity as setNoticingCapacity,
@@ -1686,6 +1687,10 @@ mutations.finishLoopSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
   finishSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
 );
 
+mutations.acknowledgeNoticingGraduation = requireAuth(async (_, __: any, ctx) =>
+  acknowledgeNoticingGraduation(ctx.prisma, ctx.user.id)
+);
+
 mutations.acknowledgeGraduation = requireAuth(async (_, __: any, ctx) =>
   acknowledgeGraduation(ctx.prisma, ctx.user.id)
 );
@@ -1720,7 +1725,7 @@ mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>
 );
 
 mutations.finishNoticingSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
-  finishNoticingSitting(ctx.prisma, ctx.user.id, sittingId)
+  finishNoticingSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
 );
 
 export const mutationResolvers = mutations;

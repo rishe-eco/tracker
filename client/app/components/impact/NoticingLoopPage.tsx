@@ -8,6 +8,7 @@ import { LoadingBlock } from "~/components/ui/spinner";
 import { useApi } from "~/api/useApi";
 import { useArrows } from "./arrows";
 import {
+  ACKNOWLEDGE_NOTICING_GRADUATION,
   ADD_NOTICING_PASS,
   FINISH_NOTICING_SITTING,
   GET_ACTIVE_NOTICING_SITTING,
@@ -82,6 +83,9 @@ type ReflectCopy = {
   skip: string;
 };
 
+/** The one-time capability door's copy (spec §4.5, phase 7). A door, not a score. */
+type Graduation = { line: string; body: string; close: string };
+
 type Content = {
   repeatSoftCap: number;
   places: PaletteEntry[];
@@ -123,7 +127,8 @@ type Step =
   | "capacity"
   | "reflect"
   | "close"
-  | "recap";
+  | "recap"
+  | "graduated";
 
 // Position, not progress — the dots say where you are in the shape of a
 // pass, not how much is "done". A pass that ends at "need" (not sure) is
@@ -140,6 +145,29 @@ export default function NoticingLoopPage() {
   const [step, setStep] = useState<Step>("place");
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Set once, from finishSitting's own result — never fetched separately.
+  // finishSitting only DECIDES the door is due; it stays due until this
+  // component acknowledges it on dismissal (closeGraduation below), so a
+  // person who never saw this render is offered it again next time.
+  const [graduation, setGraduation] = useState<Graduation | null>(null);
+
+  /**
+   * Retire the door, then leave.
+   *
+   * The acknowledge is what writes `graduationSurfaced`, so it happens here
+   * — when the person has actually seen the screen and dismissed it — rather
+   * than when the server decided the door was due. Navigation does not wait
+   * on it and does not care if it fails: an unacknowledged door is re-offered
+   * at the next sitting close, which is the failure mode we want.
+   */
+  const closeGraduation = useCallback(async () => {
+    try {
+      await call({ query: ACKNOWLEDGE_NOTICING_GRADUATION });
+    } catch {
+      // Deliberately swallowed — see above.
+    }
+    navigate("/tools/impact/noticing");
+  }, [call, navigate]);
 
   const [placeOwn, setPlaceOwn] = useState(false);
   const [placeOwnText, setPlaceOwnText] = useState("");
@@ -289,6 +317,14 @@ export default function NoticingLoopPage() {
     [call, pass]
   );
 
+  /**
+   * Close the sitting and decide where it lands. Three destinations, in
+   * order of precedence: the recap when the sitting held more than one pass,
+   * the capability door when this run is the one that earned it, and
+   * otherwise straight home. The door is held back until after the recap so
+   * a plural sitting still gets its side-by-side view first — same
+   * precedence as `FeelingsNeedsLoopPage.tsx`'s own finishSitting.
+   */
   const finishSitting = useCallback(async () => {
     if (!sitting) return;
     setBusy(true);
@@ -298,9 +334,12 @@ export default function NoticingLoopPage() {
       setFailed(true);
       return;
     }
-    const done: Sitting = res.finishNoticingSitting.sitting;
-    setSitting(done);
+    const { sitting: done, graduation: earned } = res.finishNoticingSitting;
+    setSitting(done as Sitting);
+    if (earned) setGraduation(earned as Graduation);
+
     if (done.entries.length > 1) setStep("recap");
+    else if (earned) setStep("graduated");
     else navigate("/tools/impact/noticing");
   }, [call, sitting, navigate]);
 
@@ -697,8 +736,29 @@ export default function NoticingLoopPage() {
             </div>
             <p className="text-xs text-muted-foreground">{c.recapNotRelated}</p>
             <div className="pt-2 text-center">
-              <Button onClick={() => navigate("/tools/impact/noticing")}>{c.finish}</Button>
+              <Button onClick={() => (graduation ? setStep("graduated") : navigate("/tools/impact/noticing"))}>
+                {c.finish}
+              </Button>
             </div>
+          </section>
+        )}
+
+        {step === "graduated" && graduation && (
+          <section className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
+            {/* A door, not a score — there is no number on this screen, and
+                nothing here can be taken back once it is acknowledged. The
+                flag is written on the way out rather than on the way in: if
+                this render never reached the person, the door is still owed
+                and the next close offers it again. */}
+            <div className="text-3xl text-primary" aria-hidden>
+              ⌐
+            </div>
+            <p className="text-sm font-medium">{graduation.line}</p>
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{graduation.body}</p>
+            <p className="text-xs text-muted-foreground">{graduation.close}</p>
+            <Button className="mt-4" onClick={() => void closeGraduation()}>
+              {c.finish}
+            </Button>
           </section>
         )}
       </div>

@@ -211,7 +211,7 @@ describe("the per-type cooldown", () => {
       ctx.locale
     );
     expect(first.catch?.type).toBe("read");
-    await finishSitting(prisma, user.id, sitting1.id);
+    await finishSitting(prisma, user.id, sitting1.id, ctx.locale);
 
     const sitting2 = await startSitting(prisma, user.id);
     const second = await updateEntry(
@@ -257,7 +257,7 @@ describe("the per-type cooldown", () => {
       { observation: "she was so rude about it" },
       ctx.locale
     );
-    await finishSitting(prisma, user.id, sitting1.id);
+    await finishSitting(prisma, user.id, sitting1.id, ctx.locale);
 
     // Roll the clock back further than the dial, directly on the state row —
     // the only honest way to test a day-based cooldown without waiting days.
@@ -290,7 +290,7 @@ describe("the per-type cooldown", () => {
       { observation: "she was so rude about it" },
       ctx.locale
     );
-    await finishSitting(prisma, user.id, sitting1.id);
+    await finishSitting(prisma, user.id, sitting1.id, ctx.locale);
 
     // read is now on cooldown; protective never has been, and this is a
     // fresh sitting so the per-sitting cap doesn't interfere either.

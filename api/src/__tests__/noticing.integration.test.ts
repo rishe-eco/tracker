@@ -416,3 +416,200 @@ describe("capacity and the Reflect handoff (build plan §5 phase 6)", () => {
     expect((updated as any).catch).toBeUndefined();
   });
 });
+
+describe("self-initiation and the graduation door (build plan §5 phase 7)", () => {
+  const reps = DIALS.graduation.sittingsPerFadeStep * DIALS.graduation.graduationFadeLevel;
+
+  /**
+   * Complete `n` sittings quickly, each a real single pass with a real
+   * place/person/observation and, unless `withoutNeed` is set, a real need —
+   * enough genuine rows to drive both halves of `graduationDue`: the
+   * completed-sittings count `computeFadeLevel` reads, and the entries
+   * `recentEntriesStillNotice` reads back out afterward.
+   *
+   * Returns every `finishNoticingSitting` result in order. This matters:
+   * the door is decided the moment the cap is reached, which is very often
+   * partway THROUGH a batch built by this helper, not on some later, separate
+   * close — an early draft of these tests assumed the latter and every one
+   * of them failed the same way (asserting graduation on a sitting AFTER the
+   * one that actually already earned it, by which point graduationSurfaced
+   * was already true and every subsequent close was correctly null).
+   */
+  async function completeSittings(ctx: any, n: number, opts: { withoutNeed?: boolean } = {}) {
+    const results: any[] = [];
+    for (let i = 0; i < n; i++) {
+      const s = await startSitting(ctx);
+      await patch(ctx, s.entries[0].id, {
+        place: "home",
+        person: `person ${i}`,
+        observation: `noticed something ${i}`,
+        ...(opts.withoutNeed ? {} : { need: "rest" }),
+      });
+      results.push(await mutationResolvers.finishNoticingSitting(null, { sittingId: s.id }, ctx));
+    }
+    return results;
+  }
+
+  const finishOne = async (ctx: any, opts: { need?: string | null } = {}) => {
+    const s = await startSitting(ctx);
+    await patch(ctx, s.entries[0].id, {
+      place: "home",
+      person: "a",
+      observation: "b",
+      ...(opts.need !== undefined ? { need: opts.need } : { need: "rest" }),
+    });
+    return mutationResolvers.finishNoticingSitting(null, { sittingId: s.id }, ctx);
+  };
+
+  it("does not fire for a brand-new user", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const result = await finishOne(ctx);
+    expect(result.graduation).toBeNull();
+  });
+
+  it("stays shut one sitting short of the fade cap, even with good entries throughout", async () => {
+    const ctx = makeCtx(await createTestUser());
+    // reps - 2 completed here, plus the one finishOne below closes = reps - 1
+    // total completed sittings — one short of the cap, not at it.
+    await completeSittings(ctx, reps - 2);
+    const result = await finishOne(ctx);
+    expect(result.graduation).toBeNull();
+
+    const state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.promptFadeLevel).toBeLessThan(DIALS.graduation.graduationFadeLevel);
+  });
+
+  it("opens exactly on the sitting that reaches the fade cap, with good entries throughout, and not before", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const results = await completeSittings(ctx, reps);
+
+    // Every sitting before the cap-reaching one stays shut...
+    expect(results.slice(0, -1).every((r) => r.graduation === null)).toBe(true);
+    // ...and the one that reaches it is the one that earns it — not a
+    // separate, later close.
+    const last = results[results.length - 1];
+    expect(last.graduation).not.toBeNull();
+    expect(last.graduation.line).toBeTruthy();
+
+    const state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.promptFadeLevel).toBe(DIALS.graduation.graduationFadeLevel);
+  });
+
+  it("does not open when the fade cap is reached but the recent entries have stopped naming a need", async () => {
+    const ctx = makeCtx(await createTestUser());
+    // Good entries build up short of the window that will close out the
+    // cap, so the door has never had a chance to open on good history
+    // alone — then the practice runs dry for exactly the recent window,
+    // reaching the cap on a stretch that no longer "still" (spec §4.5)
+    // contains a need.
+    await completeSittings(ctx, reps - DIALS.graduation.qualityWindowEntries);
+    const results = await completeSittings(ctx, DIALS.graduation.qualityWindowEntries, { withoutNeed: true });
+
+    const state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.promptFadeLevel).toBe(DIALS.graduation.graduationFadeLevel);
+    expect(results.every((r) => r.graduation === null)).toBe(true);
+  });
+
+  it("requires ALL of the quality window to qualify, not merely some of it", async () => {
+    const ctx = makeCtx(await createTestUser());
+    // 14 good, then the 15th (the one that reaches the fade cap) has no
+    // need — a MAJORITY of the recent window still holds the shape (5 of 6),
+    // but not all of it. The dial's own docblock (content/noticing/dials.ts)
+    // claims this is checked strictly; this test is what actually pins that,
+    // rather than leaving it a claim nothing verifies.
+    await completeSittings(ctx, reps - 1);
+    const result = await finishOne(ctx, { need: null });
+    expect(result.graduation).toBeNull();
+  });
+
+  it("fires exactly once, once it has actually been acknowledged", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const results = await completeSittings(ctx, reps);
+    expect(results[results.length - 1].graduation).not.toBeNull();
+
+    // The door is retired by the client saying it showed it, not by the
+    // server saying it decided to. Once acknowledged, a second otherwise-
+    // identical close must not open it again — a door you have walked
+    // through cannot be taken back, and it also cannot be re-issued.
+    await mutationResolvers.acknowledgeNoticingGraduation(null, {}, ctx);
+
+    const again = await finishOne(ctx);
+    expect(again.graduation).toBeNull();
+  });
+
+  it("re-offers a door that was never acknowledged, rather than spending it unseen", async () => {
+    const ctx = makeCtx(await createTestUser());
+    const results = await completeSittings(ctx, reps);
+    expect(results[results.length - 1].graduation).not.toBeNull();
+
+    // The response carrying the door was dropped — a refresh, a crash, a
+    // flaky connection — so no acknowledge ever arrived. This is the whole
+    // reason the flag is not written at surface time: the person has not
+    // seen it, so they are still owed it.
+    //
+    // This test exists to stop a later "fix" collapsing the two steps back
+    // into one on the reasoning that a door should fire once. It should
+    // fire once SEEN. Showing it twice is a shrug; showing it zero times
+    // loses the only moment the mechanism exists to deliver, silently and
+    // with no way for anyone to find out.
+    const again = await finishOne(ctx);
+    expect(again.graduation).not.toBeNull();
+    expect(again.graduation.line).toBe(results[results.length - 1].graduation.line);
+  });
+
+  it("does not spend graduationSurfaced merely by deciding the door is due", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    const results = await completeSittings(ctx, reps);
+    expect(results[results.length - 1].graduation).not.toBeNull();
+
+    // Surfacing is not spending. finishNoticingSitting decided the door was
+    // due and returned it; until something says it was actually shown, the
+    // flag stays false and the door stays owed.
+    const beforeAck = await prisma.noticingState.findUniqueOrThrow({ where: { userId: user.id } });
+    expect(beforeAck.graduationSurfaced).toBe(false);
+
+    await mutationResolvers.acknowledgeNoticingGraduation(null, {}, ctx);
+
+    const afterAck = await prisma.noticingState.findUniqueOrThrow({ where: { userId: user.id } });
+    expect(afterAck.graduationSurfaced).toBe(true);
+  });
+
+  it("acknowledging is idempotent, and has nothing behind it to increment", async () => {
+    const user = await createTestUser();
+    const ctx = makeCtx(user);
+    await completeSittings(ctx, reps);
+
+    await mutationResolvers.acknowledgeNoticingGraduation(null, {}, ctx);
+    await mutationResolvers.acknowledgeNoticingGraduation(null, {}, ctx);
+
+    const state = await prisma.noticingState.findUniqueOrThrow({ where: { userId: user.id } });
+    expect(state.graduationSurfaced).toBe(true);
+  });
+
+  it("pins what 'unprompted' means here: wasPrompted has no effect, because it is always false in this build", async () => {
+    // NoticingLoopPage.tsx hardcodes wasPrompted: false on every open, the
+    // same as FeelingsNeedsLoopPage.tsx — there is no cue mechanism anywhere
+    // in the product yet, so the field is a constant, not a signal.
+    // graduationDue (services/noticing/session.ts) reads the prompt-fade
+    // level instead, and this test pins that: a history built entirely out
+    // of wasPrompted: true sittings graduates exactly the same as one built
+    // out of wasPrompted: false sittings, because the door never looks at
+    // this field. If a future phase adds a real cue mechanism and wires
+    // detection to wasPrompted instead, this test should start failing —
+    // that failure is the point, not a regression to silence.
+    const ctx = makeCtx(await createTestUser());
+    const results: any[] = [];
+    for (let i = 0; i < reps; i++) {
+      const s = await mutationResolvers.startNoticingSitting(null, { wasPrompted: true }, ctx);
+      await patch(ctx, s.entries[0].id, {
+        place: "home",
+        person: `person ${i}`,
+        observation: `noticed something ${i}`,
+        need: "rest",
+      });
+      results.push(await mutationResolvers.finishNoticingSitting(null, { sittingId: s.id }, ctx));
+    }
+    expect(results[results.length - 1].graduation).not.toBeNull();
+  });
+});
