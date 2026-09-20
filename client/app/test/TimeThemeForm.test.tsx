@@ -27,6 +27,7 @@ const mockNavigate = vi.fn();
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
   useParams: () => ({ id: undefined }),
+  Link: ({ to, children }: any) => <a href={typeof to === "string" ? to : "#"}>{children}</a>,
 }));
 
 vi.mock("~/components/ui/confirm-dialog", () => ({ ConfirmDialog: () => null }));

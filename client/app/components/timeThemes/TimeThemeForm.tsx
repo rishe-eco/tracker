@@ -11,10 +11,10 @@ import { Switch } from "~/components/ui/switch";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import TagPicker from "~/components/tags/TagPicker";
+import { useTagVocabulary } from "~/components/tags/useTagVocabulary";
 import RecurrenceControl, { toDateTimeLocal, fromDateTimeLocal } from "~/components/schedule/RecurrenceControl";
 import { useApi } from "~/api/useApi";
 import {
-  GET_TAGS,
   GET_TIME_THEME,
   CREATE_TIME_THEME,
   UPDATE_TIME_THEME,
@@ -45,7 +45,7 @@ export default function TimeThemeForm() {
   const [daysOfMonth, setDaysOfMonth] = useState<number[]>([]);
   const [months, setMonths] = useState<number[]>([]);
   const [yearDaysOfMonth, setYearDaysOfMonth] = useState<number[]>([]);
-  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const { availableTags, createTag } = useTagVocabulary();
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
@@ -53,9 +53,6 @@ export default function TimeThemeForm() {
 
   const minDateTimeLocal = format(new Date(), "yyyy-MM-dd") + "T00:00";
 
-  useEffect(() => {
-    call({ query: GET_TAGS }).then((res) => setAvailableTags(res?.tags ?? []));
-  }, []);
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -218,7 +215,7 @@ export default function TimeThemeForm() {
 
         <div className="space-y-2">
           <Label>{t("timeThemes.natureLabel")}</Label>
-          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={setTagIds} />
+          <TagPicker availableTags={availableTags} selectedTagIds={tagIds} onChange={setTagIds} onCreateTag={createTag} />
           <p className="text-xs text-muted-foreground">{t("timeThemes.natureHelp")}</p>
         </div>
 
