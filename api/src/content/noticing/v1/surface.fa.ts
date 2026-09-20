@@ -86,6 +86,10 @@ const FRAME_FA: FrameSurface = {
       helper: "یک لحظهٔ معمولی کافی است — لازم نیست بزرگ‌ترین چیزی باشد که داری.",
       reroutePrompt: "چیزی به ذهنت نمی‌رسد؟",
       rerouteLabel: "زمانی که آرزو می‌کردی کسی این کار را می‌کرد",
+      // Shown once the reroute is taken — a different question, not the
+      // primary prompt reworded.
+      wishedPrompt:
+        "زمانی را به یاد بیاور که آرزو می‌کردی کسی کمکت می‌کرد — بدون اینکه از او خواسته باشی. آن‌موقع چه می‌گذشت؟",
     },
     unsaidNeed: {
       prompt: "به چه چیزی نیاز داشتی که به زبان نیاوردی؟",
@@ -99,6 +103,8 @@ const FRAME_FA: FrameSurface = {
     },
     turn: {
       line: "او بدون اینکه چیزی بگویی، از یکی به آن‌یکی رسید. تمام ماجرا همین است.",
+      // The reroute path: nobody made this connection.
+      wishedLine: "هر دوی این‌ها همان‌موقع واقعی بودند. کسی آن‌ها را کنار هم نگذاشت.",
     },
     reverse: {
       prompt: "دیروز — حال کسی که کنارش نشسته بودی چطور بود؟",

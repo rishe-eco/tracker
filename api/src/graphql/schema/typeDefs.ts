@@ -1783,11 +1783,15 @@ export const typeDefs = gql`
   # A Tracker-namespaced tool, same staging arrangement as Feelings & Needs
   # (Learn Module 1, above) but sharing no code with it — Noticing authors its
   # own needs palette (build plan §4). Phase 3 lands the spine: the content
-  # pack, the active-sitting query, and the loop mutations. The catch payload
-  # (phase 5) and the graduation door (phase 7) are deliberately absent from
-  # NtcEntryResult and NtcFinishResult below — both land later as additive
-  # fields, not breaking changes, which is why the result types exist already
-  # rather than the mutations returning NtcSitting directly.
+  # pack, the active-sitting query, and the loop mutations. Phase 4 adds the
+  # day-one frame's own progress query and mutations (NtcFrame,
+  # updateNoticingFrame, completeNoticingFrame) — the frame does not gate the
+  # loop and the loop does not gate the frame; see NoticingState.frameDone.
+  # The catch payload (phase 5) and the graduation door (phase 7) are
+  # deliberately absent from NtcEntryResult and NtcFinishResult below — both
+  # land later as additive fields, not breaking changes, which is why the
+  # result types exist already rather than the mutations returning NtcSitting
+  # directly.
   """
   The tool home's state: enough to route into the frame or the loop, no more.
   Deliberately has no sitting count and no field named count, streak, total or
@@ -1825,6 +1829,8 @@ export const typeDefs = gql`
     "Offered beside the prompt, not after a failed attempt — the reroute is a first-class path, not a fallback."
     reroutePrompt: String!
     rerouteLabel: String!
+    "Shown once the reroute is taken. A different question, not prompt reworded — it asks about a wish, not a memory."
+    wishedPrompt: String!
   }
 
   type NtcFrameUnsaidNeed {
@@ -1839,9 +1845,16 @@ export const typeDefs = gql`
     otherLabel: String!
   }
 
-  "No question — the juxtaposition itself, reporting what the person just wrote rather than asserting a lesson."
+  """
+  No question — the juxtaposition itself, reporting what the person just
+  wrote rather than asserting a lesson. wishedLine is the mandatory variant
+  for the wishedInstead reroute: line's wording claims someone actually made
+  the connection, which is true on the ordinary path and false by
+  construction on the reroute path.
+  """
   type NtcFrameTurn {
     line: String!
+    wishedLine: String!
   }
 
   type NtcFrameReverse {
@@ -1892,6 +1905,26 @@ export const typeDefs = gql`
     intro: NtcFrameIntro!
     beatOne: NtcFrameBeatOne!
     beatTwo: NtcFrameBeatTwo!
+  }
+
+  """
+  The day-one frame's own progress row (tier 1, once). Committed step by
+  step, the same convention as NtcSitting — a null field is simply not
+  answered yet, not a missing row. completedAt is set only at the very end of
+  beat 2 by completeNoticingFrame; NoticingState.frameDone reads this
+  timestamp, not row existence (a phase-1 bug, fixed in phase 2 — see
+  notes/noticing-build-log.md). Null overall means the frame has never been
+  started, which is why the query that returns this is nullable.
+  """
+  type NtcFrame {
+    moment: String
+    unsaidNeed: String
+    "JSON string: cue chip ids plus any free text."
+    visibleCues: String
+    "Took the a-time-you-wished-someone-had reroute at step 1. A path, not a failure flag."
+    wishedInstead: Boolean!
+    welcomeGuess: String
+    completedAt: String
   }
 
   """
@@ -2153,6 +2186,9 @@ export const typeDefs = gql`
 
     "Noticing: today's still-open sitting, if there is one. Null means start fresh."
     activeNoticingSitting: NtcSitting
+
+    "Noticing: the day-one frame's own progress, for resuming mid-frame. Null means it has never been started."
+    noticingFrame: NtcFrame
   }
 
   type AuthPayload {
@@ -2714,6 +2750,28 @@ export const typeDefs = gql`
     offered. Idempotent; nothing is incremented behind it.
     """
     acknowledgeGraduation: Boolean!
+
+    # ── Impact · Noticing: the day-one frame ──────────────────────────────
+    # Commits step by step, same convention as the loop below. completedAt is
+    # written only by completeNoticingFrame, and only at the very end of beat
+    # 2 — see NtcFrame's own docstring for why that separation is load-bearing.
+
+    """
+    Commit one step of the day-one frame. Creates the row on first call.
+    Every argument is optional and independently settable, mirroring
+    updateNoticingEntry — an omitted argument is left alone, and wishedInstead
+    is only ever set true, never toggled back off.
+    """
+    updateNoticingFrame(moment: String, unsaidNeed: String, visibleCues: String,
+                        wishedInstead: Boolean, welcomeGuess: String): NtcFrame!
+
+    """
+    Mark the day-one frame complete — the only mutation that sets
+    completedAt. Idempotent: a double submit is a double-click, not a second
+    frame. Returns NoticingState so the client can route onward with
+    frameDone already true.
+    """
+    completeNoticingFrame: NoticingState!
 
     # ── Impact · Noticing: the loop ───────────────────────────────────────
     # The wizard commits every step as it goes; there is deliberately no

@@ -82,6 +82,7 @@ import {
   startSitting as startNoticingSitting,
   updateEntry as updateNoticingEntry,
 } from "../../services/noticing/session";
+import { completeNoticingFrame, updateFrameStep as updateNoticingFrame } from "../../services/noticing/state";
 
 const MAX_ESTIMATED_MINUTES = 24 * 60; // 24 hours
 
@@ -1685,6 +1686,14 @@ mutations.finishLoopSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
 
 mutations.acknowledgeGraduation = requireAuth(async (_, __: any, ctx) =>
   acknowledgeGraduation(ctx.prisma, ctx.user.id)
+);
+
+mutations.updateNoticingFrame = requireAuth(async (_, args: any, ctx) =>
+  updateNoticingFrame(ctx.prisma, ctx.user.id, args)
+);
+
+mutations.completeNoticingFrame = requireAuth(async (_, __: any, ctx) =>
+  completeNoticingFrame(ctx.prisma, ctx.user.id, ctx.locale)
 );
 
 mutations.startNoticingSitting = requireAuth(async (_, { wasPrompted }: any, ctx) =>

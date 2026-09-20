@@ -435,8 +435,11 @@
       "frame": {
         "cardTitle": "Start here, once",
         "cardBody": "A one-time warm-up before the daily loop begins.",
-        "begin": "Begin"
+        "begin": "Begin",
+        "alreadyDoneTitle": "You've already done this",
+        "alreadyDoneBody": "The day-one frame happens once — that's the whole point of it."
       },
+      "backToNoticing": "Back to Noticing",
       "loop": {
         "cardTitle": "Today's loop",
         "cardBody": "Where you were, who was there, what you saw — and what it might point to.",

@@ -29,6 +29,10 @@ const patch = (ctx: any, entryId: string, fields: Record<string, unknown>) =>
 const finish = async (ctx: any, sittingId: string) =>
   (await mutationResolvers.finishNoticingSitting(null, { sittingId }, ctx)).sitting;
 
+const patchFrame = (ctx: any, fields: Record<string, unknown>) =>
+  mutationResolvers.updateNoticingFrame(null, fields, ctx);
+const completeFrame = (ctx: any) => mutationResolvers.completeNoticingFrame(null, {}, ctx);
+
 describe("a sitting", () => {
   it("opens for a brand-new user with no frame done at all — deliberately, unlike Feelings & Needs", async () => {
     // The frame is a rehearsal of the loop's own inference, not a
@@ -181,5 +185,119 @@ describe("history", () => {
     const completed = await prisma.noticingSitting.count({ where: { completedAt: { not: null } } });
     expect(completed).toBe(1);
     expect(state.promptFadeLevel).toBe(0);
+  });
+});
+
+describe("the day-one frame (build plan §5 phase 4)", () => {
+  it("commits each beat-1 step on its own, and is not frameDone until completeNoticingFrame", async () => {
+    const ctx = makeCtx(await createTestUser());
+
+    await patchFrame(ctx, { moment: "my neighbour shoveled my walk without asking" });
+    let state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.frameDone).toBe(false);
+
+    await patchFrame(ctx, { unsaidNeed: "support" });
+    await patchFrame(ctx, { visibleCues: JSON.stringify({ chips: ["stayed_late"], other: null }) });
+    // Still not done — beat 2 hasn't run, and completeNoticingFrame hasn't
+    // been called. A frame filled all the way to the last field but never
+    // explicitly completed is exactly the phase-1 bug (row existence read as
+    // done) that isFrameDone was fixed to avoid in phase 2.
+    state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.frameDone).toBe(false);
+
+    await patchFrame(ctx, { welcomeGuess: "somewhat" });
+    state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.frameDone).toBe(false);
+
+    const completed = await completeFrame(ctx);
+    expect(completed.frameDone).toBe(true);
+
+    const row = await prisma.noticingFrame.findUniqueOrThrow({ where: { userId: ctx.user.id } });
+    expect(row.completedAt).not.toBeNull();
+    expect(row.moment).toBe("my neighbour shoveled my walk without asking");
+    expect(row.unsaidNeed).toBe("support");
+    expect(row.welcomeGuess).toBe("somewhat");
+  });
+
+  it("completes once and stays idempotent on a second call", async () => {
+    const ctx = makeCtx(await createTestUser());
+    await patchFrame(ctx, { moment: "a", unsaidNeed: "rest", visibleCues: "{}", welcomeGuess: "very" });
+
+    const first = await completeFrame(ctx);
+    expect(first.frameDone).toBe(true);
+    const rowAfterFirst = await prisma.noticingFrame.findUniqueOrThrow({ where: { userId: ctx.user.id } });
+
+    // A double submit is a double-click, not a second frame — the second
+    // call must not throw, and must not disagree with the first about when
+    // the frame finished.
+    const second = await completeFrame(ctx);
+    expect(second.frameDone).toBe(true);
+    const rowAfterSecond = await prisma.noticingFrame.findUniqueOrThrow({ where: { userId: ctx.user.id } });
+    expect(rowAfterSecond.completedAt?.getTime()).toBe(rowAfterFirst.completedAt?.getTime());
+
+    expect(await prisma.noticingFrame.count()).toBe(1);
+  });
+
+  it("refuses to reopen a frame that's already complete", async () => {
+    const ctx = makeCtx(await createTestUser());
+    await patchFrame(ctx, { moment: "a" });
+    await completeFrame(ctx);
+
+    await expect(patchFrame(ctx, { moment: "a different memory entirely" })).rejects.toThrow(/already complete/);
+  });
+
+  it("the can't-think-of-one reroute sets wishedInstead and still completes normally", async () => {
+    const ctx = makeCtx(await createTestUser());
+
+    // Steps 2–4 run unchanged on the reroute path (spec §4.1) — same fields,
+    // just with wishedInstead carried alongside the moment text.
+    await patchFrame(ctx, { moment: "a time I wished someone had noticed", wishedInstead: true });
+    await patchFrame(ctx, { unsaidNeed: "to_be_seen" });
+    await patchFrame(ctx, { visibleCues: JSON.stringify({ chips: ["went_quiet"], other: null }) });
+    await patchFrame(ctx, { welcomeGuess: "not_very" });
+    const completed = await completeFrame(ctx);
+
+    expect(completed.frameDone).toBe(true);
+    const row = await prisma.noticingFrame.findUniqueOrThrow({ where: { userId: ctx.user.id } });
+    expect(row.wishedInstead).toBe(true);
+    expect(row.completedAt).not.toBeNull();
+  });
+
+  it("does not gate the loop — the loop still opens with no frame ever started", async () => {
+    // Restates the existing "opens for a brand-new user" case from the
+    // caller's side of the frame mutations, so the two guarantees (frame
+    // doesn't gate loop, loop doesn't gate frame) are both pinned here too.
+    const ctx = makeCtx(await createTestUser());
+    const sitting = await startSitting(ctx);
+    expect(sitting.entries).toHaveLength(1);
+    expect(await prisma.noticingFrame.count()).toBe(0);
+  });
+
+  it("makes sense for someone who already ran the loop before doing the frame", async () => {
+    const ctx = makeCtx(await createTestUser());
+
+    // Run a full loop sitting first — nothing about the frame is required
+    // beforehand (spec §4.1, build plan §5 ordering notes).
+    const sitting = await startSitting(ctx);
+    await patch(ctx, sitting.entries[0].id, { place: "home", person: "my sister", observation: "went quiet" });
+    await finish(ctx, sitting.id);
+
+    // The frame still runs to completion afterwards, and the loop remains
+    // usable for a second sitting once it has.
+    await patchFrame(ctx, { moment: "a", unsaidNeed: "rest", visibleCues: "{}", welcomeGuess: "very" });
+    const completed = await completeFrame(ctx);
+    expect(completed.frameDone).toBe(true);
+
+    const second = await startSitting(ctx);
+    expect(second.id).not.toBe(sitting.id);
+    expect(second.entries).toHaveLength(1);
+  });
+
+  it("a partially-filled frame is never reported done, even with every field but one set", async () => {
+    const ctx = makeCtx(await createTestUser());
+    await patchFrame(ctx, { moment: "a", unsaidNeed: "rest", visibleCues: "{}" });
+    // welcomeGuess deliberately never set, and completeNoticingFrame never called.
+    const state = await queryResolvers.noticingState(null, {}, ctx);
+    expect(state.frameDone).toBe(false);
   });
 });

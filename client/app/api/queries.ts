@@ -2508,10 +2508,10 @@ export const GET_NOTICING_CONTENT = `
       frame {
         intro { title body begin }
         beatOne {
-          moment { prompt helper reroutePrompt rerouteLabel }
+          moment { prompt helper reroutePrompt rerouteLabel wishedPrompt }
           unsaidNeed { prompt helper otherLabel }
           visibleCues { prompt helper otherLabel }
-          turn { line }
+          turn { line wishedLine }
           reverse { prompt knowLabel noIdeaLabel knowResponse noIdeaResponse }
         }
         beatTwo {
@@ -2529,6 +2529,53 @@ export const GET_NOTICING_CONTENT = `
       }
       graduation { line body close }
       thirdPartyWarning
+    }
+  }
+`;
+
+/** Every frame step mutation returns the whole progress row, so the client renders one shape. */
+const NOTICING_FRAME_FIELDS = `
+  moment
+  unsaidNeed
+  visibleCues
+  wishedInstead
+  welcomeGuess
+  completedAt
+`;
+
+export const GET_NOTICING_FRAME = `
+  query NoticingFrame {
+    noticingFrame { ${NOTICING_FRAME_FIELDS} }
+  }
+`;
+
+export const UPDATE_NOTICING_FRAME = `
+  mutation UpdateNoticingFrame(
+    $moment: String
+    $unsaidNeed: String
+    $visibleCues: String
+    $wishedInstead: Boolean
+    $welcomeGuess: String
+  ) {
+    updateNoticingFrame(
+      moment: $moment
+      unsaidNeed: $unsaidNeed
+      visibleCues: $visibleCues
+      wishedInstead: $wishedInstead
+      welcomeGuess: $welcomeGuess
+    ) { ${NOTICING_FRAME_FIELDS} }
+  }
+`;
+
+export const COMPLETE_NOTICING_FRAME = `
+  mutation CompleteNoticingFrame {
+    completeNoticingFrame {
+      contentVersion
+      locale
+      reviewStatus
+      frameDone
+      graduationSurfaced
+      promptFadeLevel
     }
   }
 `;

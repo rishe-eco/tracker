@@ -106,6 +106,10 @@ const FRAME_EN: FrameSurface = {
       helper: "One ordinary moment is enough — it doesn't have to be the biggest thing you've got.",
       reroutePrompt: "Can't think of one?",
       rerouteLabel: "a time you wished someone had",
+      // Shown once the reroute is taken — a different question, not the
+      // primary prompt reworded, since it asks about a wish, not a memory.
+      wishedPrompt:
+        "Think of a time you wished someone had helped — without you having to ask. What was happening?",
     },
     unsaidNeed: {
       prompt: "What were you needing, that you weren't saying out loud?",
@@ -121,6 +125,11 @@ const FRAME_EN: FrameSurface = {
     // they just wrote, not a claim about noticing in general.
     turn: {
       line: "They got from one to the other without you saying anything. That's the whole move.",
+      // The reroute path: nobody made this connection — that's the whole
+      // difference between "a time someone helped" and "a time you wished
+      // someone had." Reports the same juxtaposition without claiming
+      // anyone read it.
+      wishedLine: "Both of those were real, at the same time. Nobody put them together.",
     },
     reverse: {
       prompt: "Yesterday — how was the person you sat nearest to?",

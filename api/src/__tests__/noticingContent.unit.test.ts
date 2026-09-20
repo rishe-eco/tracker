@@ -311,6 +311,18 @@ describe("the frame and loop copy", () => {
     expect(surface.frame.beatOne.reverse.noIdeaResponse.trim()).not.toBe("");
   });
 
+  it.each(SURFACES)(
+    "%s: authors a distinct question and turn line for the wishedInstead reroute (phase 4)",
+    (_l, surface) => {
+      const moment = surface.frame.beatOne.moment;
+      const turn = surface.frame.beatOne.turn;
+      expect(moment.wishedPrompt.trim()).not.toBe("");
+      expect(moment.wishedPrompt).not.toBe(moment.prompt);
+      expect(turn.wishedLine.trim()).not.toBe("");
+      expect(turn.wishedLine).not.toBe(turn.line);
+    }
+  );
+
   it.each(SURFACES)("%s: offers a three-way welcome prediction", (_l, surface) => {
     expect(surface.frame.beatTwo.options.map((o) => o.id).sort()).toEqual(
       ["not_very", "somewhat", "very"].sort()

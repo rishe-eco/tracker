@@ -50,14 +50,33 @@ export type FrameStepSurface = {
  * not a sixth question.
  */
 export type FrameBeatOneSurface = {
-  /** Step 1 — the recalled episode. Carries the reroute for "can't think of one". */
-  moment: FrameStepSurface & { reroutePrompt: string; rerouteLabel: string };
+  /**
+   * Step 1 — the recalled episode. Carries the reroute for "can't think of
+   * one". `wishedPrompt` is the question actually shown once that reroute is
+   * taken — it has to ask about a wish rather than a memory, so it cannot
+   * share `prompt`'s wording (spec §4.1's escape lands on "a time you wished
+   * someone had," a different question, not a fallback phrasing of the same
+   * one).
+   */
+  moment: FrameStepSurface & { reroutePrompt: string; rerouteLabel: string; wishedPrompt: string };
   /** Step 2 — their own unsaid need. Palette (needs) + `other → type it`. */
   unsaidNeed: FrameStepSurface & { otherLabel: string };
   /** Step 3 — what was visible. Multi-select cue chips + escape. */
   visibleCues: FrameStepSurface & { otherLabel: string };
-  /** Step 4 — no question. Reports the turn as a description, not a claim. */
-  turn: { line: string };
+  /**
+   * Step 4 — no question. Reports the turn as a description, not a claim.
+   *
+   * `wishedLine` is a second, mandatory variant for the `wishedInstead`
+   * reroute. `line`'s wording ("they got from one to the other") asserts
+   * that someone actually made the connection — true by construction on the
+   * ordinary path (the recalled help could only have happened if it was
+   * read), but false on the reroute path, where by definition nobody did.
+   * Rendering `line` there would have the tool assert something about the
+   * person's own material that isn't so — precisely the failure beat 1 was
+   * rebuilt to stop doing (see the file-level docblock in
+   * `v1/surface.en.ts`).
+   */
+  turn: { line: string; wishedLine: string };
   /** Step 5 — the reverse prompt. A two-way pick, not free text. */
   reverse: FrameStepSurface & {
     knowLabel: string;

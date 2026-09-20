@@ -80,11 +80,14 @@ describe("never say help where notice fits", () => {
 describe("never state the lesson", () => {
   it("the frame's turn reports what was written, not a general claim", () => {
     // P1-equivalent failure mode: asserting the mechanism instead of letting
-    // the person's own two answers make the point.
-    const turn = frame.beatOne.turn.line;
-    expect(turn).not.toMatch(
-      /\b(this (shows|proves|means)|that's what noticing (means|is)|the lesson (is|here)|always works this way)\b/i
-    );
+    // the person's own two answers make the point. Both variants — the
+    // ordinary line and the wishedInstead reroute's — are checked, since a
+    // fix that only touched one would leave the same failure mode standing
+    // in the other.
+    const claim =
+      /\b(this (shows|proves|means)|that's what noticing (means|is)|the lesson (is|here)|always works this way)\b/i;
+    expect(frame.beatOne.turn.line).not.toMatch(claim);
+    expect(frame.beatOne.turn.wishedLine).not.toMatch(claim);
   });
 
   it("the graduation door reports a capability rather than concluding a moral", () => {
@@ -158,6 +161,32 @@ describe("every optional step names its skip in plain words", () => {
   it("keeps the need conditional, in both the full and the withdrawn prompt", () => {
     expect(loop.needPrompt).toMatch(/\bif\b/i);
     expect(loop.needPromptTerse).toMatch(/\bif\b/i);
+  });
+});
+
+describe("the reroute doesn't presuppose that help ever arrived", () => {
+  // The escape at step 1 ("can't think of one") lands on "a time you wished
+  // someone had" (spec §4.1) — by construction, nobody made the connection
+  // on that path. `moment.wishedPrompt` legitimately names the wished-for
+  // help (it's recalling the wish, same exemption as the ordinary
+  // `moment.prompt` — both are the topic of recollection, not the app's own
+  // voice); `turn.wishedLine` is the one that must never claim the
+  // connection itself actually happened, since that's the one fact that's
+  // false on this path by construction.
+
+  it("the turn's reroute line never claims anyone made the connection", () => {
+    expect(frame.beatOne.turn.wishedLine).not.toMatch(
+      /\b(helped|got from one to the other|read it|noticed it|they saw and understood)\b/i
+    );
+  });
+
+  it("the wished-instead prompt signals a wish, not a memory of it happening", () => {
+    expect(frame.beatOne.moment.wishedPrompt.toLowerCase()).toMatch(/\bwish/);
+  });
+
+  it("the reroute's turn line reports two true things, not a connection anyone made", () => {
+    expect(frame.beatOne.turn.wishedLine.trim()).not.toBe("");
+    expect(frame.beatOne.turn.wishedLine).not.toBe(frame.beatOne.turn.line);
   });
 });
 
@@ -297,8 +326,18 @@ describe("the guardrails in Persian", () => {
   it("never states the lesson — the turn reports, the graduation names a capability", () => {
     // «یعنی» means, «ثابت می‌کند» proves, «همیشه» always (as a sweeping claim).
     expect(faFrame.beatOne.turn.line).not.toMatch(/یعنی|ثابت می‌کند/);
+    expect(faFrame.beatOne.turn.wishedLine).not.toMatch(/یعنی|ثابت می‌کند/);
     const g = [faPack.graduation.line, faPack.graduation.body, faPack.graduation.close].join(" ");
     expect(g).not.toMatch(/ثابت می‌کند|درسش|یاد گرفتی/);
+  });
+
+  it("the reroute doesn't presuppose help arrived — «آرزو» (wish), never a claim it happened", () => {
+    expect(faFrame.beatOne.moment.wishedPrompt).toMatch(/آرزو/);
+    // «کمک کرد» helped (as a completed act) and «متوجه شد» realized/understood
+    // (as something someone else actually did) would both claim the
+    // connection was made — the reroute's own line must not.
+    expect(faFrame.beatOne.turn.wishedLine).not.toMatch(/کمک کرد|متوجه شد/);
+    expect(faFrame.beatOne.turn.wishedLine.trim()).not.toBe("");
   });
 
   it("counts nothing — no streak language, and no digit in the graduation copy", () => {

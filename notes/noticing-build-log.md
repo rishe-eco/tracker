@@ -606,3 +606,218 @@ a form" actually gets decided:
 - No catch UI exists yet in the loop wizard — `updateEntry`'s result always
   carries `catch: null`, and the client doesn't render anything for it.
   Phase 5 adds both sides together.
+
+## Phase 4 — The day-one frame
+
+Branch: `impact-noticing`, continuing from phase 3's commit.
+
+### What landed
+
+**Service** — `api/src/services/noticing/state.ts` gains the frame's own
+commit-as-you-go surface, alongside `isFrameDone`: `getFrameProgress` (the
+raw row, or null if beat 1 step 1 has never run), `updateFrameStep` (creates
+the row on first call, refuses to touch a completed frame), and
+`completeNoticingFrame` (the only place `completedAt` is ever written, and
+only once — a second call is a no-op that still returns `frameDone: true`).
+Kept in `state.ts` rather than a new file: the build plan's own file map
+already assigns "state, frame, fade, graduation" to this module.
+
+**Content** — two fields added to the frame's authored copy, in both
+`types.ts` and both surfaces (`surface.en.ts`, `surface.fa.ts`):
+`beatOne.moment.wishedPrompt` and `beatOne.turn.wishedLine`. Neither existed
+before phase 4, and both turned out to be load-bearing — see "what surprised
+me" below for why the reroute could not simply reuse phase 2's copy
+unchanged, despite spec §4.1 saying "steps 2–4 then run unchanged."
+
+**GraphQL** — `NtcFrameMoment.wishedPrompt` and `NtcFrameTurn.wishedLine`
+added to the existing types; a new `NtcFrame` type (the progress row, all
+fields nullable except `wishedInstead`); `Query.noticingFrame` (nullable —
+null means never started, a different fact from `frameDone: false`, which
+also covers "started but not finished"); `Mutation.updateNoticingFrame`
+(commits one step, mirrors `updateNoticingEntry`'s shape) and
+`Mutation.completeNoticingFrame` (no arguments — every field is already
+committed by the time this runs; it only sets the timestamp). Hit the
+backtick-in-docblock gotcha zero times this phase — wrote the SDL comments
+free of backticks from the start, having been bitten by it three times
+across phases 1 and 3.
+
+**Client** — `components/impact/NoticingFramePage.tsx`, a full rewrite of
+the phase-1 stub: intro → moment (with the `can't think of one` reroute) →
+unsaid need (chips, the same six the loop would show) → visible cues
+(multi-select chips, new to this file — nothing in the loop is multi-select)
+→ the turn (no input) → the reverse (two-way pick, response shown inline) →
+the welcome guess → the correction, which ends by completing the frame and
+navigating straight into `/tools/impact/noticing/loop`. No "frame complete!"
+screen anywhere (spec §4.1: "ends with the loop, not with a summary").
+Landing here after `completedAt` is already set shows a short static card
+instead of the wizard, rather than a redirect or a silent re-run — see
+decision 4 below. `GET_NOTICING_FRAME`, `UPDATE_NOTICING_FRAME`,
+`COMPLETE_NOTICING_FRAME` added to `queries.ts`; `GET_NOTICING_CONTENT`
+extended with `wishedPrompt` / `wishedLine`. Two new i18n keys
+(`frame.alreadyDoneTitle`, `frame.alreadyDoneBody`) plus
+`noticing.backToNoticing`, in both locales. `NoticingPage.tsx` needed no
+change — it already only offers the frame card while `!frameDone` (a phase-1
+decision), which is exactly what "don't keep surfacing a completed one-time
+thing" asks for.
+
+**Tests** — `noticing.integration.test.ts` gains a "the day-one frame"
+block: commits land independently and `frameDone` stays false until
+`completeNoticingFrame` runs even with every field but the timestamp set;
+completing twice is a no-op, not an error, and doesn't move the timestamp;
+a second `updateNoticingFrame` call against a completed frame is refused;
+the reroute sets `wishedInstead` and completes normally through the
+unchanged steps 2–4; the loop opens with no frame ever started; and the
+frame completes normally for someone who already ran a full loop sitting
+first, with the loop still usable afterward. `noticingGuardrails.unit.test.ts`
+gains a new block, "the reroute doesn't presuppose that help ever arrived"
+(English and Persian), plus extends the existing "never state the lesson"
+check to cover `turn.wishedLine` alongside `turn.line`.
+`noticingContent.unit.test.ts` gains a structural check that both locales
+author a `wishedPrompt` and `wishedLine` distinct from their ordinary
+counterparts.
+
+### Decisions the brief didn't specify
+
+1. **The reverse step (beat 1 step 5) persists nothing.** `NoticingFrame`'s
+   own data model (build plan §6) has no field for the "I know / no idea"
+   pick — only `moment`, `unsaidNeed`, `visibleCues`, `wishedInstead`,
+   `welcomeGuess`. That's not an oversight to fix; nothing downstream reads
+   that pick, it only exists to show one of two response lines once. The
+   client holds it as local component state and never calls a mutation for
+   it — the one step in the whole frame that commits nothing, and it's
+   correct that it doesn't.
+2. **`resumeStep`'s "land one step conservatively early" tradeoff, again.**
+   Phase 3 flagged that the loop's own version of this ambiguity would recur
+   here, and it did, one step worse: because the reverse step commits
+   nothing, a person who has already answered the welcome guess but closed
+   the tab before seeing the correction is indistinguishable, from the
+   server's own record, from someone who closed the tab right after
+   `visibleCues`. Resuming both of them at "turn" (rather than trying to
+   guess which of turn/reverse/guess they'd actually reached) means
+   replaying up to two harmless, idempotent display steps in the worse case,
+   which is cheap; guessing wrong and skipping a step they hadn't actually
+   seen would not be. The one exception: once `welcomeGuess` **is** set,
+   resuming goes straight to "correction" rather than replaying the guess
+   step, since that one *is* committed and re-asking it would silently
+   discard an answer that's already on record.
+3. **Step 3 (visible cues) requires at least one chip or the free-text
+   escape before "Next" enables**, the same shape as the loop's `person` /
+   `observation` fields being required. Spec §4.1 doesn't say the step is
+   mandatory, but leaving it answerable-with-nothing would make step 4 (the
+   turn) render an empty first half of the pair — the exact "renders
+   something the person didn't write" failure the brief warned against, just
+   inverted into "renders nothing where there should be something." Requiring
+   an answer is what keeps the turn meaningful every time it's reached.
+4. **The frame stays reachable after completion, but shows a static card,
+   not the wizard.** Chose this over removing the route or redirecting away,
+   for the same reason `NoticingLogPage` and the loop's own "not sure" close
+   warmly rather than erroring: a direct visit (a bookmark, a back-button)
+   to a one-time thing that's already done is not a mistake to punish, just
+   a fact to state plainly. `updateFrameStep`'s guard against writing into a
+   completed frame is the actual enforcement; the card is only the honest
+   surface for it.
+5. **The reroute is one-directional within a sitting at the client.**
+   Clicking `can't think of one` sets local `wishedInstead` state and hides
+   the link; there is no "actually, here's one" to switch back before
+   submitting step 1. Nothing commits until the moment text is actually
+   submitted (moment and `wishedInstead` commit together, in one call), so
+   this is a UI choice, not a data-loss risk — I judged that letting people
+   flip back and forth cheapens what the brief calls "a first-class path,
+   not a fallback," by turning it into a toggle to fiddle with rather than a
+   door to walk through.
+6. **The unsaid-need step (beat 1 step 2) shows the same six needs the loop
+   would show**, reading `content.display.needIds` — the server's existing
+   deterministic rotation — rather than inventing a separate selection for
+   the frame or showing the full pool of twenty. Reusing it means the frame
+   and the day's loop (if run same-day) show the same six words, which reads
+   as consistency rather than a coincidence, and avoids adding a second
+   "which needs to show" decision next to `selectNeedIds` for no stated
+   reason.
+
+### What surprised me
+
+- **Spec §4.1's "steps 2–4 then run unchanged" turned out to be true only
+  for steps 2 and 3, not step 4.** I read that sentence in the handoff
+  material as settled and expected the reroute to need zero new content.
+  Rewriting the turn's exact quoted line for the reroute case is what
+  surfaced the gap: `line` ("They got from one to the other without you
+  saying anything") is a factual claim that someone made a connection — true
+  by construction on the ordinary path (the recalled help could only have
+  happened if it was read), and false by construction on the reroute path,
+  where by definition nobody did. Rendering the unchanged line there would
+  have told the person their own material means something it doesn't — the
+  exact failure mode beat 1 was rebuilt from two steps to five to stop doing,
+  now showing up one level down, inside the five-step version, on one path
+  through it. I read "unchanged" as being about the *step structure*
+  (same four fields collected, same order) rather than *every string*, which
+  is probably what was meant, but it's the kind of sentence that reads as
+  "nothing to do here" until you actually try to render it.
+- **Multi-select doesn't exist anywhere else in this tool.** Every chip
+  palette in the loop and in beat 1's other steps is single-pick. Step 3
+  needed its own small toggle-and-collect component rather than the
+  single-select `Chips` every other step reuses (by local copy, per this
+  tool's own no-shared-code convention within `components/impact/`) — not
+  a large addition, but worth flagging since it's the one piece of frame UI
+  with no precedent anywhere else in Noticing to pattern-match against.
+
+### Verification (phase 4)
+
+- `api && npx tsc --noEmit` — pass, no errors.
+- `api && npm test` — pass, see exact file/test counts below.
+- `client && npx tsc --noEmit` — pass, no errors.
+- `client && npm run i18n:check-missing` — pass.
+- `client && npm run i18n:check-hardcoded` — pass (bonus check, as in earlier
+  phases).
+
+### Does beat 1 hold together, read as a person?
+
+Read start to finish (ordinary path): step 1 asks for a real memory. Step 2
+asks what I actually needed, unsaid — answerable because it's a fact about
+me, from the inside, at the time. Step 3 asks what was visible instead, which
+requires a small perspective shift — from "what I needed" to "what someone
+watching me would have seen" — but the shift is signposted by the prompt
+itself ("They couldn't hear that. So what could they actually see?"), which
+bridges from step 2's "not saying it out loud" directly into step 3's
+question. Step 4 then shows exactly those two answers, side by side, with
+the line "they got from one to the other without you saying anything" — and
+it lands, because I said both halves myself two screens ago; the line isn't
+telling me something new, it's naming what I'm already looking at. That
+transition is the one the brief asked me to scrutinize hardest, and I don't
+think it's a jump — the closest thing to friction in the whole sequence is
+the pronoun shift at step 3 (from "I" to being the object of someone else's
+looking), and even that is the entire point of "rehearsing from the other
+side," not an accident of the copy. Step 5 (the reverse) is a bigger, clearly
+intentional pivot — from my own memory to a real person, today — and it reads
+as a natural next question rather than a non sequitur, because it reuses the
+same insight step 4 just landed ("you can get better at looking") and turns
+it outward. On the reroute path, step 4's new line ("Both of those were real,
+at the same time. Nobody put them together.") lands differently — flatter,
+a little sadder — which matches spec §4.1's own prediction that this path
+"arguably lands harder," and I believe it does, for the same reason: nothing
+is being argued, it's just naming what was true and wasn't caught.
+
+### What phase 5 needs to know
+
+- The frame's `NoticingFrame` row now actually gets created and completed —
+  phase 5's catch engine has no dependency on it, but any future work reading
+  `NoticingFrame` for real (not just `completedAt`) will find `visibleCues`
+  stored as a JSON string (`{ chips: string[], other: string | null }`),
+  parsed client-side only; nothing server-side reads its contents yet.
+- `updateFrameStep`'s guard ("The day-one frame is already complete.") is a
+  thrown `Error`, matching `updateEntry`'s convention on a finished sitting —
+  not a typed result, so a client that ignores the error would see a failed
+  mutation rather than a silent no-op. This was a deliberate choice, not an
+  oversight: silently no-opping a write against a finished frame would hide
+  a real client bug (routing someone back into a completed wizard) behind
+  success-shaped output.
+- The frame and the loop still don't share any code, including their small
+  UI atoms (`Chips`, `QuietAction`-equivalents) — both `NoticingLoopPage.tsx`
+  and `NoticingFramePage.tsx` now separately define nearly-identical private
+  `Chips` components. This is consistent with the standing rule (they migrate
+  to separate standalone apps later), not an oversight, but it's worth
+  naming in case a future phase wants to reconsider the rule for genuinely
+  tool-internal presentational atoms, as opposed to content or services.
+- Nothing about the catch engine (phase 5) touches the frame — catches match
+  against `NoticingEntry` fields only (`observation`, `need`, `smallThing`,
+  `motiveNote`), and the frame's fields aren't in that list. The two phases
+  don't intersect.

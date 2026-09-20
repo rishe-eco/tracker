@@ -12,7 +12,7 @@ import { getPlan } from "../../services/skills/planning";
 import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
 import { getFeelingsNeedsState } from "../../services/feelingsNeeds/state";
 import { getActiveSitting, getContent, getHistory } from "../../services/feelingsNeeds/session";
-import { getNoticingState } from "../../services/noticing/state";
+import { getFrameProgress, getNoticingState } from "../../services/noticing/state";
 import { getContent as getNoticingContent, getActiveSitting as getActiveNoticingSitting } from "../../services/noticing/session";
 
 /**
@@ -407,4 +407,6 @@ export const queryResolvers = {
   noticingContent: requireAuth((_, __, ctx) => getNoticingContent(ctx.prisma, ctx.user.id, ctx.locale)),
 
   activeNoticingSitting: requireAuth((_, __, ctx) => getActiveNoticingSitting(ctx.prisma, ctx.user.id)),
+
+  noticingFrame: requireAuth((_, __, ctx) => getFrameProgress(ctx.prisma, ctx.user.id)),
 };

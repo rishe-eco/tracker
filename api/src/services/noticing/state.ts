@@ -84,6 +84,84 @@ export async function isFrameDone(prisma: PrismaClient, userId: string): Promise
   return frame?.completedAt != null;
 }
 
+// ─── The day-one frame (tier 1, once) ────────────────────────────────────────
+
+export type FrameStepPatch = {
+  moment?: string | null;
+  unsaidNeed?: string | null;
+  visibleCues?: string | null;
+  wishedInstead?: boolean;
+  welcomeGuess?: string | null;
+};
+
+/**
+ * The frame's own progress row, for resuming mid-frame. Null means the
+ * frame has never been started — a different fact from `isFrameDone`
+ * returning false, which also covers "started but not finished."
+ */
+export function getFrameProgress(prisma: PrismaClient, userId: string) {
+  return prisma.noticingFrame.findUnique({ where: { userId } });
+}
+
+/**
+ * Commit one step of the day-one frame. Creates the row on first call (beat
+ * 1 step 1), the same commit-as-you-go convention as `NoticingSitting` /
+ * `NoticingEntry` — there is no "submit the frame" mutation, so a closed tab
+ * loses at most the step in progress.
+ *
+ * Refuses to touch a completed frame rather than silently reopening it. The
+ * client should never route a finished frame back into the wizard, but the
+ * guard holds even if it does — same reasoning as `updateEntry`'s guard on a
+ * finished sitting.
+ */
+export async function updateFrameStep(prisma: PrismaClient, userId: string, patch: FrameStepPatch) {
+  const existing = await prisma.noticingFrame.findUnique({ where: { userId } });
+  if (existing?.completedAt) {
+    throw new Error("The day-one frame is already complete.");
+  }
+
+  const trim = (v: string | null | undefined) =>
+    v === undefined ? undefined : v === null ? null : v.trim() || null;
+
+  const data = {
+    moment: trim(patch.moment),
+    unsaidNeed: trim(patch.unsaidNeed),
+    visibleCues: trim(patch.visibleCues),
+    wishedInstead: patch.wishedInstead,
+    welcomeGuess: trim(patch.welcomeGuess),
+  };
+
+  if (existing) {
+    return prisma.noticingFrame.update({ where: { userId }, data });
+  }
+
+  try {
+    return await prisma.noticingFrame.create({ data: { userId, ...data } });
+  } catch (e: any) {
+    if (e?.code !== "P2002") throw e;
+    // Same create-then-recover race as `ensureNoticingState`: two step-1
+    // commits fired in parallel both find nothing and both insert.
+    return prisma.noticingFrame.update({ where: { userId }, data });
+  }
+}
+
+/**
+ * Mark the day-one frame complete. Idempotent — a double submit is a
+ * double-click, not a second frame. Sets `completedAt` only if it isn't
+ * already set, so a second call can never disagree with the first about
+ * when the frame actually finished.
+ */
+export async function completeNoticingFrame(prisma: PrismaClient, userId: string, locale: Locale) {
+  const frame = await prisma.noticingFrame.findUnique({ where: { userId } });
+  // The frame commits as it goes — a row that doesn't exist yet means beat 1
+  // step 1 never ran, and there is nothing to mark complete.
+  if (!frame) throw new Error("Not found");
+  if (!frame.completedAt) {
+    await prisma.noticingFrame.update({ where: { userId }, data: { completedAt: new Date() } });
+  }
+  return getNoticingState(prisma, userId, locale);
+}
+
 export type NoticingState = {
   contentVersion: string;
   /** The language the *content* came back in — see the note on `reviewStatus`. */
