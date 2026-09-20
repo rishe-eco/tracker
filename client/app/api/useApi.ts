@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import i18n from "../i18n/config";
+import { notifySessionExpired } from "./authSession";
 
 type GraphQLResponse<T> = {
   data: T | null;
@@ -61,6 +62,16 @@ export function useApi<T = any>(
 
         if (json.errors) {
           const message = json.errors[0]?.message || "Unknown error";
+          // The server is the only thing that can tell us a session is over —
+          // an expired token, a rotated secret, or a token naming a user the
+          // database no longer has. Without this, every caller rendered its
+          // own "couldn't load" card and the app went on believing it was
+          // signed in. Matched on the exact string requireAuth throws
+          // (api/src/graphql/auth.ts), not a substring, so a resolver whose
+          // own message happens to mention authorization cannot sign anyone out.
+          if (json.errors.some((e: any) => e?.message === "Unauthorized")) {
+            notifySessionExpired();
+          }
           setError(message);
           lastErrorRef.current = message;
           setLoading(false);

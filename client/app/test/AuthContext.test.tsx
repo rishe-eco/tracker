@@ -16,6 +16,20 @@ function AuthConsumer() {
   );
 }
 
+/**
+ * A live, JWT-shaped token.
+ *
+ * The provider now validates what it reads out of localStorage rather than
+ * trusting any string to be a session (that trust was the expired-token bug:
+ * see authSession.test.tsx), so a bare placeholder is discarded on boot the
+ * same as an expired token would be. These tests are about hydration and
+ * logout, not validity, so they need a token that is actually usable.
+ */
+function liveToken() {
+  const body = btoa(JSON.stringify({ userId: "u1", exp: Math.floor(Date.now() / 1000) + 3600 }));
+  return `header.${body}.signature`;
+}
+
 function renderAuth() {
   return render(
     <AuthProvider>
@@ -49,10 +63,11 @@ describe("AuthContext initial state", () => {
   });
 
   it("reads an existing token from localStorage on mount", async () => {
-    localStorage.setItem("token", "stored-token");
+    const stored = liveToken();
+    localStorage.setItem("token", stored);
     renderAuth();
     await waitFor(() =>
-      expect(screen.getByTestId("token").textContent).toBe("stored-token")
+      expect(screen.getByTestId("token").textContent).toBe(stored)
     );
     expect(screen.getByTestId("isAuthenticated").textContent).toBe("true");
   });
@@ -75,10 +90,11 @@ describe("login()", () => {
 
 describe("logout()", () => {
   it("clears token and sets isAuthenticated=false", async () => {
-    localStorage.setItem("token", "stored-token");
+    const stored = liveToken();
+    localStorage.setItem("token", stored);
     renderAuth();
     await waitFor(() =>
-      expect(screen.getByTestId("token").textContent).toBe("stored-token")
+      expect(screen.getByTestId("token").textContent).toBe(stored)
     );
 
     act(() => {
