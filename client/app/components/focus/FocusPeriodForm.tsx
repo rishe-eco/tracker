@@ -142,7 +142,7 @@ export default function FocusPeriodForm({ mode, period, initial, todayKey, onSav
 
   const pickRow = (p: FocusProject) => (
     <label key={p.id} className="flex items-center gap-2 border-b py-2 text-sm cursor-pointer">
-      <Checkbox checked={selected.includes(p.id)} onCheckedChange={() => toggle(p.id)} />
+      <Checkbox checked={selected.includes(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={p.title} />
       <span className="min-w-0 flex-1">
         <span className="block truncate">{p.title}</span>
         <span className="block truncate text-xs text-muted-foreground">{projectSub(p)}</span>
@@ -210,7 +210,7 @@ export default function FocusPeriodForm({ mode, period, initial, todayKey, onSav
           <div>
             {inPeriod.map((p) => (
               <label key={p.id} className="flex items-center gap-2 border-b py-2 text-sm cursor-pointer">
-                <Checkbox checked={selected.includes(p.id)} onCheckedChange={() => toggle(p.id)} />
+                <Checkbox checked={selected.includes(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={p.title} />
                 <span className="min-w-0 flex-1 truncate">{p.title}</span>
                 {isProjectDone(p) && <Badge className="bg-green-100 text-green-800">{t("focus.done")}</Badge>}
               </label>
