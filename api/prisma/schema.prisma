@@ -159,6 +159,8 @@ model Project {
   // Time Themes: tags seed onto actions created under this project (copy at
   // create, then independently editable — not a live link).
   tags        Tag[]
+  // Focus Periods: the periods that point at this project (join rows cascade).
+  focusPeriods FocusPeriodProject[]
 }
 
 // Conceptual steps for each repetition of an interval (not the same as Action).
@@ -330,6 +332,7 @@ model User {
   noticingFrame       NoticingFrame?
   noticingSittings    NoticingSitting[]
   noticingState       NoticingState?
+  focusPeriods        FocusPeriod[]
 }
 
 /// A personal access token for the public API. The secret is never stored —
@@ -406,6 +409,39 @@ model TimeTheme {
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+}
+
+// ─── Focus Periods ───────────────────────────────────────────────────────────
+// Spec: root-sot/tracker/modules/01-focus-periods/02-spec.md. A Focus Period is
+// a lens, not a container: a one-off, non-overlapping stretch of days that
+// points at a few projects. Its state (upcoming/active/ended) is derived from
+// today's date, never stored. The join is an explicit model (not an implicit
+// m2m) because it must keep `addedAt`, the order projects were added in.
+
+model FocusPeriod {
+  id             String               @id @default(uuid())
+  title          String
+  startDate      DateTime // UTC midnight of a YYYY-MM-DD, inclusive
+  endDate        DateTime // UTC midnight, inclusive
+  lookbackAnswer String? // "oriented" | "behind"
+  lookbackSeenAt DateTime?
+  projects       FocusPeriodProject[]
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId, startDate])
+}
+
+model FocusPeriodProject {
+  focusPeriodId String
+  projectId     String
+  addedAt       DateTime    @default(now())
+  focusPeriod   FocusPeriod @relation(fields: [focusPeriodId], references: [id], onDelete: Cascade)
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([focusPeriodId, projectId])
 }
 
 // ─── Skill tools: Clarity Lab / Evidence Lab ────────────────────────────────
