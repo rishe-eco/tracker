@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getGoalStatus, isProjectDoneForGoal } from "~/components/goals/GoalPreview";
+import { getGoalStatus, goalStatusKey, isProjectDoneForGoal } from "~/components/goals/GoalPreview";
 
 const PAST = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);  // 30 days ago
 const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
@@ -80,5 +80,19 @@ describe("isProjectDoneForGoal", () => {
 
   it("returns false when done is undefined", () => {
     expect(isProjectDoneForGoal({})).toBe(false);
+  });
+});
+
+describe("goalStatusKey", () => {
+  it("maps each computed status to its translation key", () => {
+    expect(goalStatusKey("Done")).toBe("statusDone");
+    expect(goalStatusKey("In Progress")).toBe("statusInProgress");
+    expect(goalStatusKey("Backlog")).toBe("statusBacklog");
+    expect(goalStatusKey("TBD")).toBe("statusTbd");
+    expect(goalStatusKey("Ignored")).toBe("statusIgnored");
+  });
+
+  it("has no key for a goal group (B-15: it used to fall through to Ignored)", () => {
+    expect(goalStatusKey("GoalGroup")).toBeNull();
   });
 });

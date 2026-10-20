@@ -11,3 +11,6 @@ Thumbs.db
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/worktrees/
+
+# Lane reports and suite logs (lifecycle); never content.
+.tmp/

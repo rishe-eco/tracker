@@ -76,7 +76,8 @@ export const typeResolvers = {
     },
     milestone: (parent: any, _: any, ctx: any) =>
       parent.milestoneId
-        ? ctx.prisma.milestone.findUnique({
+        ? parent.milestone ??
+          ctx.prisma.milestone.findUnique({
             where: { id: parent.milestoneId },
           })
         : null,
@@ -175,6 +176,10 @@ export const typeResolvers = {
   },
 
   Milestone: {
+    // A Project under a milestone has goalId = null (Convention 3, xor), so its
+    // goal is only reachable here. Without this the non-null field errored.
+    goal: async (parent: any, _: any, ctx: any) =>
+      parent.goal ?? ctx.prisma.goal.findUnique({ where: { id: parent.goalId } }),
     childGoals: async (parent: any, _: any, ctx: any) => {
       if (parent.childGoals != null) return parent.childGoals;
       return ctx.prisma.goal.findMany({
@@ -326,6 +331,32 @@ export const typeResolvers = {
       const withTags = await ctx.prisma.timeTheme.findUnique({ where: { id: parent.id }, select: { tags: true } });
       return withTags?.tags ?? [];
     },
+  },
+
+  FocusPeriod: {
+    startDate: (parent: any) => new Date(parent.startDate).toISOString().slice(0, 10),
+    endDate: (parent: any) => new Date(parent.endDate).toISOString().slice(0, 10),
+    lookbackSeenAt: (parent: any) =>
+      parent.lookbackSeenAt != null ? new Date(parent.lookbackSeenAt).toISOString() : null,
+    // In the order they were added. Loads what the card needs (actions, goal,
+    // milestone and its goal) so the Project resolvers use it as loaded.
+    projects: async (parent: any, _: any, ctx: any) => {
+      const links = await ctx.prisma.focusPeriodProject.findMany({
+        where: { focusPeriodId: parent.id },
+        orderBy: [{ addedAt: "asc" }, { projectId: "asc" }],
+        include: {
+          project: {
+            include: { actions: true, goal: true, milestone: { include: { goal: true } } },
+          },
+        },
+      });
+      return links.map((l: any) => l.project);
+    },
+  },
+
+  FocusPeriodRange: {
+    startDate: (parent: any) => new Date(parent.startDate).toISOString().slice(0, 10),
+    endDate: (parent: any) => new Date(parent.endDate).toISOString().slice(0, 10),
   },
 
   User: {
