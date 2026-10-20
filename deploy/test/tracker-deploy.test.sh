@@ -199,6 +199,26 @@ expect_not_called "reload"
 [ "$(cat "$ROOT/api/data/prod.db")" = "the database" ] || bad "the database file was touched"
 ok
 
+CASE="a sparse checkout, as on the box (deploy/ not on disk), still runs the commit's checks"
+fresh_box
+git -C "$ROOT" sparse-checkout set api
+[ ! -e "$ROOT/deploy" ] || bad "setup: deploy/ is still on disk"
+C1=$(commit "app change" api/src/index.ts "v2")
+stream "$C1"
+deploy
+expect_code 0
+expect_out "DEPLOYED $C1"
+expect_called "checks $ROOT/current"
+expect_clean_tree
+ok
+
+# Back to a full checkout for the cases below, which reuse this box.
+fresh_box
+C1=$(commit "app change" api/src/index.ts "v2")
+stream "$C1"
+deploy
+[ "$CODE" = 0 ] || bad "the first deploy failed"
+
 CASE="a re-run of the same commit deploys again, and says the checkout was current"
 stream "$C1"
 deploy

@@ -256,8 +256,9 @@ prune "$ROOT/releases" "$KEEP_RELEASES" '^[0-9]' "$(basename "$(readlink "$ROOT/
 
 # ── 12. The checks, as an unprivileged user ──
 # Repository code runs here, so it runs without any right of its own. They live in the repo, so a
-# new check needs no reinstall of this script.
-"$RUNUSER" -u "$CHECK_USER" -- "$BASH_BIN" "$DIR/deploy/checks.sh" "$ROOT/current" \
+# new check needs no reinstall of this script. They are read from the commit, not the working
+# tree: the box's checkout is sparse (api/ and client/ only), so deploy/ is not on disk there.
+git_ show "$SHA:deploy/checks.sh" | "$RUNUSER" -u "$CHECK_USER" -- "$BASH_BIN" -s "$ROOT/current" \
   || die "step checks: deploy/checks.sh failed (see the FAILED line above); the site is left on the new release"
 
 # ── 13. The verdict ──

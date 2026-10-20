@@ -25,7 +25,7 @@ Nginx proxies `/graphql` to the container.
 
 | | |
 |---|---|
-| Checkout | `/opt/stacks/tracker`, a clone of `main`, owned by **root**. `git` there needs `sudo` |
+| Checkout | `/opt/stacks/tracker`, a clone of `main`, owned by **root**. `git` there needs `sudo`. It is **sparse**: only `api/` and `client/` are on disk, so `deploy/` is read from the commit with `git show` |
 | API | `api/docker-compose.yml`, run from `/opt/stacks/tracker/api`. The project name comes from the directory, `api`, so the container is `api-api-1`, on `127.0.0.1:4000` |
 | API environment | `/opt/stacks/tracker/api/.env` (`JWT_SECRET`, `CORS_ORIGINS`, the Anthropic key), read by Compose. `DATABASE_URL` is not in it: the compose file sets it to `file:/app/data/prod.db` |
 | Database | `/opt/stacks/tracker/api/data/prod.db`, the container's `/app/data`. Pre-migration backups are in `api/data/backups/` |
@@ -143,8 +143,10 @@ What to do for each exit 2:
 - **`api/.env.example` changed.** Read the diff the same way, add what the new
   lines need to `/opt/stacks/tracker/api/.env`, then `sudo git pull --ff-only`,
   then **Run workflow**.
-- **The installed script differs from the commit's.** `sudo git pull --ff-only`,
-  reinstall it (*Server setup for CI*, step 6), then **Run workflow**.
+- **The installed script differs from the commit's.** Reinstall it from the
+  fetched `main` (*Server setup for CI*, steps 1 and 6), then **Run workflow**.
+  Don't pull: the run moves the checkout, and a pull would hide a migration
+  from the backup step.
 
 Each of these names everything it found in one run, so fix all of them before
 re-running.
@@ -187,8 +189,11 @@ the new checkout, so a change that adds a check edits that file in its own
 diff, and nobody reinstalls the root script. By hand, on the box:
 
 ```bash
-bash /opt/stacks/tracker/deploy/checks.sh /opt/stacks/tracker/current
+sudo git -C /opt/stacks/tracker show HEAD:deploy/checks.sh | sudo runuser -u nobody -- bash -s /opt/stacks/tracker/current
 ```
+
+The checkout is sparse, so `deploy/` isn't on disk there; the file is read from
+the commit.
 
 An optional second argument is the origin (default
 `https://tracker.m-root.com`). It stops at the first failure and prints
@@ -242,10 +247,14 @@ and the commit, and takes no backup.
    its `root` line to `root /opt/stacks/tracker/current;`, then:
    ```bash
    sudo nginx -t && sudo systemctl reload nginx
+   sudo nginx -T 2>/dev/null | grep -E '^\s*(server_name|root)\s'
    sudo git -C /opt/stacks/tracker show FETCH_HEAD:deploy/checks.sh | sudo runuser -u nobody -- bash -s /opt/stacks/tracker/current
    ```
-   The last line ends `checks passed`. The site is unchanged; only its path is
-   new.
+   In the `nginx -T` output, every `root` line after `server_name
+   tracker.m-root.com` must read `root /opt/stacks/tracker/current;`. **That
+   line is the only proof of the switch.** The checks pass either way here,
+   because the first release is a copy of the old root. The last line ends
+   `checks passed`. The site is unchanged; only its path is new.
 
 3. **The key pair, on your own machine, never on the box and never in the
    repository.** It has no passphrase, because CI cannot type one:
@@ -282,9 +291,9 @@ and the commit, and takes no backup.
    sudo chown root:root /usr/local/sbin/tracker-deploy
    sudo chmod 0755 /usr/local/sbin/tracker-deploy
    ```
-   Later, to reinstall it after a change (exit 2 says when), pull first and
-   install from the checkout:
-   `sudo install -o root -g root -m 0755 /opt/stacks/tracker/deploy/tracker-deploy.sh /usr/local/sbin/tracker-deploy`.
+   Later, to reinstall it after a change (exit 2 says when): the `fetch` from
+   step 1, then these same three lines. The checkout is sparse, so the file
+   isn't on disk there.
 
 7. **The sudoers line.** A broken file in `/etc/sudoers.d/` breaks `sudo` for
    everyone on the box, so write it to a temporary file, check it with
