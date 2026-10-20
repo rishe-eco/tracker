@@ -7,6 +7,7 @@ import {
   groupForPicker,
   isProjectDone,
   openActions,
+  parseMinutes,
   projectContext,
   projectProgress,
   type FocusAction,
@@ -132,6 +133,18 @@ describe("groupForPicker", () => {
     const g = groupForPicker([inRange], "2026-10-05", "", "");
     expect(g.scheduled).toEqual([]);
     expect(g.other.map((p) => p.id)).toEqual(["in"]);
+  });
+});
+
+describe("parseMinutes (the server takes 0–1440, whole)", () => {
+  it("accepts whole numbers in range, including 0 and 1440", () => {
+    expect(parseMinutes("0")).toBe(0);
+    expect(parseMinutes(" 30 ")).toBe(30);
+    expect(parseMinutes("1440")).toBe(1440);
+  });
+
+  it("refuses empty, fractional, negative, over-range and non-numeric text", () => {
+    for (const bad of ["", "  ", "1.5", "-5", "1441", "abc", "3e2"]) expect(parseMinutes(bad)).toBeNull();
   });
 });
 

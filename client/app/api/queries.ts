@@ -3052,3 +3052,10 @@ export const DELETE_FOCUS_PERIOD = `
     deleteFocusPeriod(id: $id)
   }
 `;
+
+/** `answer` is "oriented", "behind" or null (dismissed); `dateKey` is the client's today. */
+export const RECORD_FOCUS_LOOKBACK = `
+  mutation RecordFocusLookback($id: ID!, $answer: String, $dateKey: String!) {
+    recordFocusLookback(id: $id, answer: $answer, dateKey: $dateKey) { id lookbackAnswer lookbackSeenAt }
+  }
+`;
