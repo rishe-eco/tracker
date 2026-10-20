@@ -17,7 +17,7 @@ cd api && npm install && npx prisma generate     # then: cd client && npm instal
 ./run-dev.sh                                     # both dev servers; run-dev.cmd on Windows
 cd api && npx vitest run <files>                 # API unit and integration, targeted
 cd client && npx vitest run <files>              # component tests, useApi mocked
-cd client && npm run typecheck && npm run i18n:check-missing && npm run i18n:check-hardcoded
+cd client && npx tsc --noEmit && npm run i18n:check-missing && npm run i18n:check-hardcoded
 cd client && npx playwright test <spec> -g <name>
 ```
 
