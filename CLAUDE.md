@@ -29,6 +29,7 @@ The full suites (`npm test` in each, `npm run test:e2e`) run at milestones, one 
 - **SQLite, no Docker.** API tests push a fresh `api/prisma/test.db` per checkout. Integration tests take 5–10 s each; that's the disk, not a hang.
 - **e2e isn't isolated yet.** The API URL (`localhost:4000`) and the web port (`5173`) are fixed, Playwright reuses a running server, and the e2e signs up its users in the running API's **dev database**. Run one e2e at a time per machine, and know which database it writes to.
 - **The Playwright config asks for Edge** (`channel: "msedge"`). On a machine with only Chrome, e2e won't start.
+- **CI and deploys:** every pull request runs `.github/workflows/ci.yml` (API build and vitest, the migrations-build-the-schema check, client `tsc --noEmit`, both i18n checks, vitest and build). **A push to `main` deploys** to the VPS while the repository variable `DEPLOY_ENABLED` is `true`; the runbook is `deploy/README.md`. A new `api/.env` line goes onto the box by hand before the push that needs it.
 - **After a schema change:** `npx prisma migrate dev --name <change>`, then update `01-data-model.md` and add a migration note to root-sot's `tracker/decisions/decision-log.md` (convention 12).
 
 ## Easy to get wrong
