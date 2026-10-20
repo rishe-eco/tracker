@@ -53,6 +53,20 @@ export type FocusPeriodRange = { id: string; title: string; startDate: string; e
 
 export const NEXT_ACTIONS_SHOWN = 3;
 
+/** The server's cap on an action's estimate (24 hours); the floor is 0. */
+export const MAX_MINUTES = 1440;
+
+/**
+ * Minutes typed into the reschedule popover or the add form: a whole number
+ * from 0 to 1440, or null when it isn't one (an empty field is null, not 0).
+ */
+export function parseMinutes(text: string): number | null {
+  const s = text.trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n <= MAX_MINUTES ? n : null;
+}
+
 /** Whole days from `fromKey` to `toKey` (negative when `toKey` is earlier). */
 export function daysBetween(fromKey: string, toKey: string): number {
   const [fy, fm, fd] = fromKey.split("-").map(Number);

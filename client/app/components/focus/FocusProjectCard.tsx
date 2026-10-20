@@ -107,6 +107,7 @@ export default function FocusProjectCard({
                   checked={false}
                   disabled={!onComplete}
                   onCheckedChange={() => onComplete?.(a)}
+                  onClick={(e) => e.stopPropagation()}
                   aria-label={a.title}
                 />
                 <Link to={`/activities/action/${a.id}`} className="min-w-0 flex-1 truncate hover:underline">
@@ -116,7 +117,10 @@ export default function FocusProjectCard({
                   <button
                     type="button"
                     className="shrink-0 rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-                    onClick={() => onDayClick(a)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDayClick(a);
+                    }}
                   >
                     {a.tbd ? fmt(parseDateOnly(a.tbd), "weekdayShortDayMonth") : t("focus.noDay")}
                   </button>
