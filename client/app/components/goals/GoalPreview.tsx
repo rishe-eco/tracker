@@ -53,6 +53,24 @@ export function getGoalStatus(props: GoalPreviewProps): string {
   return "In Progress";
 }
 
+/** The `goalManage.*` translation key for a status, or null for a goal group, which has none. */
+export function goalStatusKey(status: string): string | null {
+  switch (status) {
+    case "Done":
+      return "statusDone";
+    case "In Progress":
+      return "statusInProgress";
+    case "Backlog":
+      return "statusBacklog";
+    case "TBD":
+      return "statusTbd";
+    case "Ignored":
+      return "statusIgnored";
+    default:
+      return null;
+  }
+}
+
 function getStatusColor(status: string): string {
   switch (status) {
     case "Backlog":
@@ -105,8 +123,8 @@ export default function GoalPreview(props: GoalPreviewProps) {
 
   const statusRaw = getGoalStatus(props);
   const statusColor = getStatusColor(statusRaw);
-  const statusKey = statusRaw === "Done" ? "statusDone" : statusRaw === "In Progress" ? "statusInProgress" : statusRaw === "Backlog" ? "statusBacklog" : statusRaw === "TBD" ? "statusTbd" : "statusIgnored";
-  const status = t(`goalManage.${statusKey}`);
+  const statusKey = goalStatusKey(statusRaw);
+  const status = statusKey ? t(`goalManage.${statusKey}`) : null;
   const currentProject = getCurrentProject(projects);
   const nextProject = firstTbdProject;
   const nextMilestone = milestones?.length ? milestones[0] : undefined;
