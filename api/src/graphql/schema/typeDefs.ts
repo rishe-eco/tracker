@@ -241,6 +241,49 @@ export const typeDefs = gql`
     tagIds: [ID!]!
   }
 
+  """
+  Focus Periods: a lens, not a container. A one-off, non-overlapping stretch of
+  days (inclusive, YYYY-MM-DD) that points at a few projects; removing a project
+  or deleting the period never touches the project. Its state (upcoming, active,
+  ended) is derived from today's date and never stored.
+  """
+  type FocusPeriod {
+    id: ID!
+    title: String!
+    startDate: String!
+    endDate: String!
+    "oriented, behind, or null."
+    lookbackAnswer: String
+    "ISO timestamp; null until the look-back has been answered or dismissed."
+    lookbackSeenAt: String
+    "In the order they were added, with actions, goal and milestone (and its goal) loaded."
+    projects: [Project!]!
+  }
+
+  type FocusOverview {
+    "The most recent ended period, only if its look-back hasn't been seen."
+    lookback: FocusPeriod
+    "The period containing dateKey."
+    active: FocusPeriod
+    "The earliest period starting after dateKey."
+    upcoming: FocusPeriod
+  }
+
+  "Just enough of a period for the form to name an overlap."
+  type FocusPeriodRange {
+    id: ID!
+    title: String!
+    startDate: String!
+    endDate: String!
+  }
+
+  input FocusPeriodInput {
+    title: String!
+    startDate: String!
+    endDate: String!
+    projectIds: [ID!]!
+  }
+
   type Note {
     id: ID!
     entityType: String!
@@ -2155,6 +2198,11 @@ export const typeDefs = gql`
     "Time Themes: active themes whose recurrence resolves an occurrence on dateKey (YYYY-MM-DD)."
     timeThemesForDate(dateKey: String!): [TimeTheme!]!
 
+    "Focus Periods: look-back, active and upcoming periods for dateKey (the client's today, YYYY-MM-DD), each nullable."
+    focusOverview(dateKey: String!): FocusOverview!
+    "Focus Periods: every period's id, title and dates, for the form's overlap check."
+    focusPeriodRanges: [FocusPeriodRange!]!
+
     "Evidence Lab: the six modules with this learner's state on each."
     skillModules(skillKey: SkillKey!): [SkillModule!]!
     "Evidence Lab: scores, behaviour metrics, and content-readiness for the progress surface."
@@ -2904,6 +2952,15 @@ export const typeDefs = gql`
     updateTimeTheme(id: ID!, input: TimeThemeInput!): TimeTheme!
     setTimeThemeStatus(id: ID!, status: IntervalStatus!): TimeTheme!
     deleteTimeTheme(id: ID!): Boolean!
+
+    "Focus Periods: rejects end before start, any shared day with another period, finished or foreign projects, and more than 30 projects."
+    createFocusPeriod(input: FocusPeriodInput!): FocusPeriod!
+    "Full replace (title, dates, projectIds). Projects already in the period are kept even if finished; only newly added ones are checked."
+    updateFocusPeriod(id: ID!, input: FocusPeriodInput!): FocusPeriod!
+    "Deletes the period only; its projects and their actions are untouched."
+    deleteFocusPeriod(id: ID!): Boolean!
+    "answer is oriented, behind, or null (dismissed). Only once the period has ended before dateKey."
+    recordFocusLookback(id: ID!, answer: String, dateKey: String!): FocusPeriod!
 
     register(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
