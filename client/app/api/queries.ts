@@ -2989,3 +2989,73 @@ export const DELETE_TIME_THEME = `
     deleteTimeTheme(id: $id)
   }
 `;
+
+// ---- Focus Periods ----
+
+const FOCUS_PROJECT_FIELDS = `
+  id
+  title
+  startDate
+  endDate
+  actions { id title done tbd createdAt actionFate estimatedTimeMinutes }
+  goal { id title }
+  milestone { id title goal { id title } }
+`;
+
+const FOCUS_PERIOD_FIELDS = `
+  id
+  title
+  startDate
+  endDate
+  lookbackAnswer
+  lookbackSeenAt
+  projects { ${FOCUS_PROJECT_FIELDS} }
+`;
+
+export const GET_FOCUS_OVERVIEW = `
+  query GetFocusOverview($dateKey: String!) {
+    focusOverview(dateKey: $dateKey) {
+      lookback { ${FOCUS_PERIOD_FIELDS} }
+      active { ${FOCUS_PERIOD_FIELDS} }
+      upcoming { ${FOCUS_PERIOD_FIELDS} }
+    }
+  }
+`;
+
+export const GET_FOCUS_PERIOD_RANGES = `
+  query GetFocusPeriodRanges {
+    focusPeriodRanges { id title startDate endDate }
+  }
+`;
+
+/** The project picker's list: every project, with what the picker groups and labels by. */
+export const GET_FOCUS_PICKER_PROJECTS = `
+  query GetFocusPickerProjects {
+    projects { ${FOCUS_PROJECT_FIELDS} }
+  }
+`;
+
+export const CREATE_FOCUS_PERIOD = `
+  mutation CreateFocusPeriod($input: FocusPeriodInput!) {
+    createFocusPeriod(input: $input) { id }
+  }
+`;
+
+export const UPDATE_FOCUS_PERIOD = `
+  mutation UpdateFocusPeriod($id: ID!, $input: FocusPeriodInput!) {
+    updateFocusPeriod(id: $id, input: $input) { id }
+  }
+`;
+
+export const DELETE_FOCUS_PERIOD = `
+  mutation DeleteFocusPeriod($id: ID!) {
+    deleteFocusPeriod(id: $id)
+  }
+`;
+
+/** `answer` is "oriented", "behind" or null (dismissed); `dateKey` is the client's today. */
+export const RECORD_FOCUS_LOOKBACK = `
+  mutation RecordFocusLookback($id: ID!, $answer: String, $dateKey: String!) {
+    recordFocusLookback(id: $id, answer: $answer, dateKey: $dateKey) { id lookbackAnswer lookbackSeenAt }
+  }
+`;

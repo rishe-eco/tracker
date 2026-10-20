@@ -3,6 +3,7 @@ const BOTTOM_NAV_PATHS = new Set([
   "/",
   "/today",
   "/calendar",
+  "/focus",
   "/tools",
   "/activities",
   "/settings",

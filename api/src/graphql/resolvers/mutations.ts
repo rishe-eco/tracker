@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { ensureOwned, requireAuth, signToken, SALT_ROUNDS } from "../auth";
 import { runActionGathering } from "../../services/actionGathering";
 import { isValidTagColor } from "../../services/tags";
+import { createFocusPeriod, recordLookback, updateFocusPeriod } from "../../services/focusPeriods";
 import { generateToken } from "../../services/apiTokens";
 import {
   ensureProfile,
@@ -876,6 +877,32 @@ mutations.deleteTimeTheme = requireAuth(async (_, { id }: any, ctx) => {
   // never bound to it (time-themes.md §8).
   await ctx.prisma.timeTheme.delete({ where: { id } });
   return true;
+});
+
+// ---- Focus Periods (rules live in services/focusPeriods.ts) ----
+
+mutations.createFocusPeriod = requireAuth(async (_, { input }: any, ctx) =>
+  createFocusPeriod(ctx.prisma, ctx.user.id, input)
+);
+
+mutations.updateFocusPeriod = requireAuth(async (_, { id, input }: any, ctx) => {
+  const existing = await ctx.prisma.focusPeriod.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  return updateFocusPeriod(ctx.prisma, ctx.user.id, id, input);
+});
+
+mutations.deleteFocusPeriod = requireAuth(async (_, { id }: any, ctx) => {
+  const existing = await ctx.prisma.focusPeriod.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  // Deletes the join rows (cascade) and nothing else: a period only points at projects.
+  await ctx.prisma.focusPeriod.delete({ where: { id } });
+  return true;
+});
+
+mutations.recordFocusLookback = requireAuth(async (_, { id, answer, dateKey }: any, ctx) => {
+  const existing = await ctx.prisma.focusPeriod.findUnique({ where: { id } });
+  ensureOwned(existing, ctx);
+  return recordLookback(ctx.prisma, existing, answer, dateKey);
 });
 
 mutations.toggleAction = requireAuth(async (_, { id }: any, ctx) => {

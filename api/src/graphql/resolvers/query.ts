@@ -7,6 +7,7 @@ import { getDecompositionModules, getDecompositionProgress } from "../../service
 import { getVerificationModules, getVerificationProgress } from "../../services/skills/verification/verificationSession";
 import { getDelegationModules, getDelegationProgress } from "../../services/skills/delegation/delegationSession";
 import { getMonitoringModules, getMonitoringProgress } from "../../services/skills/monitoring/monitoringSession";
+import { getOverview as getFocusOverview, listRanges as listFocusPeriodRanges } from "../../services/focusPeriods";
 import { getSkillsOverview } from "../../services/skills/overview";
 import { getPlan } from "../../services/skills/planning";
 import { exportSkillData, getDueSkillProbes, getSkillProbe } from "../../services/skills/probes";
@@ -318,6 +319,13 @@ export const queryResolvers = {
     });
     return themes.filter((t: any) => intervalOccursOnDate(t, dateKey));
   }),
+
+  // Focus Periods: the client sends its own today (PD-2); the rules live in the service.
+  focusOverview: requireAuth((_, { dateKey }: any, ctx) =>
+    getFocusOverview(ctx.prisma, ctx.user.id, dateKey)
+  ),
+
+  focusPeriodRanges: requireAuth((_, __, ctx) => listFocusPeriodRanges(ctx.prisma, ctx.user.id)),
 
   skillModules: requireAuth(async (_, { skillKey }: any, ctx) => {
     assertEvidence(skillKey);

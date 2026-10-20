@@ -8,7 +8,7 @@ import InternalPageLayout from "~/layout/InternalPageLayout";
 import ModuleIntroOverlay from "~/components/onboarding/ModuleIntroOverlay";
 import ProjectPreview, { type ProjectPreviewProps } from "../projects/ProjectPreview";
 import MilestonePreview from "../milestones/MilestonePreview";
-import { getGoalStatus, isProjectDoneForGoal } from "./GoalPreview";
+import { getGoalStatus, goalStatusKey, isProjectDoneForGoal } from "./GoalPreview";
 import { useApi } from "~/api/useApi";
 import { DELETE_GOAL, DELETE_MILESTONE, DELETE_PROJECT, GET_GOAL, GET_GOALS, GET_INTERVALS, GET_PROJECTS, UPDATE_GOAL, UPDATE_INTERVAL, UPDATE_MILESTONE, UPDATE_PROJECT, SAVE_DOD_CLARITY } from "~/api/queries";
 import { parseDateOnly } from "~/utils/dateUtils";
@@ -514,8 +514,8 @@ export default function ManageGoalPage() {
   const total = allProjects.length;
   const done = allProjects.filter((p) => isProjectDoneForGoal(p)).length;
   const statusRaw = getGoalStatus({ ...goal, projects: allProjects });
-  const statusKey = statusRaw === "Done" ? "statusDone" : statusRaw === "In Progress" ? "statusInProgress" : statusRaw === "Backlog" ? "statusBacklog" : statusRaw === "TBD" ? "statusTbd" : "statusIgnored";
-  const status = t(`goalManage.${statusKey}`);
+  const statusKey = goalStatusKey(statusRaw);
+  const status = statusKey ? t(`goalManage.${statusKey}`) : null;
 
   const storyItems: StoryItem[] = [
     ...goal.projects.map((p: ParsedProject) => ({
@@ -563,7 +563,11 @@ export default function ManageGoalPage() {
             displayClassName="text-2xl font-bold flex-1 min-w-0"
             inputClassName="text-2xl font-bold"
           />
-          <Badge variant="outline">{status}</Badge>
+          {status ? (
+            <Badge variant="outline">{status}</Badge>
+          ) : (
+            <Badge variant="secondary">{t("goalsList.goalGroup")}</Badge>
+          )}
         </div>
         <Button
           type="button"
