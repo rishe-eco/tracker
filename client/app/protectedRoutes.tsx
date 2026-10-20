@@ -8,6 +8,7 @@ import TagManagerPage from "./components/tags/TagManagerPage";
 import TimeThemesListPage from "./components/timeThemes/TimeThemesListPage";
 import TimeThemeForm from "./components/timeThemes/TimeThemeForm";
 import TodayPage from "./components/today/TodayPage";
+import FocusPage from "./components/focus/FocusPage";
 import ActionsListPage from "./components/actions/ActionsListPage";
 import ActionForm from "./components/actions/ActionForm";
 import ProjectsListPage from "./components/projects/ProjectsListPage";
@@ -206,6 +207,10 @@ export default [
   {
     path: "/today",
     element: <TodayPage />,
+  },
+  {
+    path: "/focus",
+    element: <FocusPage />,
   },
   {
     path: "/activities/actions",
