@@ -14,3 +14,8 @@ Thumbs.db
 
 # Lane reports and suite logs (lifecycle); never content.
 .tmp/
+
+# The box's web releases and the link to the live one (deploy/tracker-deploy.sh); never content.
+/releases/
+/current
+/.current.tmp

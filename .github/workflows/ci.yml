@@ -1,0 +1,75 @@
+# The checks: on every pull request, and called by deploy.yml on every push to main, so what
+# deploys is what passed here. There is no Playwright: e2e asks for Edge and the dev database,
+# and stays on the founder's machine (CLAUDE.md).
+# The repo is public, so this log is public: nothing below needs or prints a secret.
+name: ci
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # The API image's base is node:24-alpine (api/Dockerfile).
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      # The container runs `prisma migrate deploy` at boot, so a schema change with no migration
+      # would deploy as no change at all (convention 12). The migrations must build the schema.
+      - name: The migrations build schema.prisma
+        run: >-
+          npx prisma migrate diff --exit-code
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --shadow-database-url "file:$RUNNER_TEMP/shadow.db"
+      # The image's build step, so a type error fails here and not on the box.
+      - run: npm run build
+      # Unit and integration, against a fresh prisma/test.db (src/test/globalSetup.ts).
+      - run: npm test
+        env:
+          TZ: UTC
+
+  client:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      # A plain `npm ci` fails with ERESOLVE on the client's peer ranges.
+      - run: npm ci --legacy-peer-deps
+      # Not `npm run typecheck`: its `react-router typegen` step fails on this app. tsc is the
+      # check.
+      - run: npx tsc --noEmit
+      - run: npm run i18n:check-missing
+      - run: npm run i18n:check-hardcoded
+      - run: npm test
+      # The same build the deploy job ships (VITE_API_URL comes from .env.production), so a
+      # broken build fails here, before anything deploys.
+      - run: npm run build
+
+  deploy-script:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The runner image ships shellcheck. The deploy script runs as root on a shared box.
+      - run: shellcheck deploy/tracker-deploy.sh deploy/checks.sh deploy/test/tracker-deploy.test.sh
+      - run: bash deploy/test/tracker-deploy.test.sh
