@@ -22,6 +22,9 @@ export async function clearDb() {
     prisma.interval.deleteMany(),
     prisma.routineStep.deleteMany(),
     prisma.routine.deleteMany(),
+    // Focus Periods: join rows first, then periods, before projects and users.
+    prisma.focusPeriodProject.deleteMany(),
+    prisma.focusPeriod.deleteMany(),
     prisma.project.deleteMany(),
     // Goals self-reference via parentGoalId — clear children first by nulling the FK
     prisma.goal.updateMany({ data: { parentGoalId: null, parentMilestoneId: null } }),
