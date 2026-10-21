@@ -9,7 +9,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const API_SRC = resolve(__dirname, "..");
@@ -51,7 +51,33 @@ function sourceFiles(dir: string): Array<[string, string]> {
   });
 }
 
-const TEXT_FIELDS = ["scene", "story", "close", "whenText", "feeling", "need", "reading", "camera"];
+/**
+ * The files `roots` import, followed through relative imports to the end, roots
+ * included. AC-45 is about a code path, and the app's one model call sits behind
+ * a wrapper (`services/skills/clarity/anthropicJudge.ts`) whose import names
+ * neither the SDK nor the key, so reading Reflect's own files is not enough.
+ */
+function importClosure(roots: Array<[string, string]>): Map<string, string> {
+  const seen = new Map<string, string>(roots);
+  const queue = roots.map(([p]) => p);
+  const spec = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["'](\.[^"']*)["']/g;
+  while (queue.length) {
+    const file = queue.shift()!;
+    for (const m of seen.get(file)!.matchAll(spec)) {
+      const base = resolve(dirname(file), m[1].replace(/\.js$/, ""));
+      const hit = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]
+        .map((ext) => base + ext)
+        .find((p) => existsSync(p) && statSync(p).isFile());
+      if (hit && !seen.has(hit)) {
+        seen.set(hit, readFileSync(hit, "utf8"));
+        queue.push(hit);
+      }
+    }
+  }
+  return seen;
+}
+
+const TEXT_FIELDS =["scene", "story", "close", "whenText", "feeling", "need", "reading", "camera"];
 const FORBIDDEN_RELATIONS = ["Journal", "Goal", "Project", "JournalAccess"];
 
 /** Violations of the schema half, over a block of text. Empty when the block holds. */
@@ -147,17 +173,24 @@ describe("the schema fence (AC-5, AC-44)", () => {
 });
 
 describe("the imports fence (AC-45, AC-28)", () => {
-  it("no Reflect service or content file imports the Anthropic SDK or reads its key", () => {
+  it("no Reflect service or content file, nor any file it imports, uses the Anthropic SDK or reads its key", () => {
     const files = [
       ...sourceFiles(join(API_SRC, "services/reflect")),
       ...sourceFiles(join(API_SRC, "content/reflect")),
     ];
     // The content pack exists, so an empty list means the walk is broken.
     expect(files.length).toBeGreaterThan(0);
-    const offenders = files
+    // Every file a Reflect file reaches through its imports, not only its own.
+    const offenders = [...importClosure(files)]
       .filter(([, text]) => /@anthropic-ai\//.test(text) || /ANTHROPIC/.test(text))
       .map(([p]) => p);
     expect(offenders).toEqual([]);
+  });
+
+  it("the import walk reaches a model call behind a wrapper (a guard on the guard)", () => {
+    const session = join(API_SRC, "services/skills/clarity/claritySession.ts");
+    const reached = [...importClosure([[session, readFileSync(session, "utf8")]]).keys()];
+    expect(reached).toContain(join(API_SRC, "services/skills/clarity/anthropicJudge.ts"));
   });
 
   it("no file under client/app imports Reflect's content pack (the lexicon never reaches a browser)", () => {
