@@ -59,9 +59,10 @@ function schemaViolations(section: string): string[] {
   const out: string[] = [];
   const lines = section.split("\n");
 
-  // No index or unique key over a text column (AC-5). An attribute lists its columns in `[...]`.
+  // No index or unique key over a text column (AC-5). An attribute lists its columns in `[...]`,
+  // positionally or as `fields: [...]`; a compound `@@id` is a unique key too.
   for (const l of lines) {
-    const m = l.match(/@@(index|unique)\(\s*\[([^\]]*)\]/);
+    const m = l.match(/@@(index|unique|id)\(\s*(?:fields\s*:\s*)?\[([^\]]*)\]/);
     if (!m) continue;
     const cols = m[2].split(",").map((c) => c.trim().replace(/\(.*$/, ""));
     for (const c of cols) if (TEXT_FIELDS.includes(c)) out.push(`@@${m[1]} on ${c}: ${l.trim()}`);
@@ -81,6 +82,12 @@ function schemaViolations(section: string): string[] {
   for (const l of lines) {
     const m = l.match(/^\s*\w+\s+(\w+)(\[\]|\?)?(\s|$)/);
     if (m && FORBIDDEN_RELATIONS.includes(m[1])) out.push(`relation to ${m[1]}: ${l.trim()}`);
+  }
+  // Nor the same link as a bare id column, with no relation line to give it away.
+  for (const l of lines) {
+    const m = l.match(/^\s*(\w+)Id\s+\S/);
+    const target = m && FORBIDDEN_RELATIONS.find((r) => r.toLowerCase() === m[1].toLowerCase());
+    if (target) out.push(`relation to ${target} (an id column): ${l.trim()}`);
   }
   return out;
 }
@@ -123,6 +130,14 @@ describe("the schema fence (AC-5, AC-44)", () => {
     expect(schemaViolations("  story String? @unique\n")).toHaveLength(1);
     expect(schemaViolations("  journal Journal @relation(fields: [journalId], references: [id])\n")).toHaveLength(1);
     expect(schemaViolations("  goals Goal[]\n")).toHaveLength(1);
+    // Prisma's named-argument form is the same index, and a bare id column is
+    // the same link without the relation line (both found at verify B1).
+    expect(schemaViolations("  @@index(fields: [story])\n")).toHaveLength(1);
+    expect(schemaViolations("  @@unique(fields: [entryId, reading], name: \"x\")\n")).toHaveLength(1);
+    expect(schemaViolations("  @@id([scene])\n")).toHaveLength(1);
+    expect(schemaViolations("  journalId String?\n")).toHaveLength(1);
+    expect(schemaViolations("  goalId    String\n")).toHaveLength(1);
+    expect(schemaViolations("  entryId   String\n")).toEqual([]);
   });
 
   it("the slicer throws if either marker is missing", () => {
