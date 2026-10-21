@@ -333,6 +333,8 @@ model User {
   noticingSittings    NoticingSitting[]
   noticingState       NoticingState?
   focusPeriods        FocusPeriod[]
+  reflectEntries      ReflectEntry[]
+  reflectState        ReflectState?
 }
 
 /// A personal access token for the public API. The secret is never stored —
@@ -736,6 +738,113 @@ model LoopState {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Reflect · the observer recount ──────────────────────────────────────────
+// Spec: root-sot tracker/modules/02-reflect/02-spec.md. Build plan: 07-build-plan.md §5 B1.
+//
+// A Tracker-namespaced tool. LLM-free by design: the one catch runs on an
+// authored lexicon (api/src/content/reflect/), never a model. These tables hold
+// only what a person wrote and the few facts needed to resume it.
+//
+// What a person writes here is the most private text in the app. The shape
+// refuses what would make it findable or countable: no index or unique key on
+// any text column, no relation to Journal, Goal, Project or JournalAccess, and
+// no `count`, `streak`, `total` or `tally` field. Enforced by
+// `reflectFences.unit.test.ts`.
+//
+// This block sits BEFORE Noticing's banner below on purpose: Noticing's fences
+// slice from that banner to the end of the file, so nothing of Reflect's may
+// follow it.
+
+/// One recount of one hard scene. At most one is open at a time (`closedAt`
+/// null), and it resumes at any age: a person may come back three weeks later.
+/// The columns marked "never returned" are written for the person's own use of
+/// the tool and are kept out of every GraphQL type (fenced in B2).
+model ReflectEntry {
+  id                       String           @id @default(uuid())
+  userId                   String
+  /// precheck | story | feelings | reality | close
+  step                     String           @default("precheck")
+  scene                    String?
+  story                    String?
+  close                    String?
+  /// days | weeks | longer. Never returned by the API.
+  precheckWhen             String?
+  /// yes | no. Never returned by the API.
+  precheckBefore           String?
+  /// differently | same | more_caught_up. Set once, never returned.
+  afterAnswer              String?
+  /// finished | stopped; null while open. Never returned.
+  outcome                  String?
+  closedAt                 DateTime?
+  /// When the faux-feeling offer was surfaced on this entry. Never returned.
+  fauxSurfacedAt           DateTime?
+  /// When the interpretation offer was surfaced on this entry. Never returned.
+  interpretationSurfacedAt DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moments                  ReflectMoment[]
+  readings                 ReflectReading[]
+
+  @@index([userId, closedAt])
+}
+
+/// A moment in the story where a feeling came up. Up to three per entry
+/// (`DIALS.momentsCap`); the unique key backs that cap under a race. Ownership
+/// is inherited from the entry.
+model ReflectMoment {
+  id            String       @id @default(uuid())
+  entryId       String
+  /// 0-based.
+  position      Int
+  whenText      String?
+  feeling       String?
+  /// palette | own
+  feelingSource String?
+  need          String?
+  /// palette | own
+  needSource    String?
+  /// met | unmet | not_sure
+  met           String?
+  entry         ReflectEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, position])
+}
+
+/// A reading in the story, with what a camera would have caught there. Up to
+/// three per entry (`DIALS.readingsCap`). Either half may stay empty.
+model ReflectReading {
+  id       String       @id @default(uuid())
+  entryId  String
+  /// 0-based.
+  position Int
+  reading  String?
+  camera   String?
+  entry    ReflectEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, position])
+}
+
+/// Per-user state: the content versions this person is pinned to, and the
+/// cooldown dates of the two offers.
+model ReflectState {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  contentVersion   String
+  /// The Feelings & Needs pack version Reflect reads its palettes and
+  /// faux-feeling copy from, pinned like `contentVersion`.
+  fnContentVersion String
+  /// JSON string: `{ faux?, interpretation? }`, each an ISO date. Stored, not
+  /// derived from the entries' `*SurfacedAt` columns: convention 13's second
+  /// spending, the same one as `NoticingState.lastCatchAt`. A dismissed offer
+  /// is still a touch, and a cooldown that read the entry rows would lose it
+  /// when the person deletes the entry. Recorded in the decision log with the B1 migration note.
+  lastCatchAt      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ─── Impact · Noticing (Act 1) ───────────────────────────────────────────────
