@@ -11,6 +11,8 @@ Each run gets its own ports and its own scratch database, so lanes can run side 
 | `PW_CHANNEL` | `msedge` | browser channel; `chrome` on Linux |
 | `E2E_REUSE` | unset | `1` reuses servers already running on the ports; otherwise a taken port fails the run |
 
+The config refuses a port that isn't a whole number from 1 to 65535, the dev servers' `4000` or `5173` (with `E2E_REUSE=1` a run there would write to the dev database), or one port for both.
+
 Per API port too: the scratch database, the credentials file, the report folders, and (per web port) the Vite dependency cache `client/node_modules/.vite-e2e-<web port>`; two Vite servers on one cache race on Windows (EPERM). The scratch database is `api/prisma/prisma/p<API port>-e2e.db` (gitignored via `*.db`), reset on every run. The config refuses to start unless the URL ends in `e2e.db` and names no `dev.db`, `test.db` or `prod.db`. `DATABASE_URL` from your shell is never used.
 
 ## Slots
