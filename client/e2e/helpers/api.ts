@@ -1,11 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const API_URL = "http://localhost:4000/graphql";
-const AUTH_FILE = path.join(__dirname, "..", ".auth", "e2e-user.json");
+import { API_URL, AUTH_FILE } from "../ports";
 
 let _cachedToken: string | null = null;
 

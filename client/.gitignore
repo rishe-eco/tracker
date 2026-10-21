@@ -14,7 +14,7 @@
 *.local
 
 # Playwright: generated credentials, reports, and run state
-/e2e/.auth/e2e-user.json
+/e2e/.auth/
 /playwright-report/
 /test-results/
 
