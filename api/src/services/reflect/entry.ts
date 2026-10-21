@@ -20,6 +20,7 @@ import type { PrismaClient } from "@prisma/client";
 import { DIALS } from "../../content/reflect";
 import { ensureOwned } from "../../graphql/auth";
 import { withUserLock } from "../userLock";
+import { fauxOfferFor, interpretationOfferFor } from "./catches";
 import { REFUSALS } from "./refusals";
 
 const WITH_CHILDREN = {
@@ -205,7 +206,7 @@ export function saveMoment(
   patch: MomentPatch
 ) {
   return withUserLock(lock(userId), async () => {
-    await loadOpen(prisma, userId, entryId);
+    const entry = await loadOpen(prisma, userId, entryId);
     bound(patch.whenText, DIALS.limits.whenText);
     bound(patch.feeling, DIALS.limits.ownWord);
     bound(patch.need, DIALS.limits.ownWord);
@@ -213,6 +214,10 @@ export function saveMoment(
     if (!Number.isInteger(position) || position < 0 || position >= DIALS.momentsCap || position > count) {
       throw new Error(REFUSALS.atMostThree);
     }
+    const stored = await prisma.reflectMoment.findUnique({
+      where: { entryId_position: { entryId, position } },
+      select: { feeling: true },
+    });
     const data = {
       whenText: norm(patch.whenText),
       feeling: norm(patch.feeling),
@@ -226,8 +231,13 @@ export function saveMoment(
       create: { entryId, position, ...data },
       update: data,
     });
-    // B3 fills the faux-feeling offer.
-    return { moment, fauxOffer: null };
+    // The faux-feeling offer: only for a feeling that differs from the stored one (B3).
+    const feeling = norm(patch.feeling);
+    const fauxOffer =
+      typeof feeling === "string" && feeling !== stored?.feeling
+        ? await fauxOfferFor(prisma, userId, entry, position, feeling)
+        : null;
+    return { moment, fauxOffer };
   });
 }
 
@@ -272,8 +282,10 @@ export function move(prisma: PrismaClient, userId: string, entryId: string, to: 
     const back = target >= 1 && target < from;
     if (target < 0 || !(forward || back)) throw new Error(REFUSALS.step);
     await prisma.reflectEntry.update({ where: { id: entryId }, data: { step: to } });
-    // B3 fills the interpretation offer.
-    return { entry: await withChildren(prisma, entryId), interpretationOffer: null };
+    // The interpretation offer: only one step forward into the reality check (B3).
+    const interpretationOffer =
+      to === "reality" && forward ? await interpretationOfferFor(prisma, userId, entry) : null;
+    return { entry: await withChildren(prisma, entryId), interpretationOffer };
   });
 }
 
