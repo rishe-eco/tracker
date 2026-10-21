@@ -146,11 +146,11 @@ describe("saves", () => {
     expect(rows[1]).toMatchObject({ whenText: "w1", feeling: "tired", feelingSource: "own", met: "unmet" });
   });
 
-  it("returns a moment result whose offer is null until B3", async () => {
+  it("returns a moment result carrying the faux offer, and a move result with no interpretation offer", async () => {
     const { ca } = await twoUsers();
     const e = await start(ca);
     const r = await moment(ca, e.id, 0, { feeling: "betrayed" });
-    expect(r.fauxOffer).toBeNull();
+    expect(r.fauxOffer).toMatchObject({ position: 0, conceptId: "betrayed" });
     expect(r.moment.position).toBe(0);
     const moved = await move(ca, e.id, "story");
     expect(moved.interpretationOffer).toBeNull();

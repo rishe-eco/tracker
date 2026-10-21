@@ -431,3 +431,90 @@ describe("the model-call fence (AC-47, AC-26's table half)", () => {
     expect(modelCallViolations('prisma["goal"].create()')).toHaveLength(1);
   });
 });
+
+// ─── B3: the import half of the catches (AC-26) ──────────────────────────────
+
+const NOTICING_DIR = join(API_SRC, "services/noticing").replace(/\\/g, "/");
+const DISTINCTIONS = join(API_SRC, "services/feelingsNeeds/distinctions").replace(/\\/g, "/");
+const BORROWED = ["detectFauxFeeling", "composeCatch"];
+
+/** Every module specifier a text pulls in: static, re-exported, side-effect, dynamic or required, each with its clause. */
+function specifiers(text: string): Array<{ spec: string; clause: string | null; typeOnly: boolean }> {
+  const out: Array<{ spec: string; clause: string | null; typeOnly: boolean }> = [];
+  for (const m of text.matchAll(/\b(import|export)\s+(type\s+)?([^;"']*?)\s*from\s*["']([^"']+)["']/g)) {
+    out.push({ spec: m[4], clause: m[3], typeOnly: m[2] != null });
+  }
+  for (const m of text.matchAll(/\bimport\s*["']([^"']+)["']/g)) out.push({ spec: m[1], clause: null, typeOnly: false });
+  for (const m of text.matchAll(/\b(?:import|require)\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g)) {
+    out.push({ spec: m[1], clause: null, typeOnly: false });
+  }
+  return out;
+}
+
+/** Violations of the catches' import rule in one file's text. Empty when it holds. */
+function importViolations(file: string, text: string): string[] {
+  const out: string[] = [];
+  for (const { spec, clause, typeOnly } of specifiers(text)) {
+    const bare = spec.replace(/\.js$/, "");
+    const resolved = (bare.startsWith(".") ? resolve(dirname(file), bare) : join(API_SRC, bare)).replace(/\\/g, "/");
+    if (resolved === NOTICING_DIR || resolved.startsWith(NOTICING_DIR + "/") || /noticing\/catches$/.test(bare)) {
+      out.push(`imports Noticing: ${spec}`);
+      continue;
+    }
+    if (resolved !== DISTINCTIONS) continue;
+    // Only `detectFauxFeeling`, `composeCatch` and types may be borrowed from the faux-feeling file.
+    if (typeOnly) continue;
+    const named = clause?.match(/^\{([\s\S]*)\}$/);
+    if (!named) {
+      out.push(`imports all of ${spec}${clause ? ` (${clause.trim()})` : ""}`);
+      continue;
+    }
+    for (const item of named[1].split(",").map((s) => s.trim()).filter(Boolean)) {
+      if (/^type\s/.test(item)) continue;
+      const name = item.split(/\s+as\s+/)[0].trim();
+      if (!BORROWED.includes(name)) out.push(`imports ${name} from ${spec}`);
+    }
+  }
+  return out;
+}
+
+describe("the catches' imports fence (AC-26)", () => {
+  const files = sourceFiles(join(API_SRC, "services/reflect"));
+
+  it("services/reflect imports nothing from Noticing, and only detectFauxFeeling, composeCatch and types from distinctions", () => {
+    expect(files.length).toBeGreaterThan(0);
+    const offenders = files.flatMap(([p, text]) => importViolations(p, text).map((v) => `${p}: ${v}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it("the catches file does borrow the two functions (a guard on the guard)", () => {
+    const catches = files.find(([p]) => /services[\\/]reflect[\\/]catches\.ts$/.test(p));
+    expect(catches).toBeDefined();
+    const text = catches![1];
+    expect(text).toMatch(/import\s*\{[^}]*\bdetectFauxFeeling\b[^}]*\}\s*from\s*["']\.\.\/feelingsNeeds\/distinctions["']/);
+    expect(text).toMatch(/import\s*\{[^}]*\bcomposeCatch\b[^}]*\}\s*from\s*["']\.\.\/feelingsNeeds\/distinctions["']/);
+  });
+
+  it("the check sees a planted violation of each kind", () => {
+    const f = join(API_SRC, "services/reflect/planted.ts");
+    const d = '"../feelingsNeeds/distinctions"';
+    // Allowed.
+    expect(importViolations(f, `import { detectFauxFeeling, composeCatch } from ${d};`)).toEqual([]);
+    expect(importViolations(f, `import { composeCatch, type SurfacedCatch } from ${d};`)).toEqual([]);
+    expect(importViolations(f, `import type { SurfacedCatch } from ${d};`)).toEqual([]);
+    expect(importViolations(f, `import { x } from "../noticingLike/other";`)).toEqual([]);
+    // The two functions Reflect must never call, one planted each, also across lines and renamed.
+    expect(importViolations(f, `import { maybeCatch } from ${d};`)).toHaveLength(1);
+    expect(importViolations(f, `import { catchAllowed } from ${d};`)).toHaveLength(1);
+    expect(importViolations(f, `import {\n  composeCatch,\n  maybeCatch as m,\n} from ${d};`)).toHaveLength(1);
+    expect(importViolations(f, `import * as d from ${d};`)).toHaveLength(1);
+    expect(importViolations(f, `export * from ${d};`)).toHaveLength(1);
+    expect(importViolations(f, `const d = await import(${d});`)).toHaveLength(1);
+    // Noticing, by relative path, by the app's root path, by its matcher, and by require.
+    expect(importViolations(f, `import { detectCatch } from "../noticing/catches";`)).toHaveLength(1);
+    expect(importViolations(f, `import { x } from "../noticing";`)).toHaveLength(1);
+    expect(importViolations(f, `import { x } from "services/noticing/catches.js";`)).toHaveLength(1);
+    expect(importViolations(f, `import type { SurfacedCatch } from "../noticing/catches";`)).toHaveLength(1);
+    expect(importViolations(f, `const n = require("../noticing/state");`)).toHaveLength(1);
+  });
+});
