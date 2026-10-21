@@ -1,11 +1,9 @@
 import { request } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath } from "url";
+import { API_URL, AUTH_FILE } from "./ports";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const API_URL = "http://localhost:4000/graphql";
-export const AUTH_FILE = path.join(__dirname, ".auth", "e2e-user.json");
+export { AUTH_FILE };
 
 const MODULE_KEYS = [
   "today",
@@ -33,7 +31,7 @@ async function post(ctx: Awaited<ReturnType<typeof request.newContext>>, query: 
 }
 
 async function globalSetup() {
-  fs.mkdirSync(path.join(__dirname, ".auth"), { recursive: true });
+  fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
 
   const ctx = await request.newContext();
   const ts = Date.now();

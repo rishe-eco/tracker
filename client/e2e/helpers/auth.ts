@@ -1,10 +1,6 @@
 import type { Page } from "@playwright/test";
 import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const AUTH_FILE = path.join(__dirname, "..", ".auth", "e2e-user.json");
+import { AUTH_FILE } from "../ports";
 
 /**
  * Inject the real JWT token from globalSetup into localStorage so the app

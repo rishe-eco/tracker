@@ -9,6 +9,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // e2e slots set this so concurrent Vite servers don't race on one dependency cache (EPERM on Windows)
+  cacheDir: process.env.E2E_VITE_CACHE_DIR ?? "node_modules/.vite",
   resolve: {
     alias: {
       "~": path.resolve(__dirname, "app"),
