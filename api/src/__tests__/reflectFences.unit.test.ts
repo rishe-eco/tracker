@@ -11,6 +11,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { queryResolvers } from "../graphql/resolvers/query";
+import { mutationResolvers } from "../graphql/resolvers/mutations";
 
 const API_SRC = resolve(__dirname, "..");
 const SCHEMA_PATH = resolve(__dirname, "../../prisma/schema.prisma");
@@ -21,6 +23,8 @@ const NOTICING_START = "Impact · Noticing (Act 1)";
 const MODELS = ["ReflectEntry", "ReflectMoment", "ReflectReading", "ReflectState"];
 
 const schemaText = readFileSync(SCHEMA_PATH, "utf8");
+const TYPEDEFS_PATH = resolve(__dirname, "../graphql/schema/typeDefs.ts");
+const typeDefsText = readFileSync(TYPEDEFS_PATH, "utf8");
 
 /**
  * Reflect's block of `schema.prisma`: from its banner to Noticing's banner.
@@ -198,5 +202,212 @@ describe("the imports fence (AC-45, AC-28)", () => {
     expect(files.length).toBeGreaterThan(0);
     const offenders = files.filter(([, text]) => /content\/reflect/.test(text)).map(([p]) => p);
     expect(offenders).toEqual([]);
+  });
+});
+
+// ─── B2: the SDL half, the token refusal, the model-call half of the imports ──
+
+const SDL_START = "# ── Reflect ──";
+const FN_BANNER = "# ── Learn · Feelings & Needs (Module 1)";
+const NOTICING_SDL_BANNER = "# ── Impact · Noticing (Act 1)";
+const OPERATIONS = [
+  "reflectHome", "reflectEntry", "reflectContent", "reflectPastEntries", "reflectPastEntry",
+  "startReflectEntry", "saveReflectEntry", "saveReflectMoment", "saveReflectReading",
+  "moveReflectEntry", "stopReflectEntry", "finishReflectEntry", "answerReflectEntry", "deleteReflectEntry",
+];
+
+/**
+ * Reflect's block of `typeDefs.ts`: from its banner to the Feelings & Needs
+ * banner. Noticing's fences slice from its own banner to `type SkillOverview {`,
+ * so a Reflect type placed in that range would be judged by Noticing's rules (D-2).
+ */
+function reflectSdlSection(text: string = typeDefsText): string {
+  const start = text.indexOf(SDL_START);
+  if (start === -1) throw new Error(`Could not find "${SDL_START}" in typeDefs.ts. Has it been renamed?`);
+  const end = text.indexOf(FN_BANNER, start);
+  if (end === -1) throw new Error(`Could not find "${FN_BANNER}" after Reflect's block in typeDefs.ts.`);
+  return text.slice(start, end);
+}
+
+/** The type-system definitions in a text. Bodies run to the next line holding only a closing brace. */
+function definitions(text: string): Array<{ kind: string; name: string; body: string; at: number }> {
+  const out: Array<{ kind: string; name: string; body: string; at: number }> = [];
+  for (const m of text.matchAll(/^[ \t]*(type|enum|input|interface)\s+(\w+)[^{\n]*\{([\s\S]*?)^[ \t]*\}/gm)) {
+    out.push({ kind: m[1], name: m[2], body: m[3], at: m.index! });
+  }
+  return out;
+}
+
+const HIDDEN_FIELD = /^(precheck\w*|afterAnswer|outcome|\w*SurfacedAt|lastCatchAt|lexicon)$/;
+const FORBIDDEN_ARGS = ["search", "query", "filter", "name"];
+
+/** Violations of the SDL half over a whole typeDefs text. Empty when it holds. */
+function sdlViolations(text: string): string[] {
+  const out: string[] = [];
+  const start = text.indexOf(SDL_START);
+  const end = text.indexOf(FN_BANNER, start);
+  const defs = definitions(text);
+
+  // No Reflect type outside its block, and nothing but Reflect types inside it.
+  for (const d of defs) {
+    const inside = start !== -1 && d.at >= start && d.at < end;
+    if (d.name.startsWith("Reflect") && !inside) out.push(`type outside the block: ${d.name}`);
+    if (!d.name.startsWith("Reflect") && inside) out.push(`non-Reflect type in the block: ${d.name}`);
+  }
+
+  // AC-3: no output type has a field for what is never shown back.
+  for (const d of defs) {
+    if (d.kind !== "type" || !d.name.startsWith("Reflect")) continue;
+    for (const f of d.body.matchAll(/^[ \t]*(\w+)[ \t]*(?:\([^)]*\))?[ \t]*:/gm)) {
+      if (HIDDEN_FIELD.test(f[1])) out.push(`${d.name}.${f[1]}`);
+    }
+  }
+
+  // AC-5: no argument named search, query, filter or name on an operation with Reflect in its name.
+  for (const root of ["Query", "Mutation"]) {
+    for (const def of defs.filter((d) => d.name === root)) {
+      for (const f of def.body.matchAll(/^[ \t]*(\w+)[ \t]*\(([^)]*)\)[ \t]*:/gm)) {
+        if (!/reflect/i.test(f[1])) continue;
+        for (const a of f[2].matchAll(/(\w+)\s*:/g)) {
+          if (FORBIDDEN_ARGS.includes(a[1])) out.push(`${f[1]}(${a[1]})`);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+describe("the SDL fence (AC-3, AC-5, D-2)", () => {
+  it("the block sits before the Feelings & Needs and Noticing banners", () => {
+    const start = typeDefsText.indexOf(SDL_START);
+    const fn = typeDefsText.indexOf(FN_BANNER);
+    const noticing = typeDefsText.indexOf(NOTICING_SDL_BANNER);
+    expect(start).toBeGreaterThan(-1);
+    expect(fn).toBeGreaterThan(start);
+    expect(noticing).toBeGreaterThan(fn);
+  });
+
+  it("holds the Reflect types (a guard on the guard)", () => {
+    const names = definitions(reflectSdlSection()).map((d) => d.name);
+    for (const n of ["ReflectEntry", "ReflectHome", "ReflectPastRow", "ReflectContent", "ReflectMoveResult", "ReflectStep"]) {
+      expect(names).toContain(n);
+    }
+  });
+
+  it("no Reflect type is outside its block, no field returns a hidden value, no operation takes a search-like argument", () => {
+    expect(sdlViolations(typeDefsText)).toEqual([]);
+  });
+
+  it("declares all 14 operations, each with Reflect in its name", () => {
+    const defs = definitions(typeDefsText);
+    const fields = (root: string) =>
+      defs
+        .filter((d) => d.name === root)
+        .flatMap((d) => [...d.body.matchAll(/^[ \t]*(\w+)[ \t]*[(:]/gm)].map((m) => m[1]));
+    const found = [...fields("Query"), ...fields("Mutation")].filter((f) => /reflect/i.test(f));
+    expect([...found].sort()).toEqual([...OPERATIONS].sort());
+  });
+
+  it("the scanner sees a planted violation of each kind", () => {
+    const withBlock = (inner: string, outside = "") => `  ${SDL_START}\n${inner}\n  ${FN_BANNER}\n${outside}`;
+    const clean = "  type ReflectEntry {\n    id: ID!\n    step: String!\n  }\n";
+    expect(sdlViolations(withBlock(clean))).toEqual([]);
+    for (const field of [
+      "precheckWhen: String", "precheckBefore: String", "afterAnswer: String", "outcome: String",
+      "fauxSurfacedAt: String", "interpretationSurfacedAt: String", "lastCatchAt: String", "lexicon: [String!]!",
+    ]) {
+      expect(sdlViolations(withBlock(`  type ReflectEntry {\n    ${field}\n  }\n`))).toHaveLength(1);
+    }
+    // A Reflect type outside the block; another pillar's type inside it.
+    expect(sdlViolations(withBlock(clean, "  type ReflectStray {\n    id: ID!\n  }\n"))).toHaveLength(1);
+    expect(sdlViolations(withBlock("  type Stranger {\n    id: ID!\n  }\n"))).toHaveLength(1);
+    // An operation argument named like a search.
+    for (const arg of FORBIDDEN_ARGS) {
+      const q = `  type Query {\n    reflectFind(${arg}: String): Int\n  }\n`;
+      expect(sdlViolations(withBlock(clean, q))).toHaveLength(1);
+    }
+    // saveReflectEntry's own pre-check argument is allowed: field checks read output types only.
+    const m = "  type Mutation {\n    saveReflectEntry(entryId: ID!, precheckWhen: String): Int\n  }\n";
+    expect(sdlViolations(withBlock(clean, m))).toEqual([]);
+    // Another pillar's operation with a `name` argument is not Reflect's business.
+    expect(sdlViolations(withBlock(clean, "  type Query {\n    tagByName(name: String): Int\n  }\n"))).toEqual([]);
+  });
+
+  it("the slicer throws if a marker is missing", () => {
+    expect(() => reflectSdlSection("nothing here")).toThrow(/Could not find/);
+    expect(() => reflectSdlSection(`  ${SDL_START}\n`)).toThrow(/Could not find/);
+  });
+});
+
+describe("tokens are refused on every Reflect operation (AC-4)", () => {
+  const all: Record<string, any> = { ...queryResolvers, ...mutationResolvers };
+  const names = Object.keys(all).filter((n) => /reflect/i.test(n));
+
+  /** The operations that do not refuse a token context with the session-only message: empty when every one does. */
+  async function unguarded(resolvers: Record<string, any>): Promise<string[]> {
+    const out: string[] = [];
+    for (const name of Object.keys(resolvers).filter((n) => /reflect/i.test(n))) {
+      for (const scope of ["read", "write"]) {
+        const ctx = { user: { id: "u" }, auth: { kind: "apiToken", tokenId: "t", scope }, prisma: {} };
+        try {
+          await resolvers[name](null, {}, ctx);
+          out.push(name);
+        } catch (e: any) {
+          if (e?.message !== "Reflect is only available in the app, not to API tokens.") out.push(name);
+        }
+      }
+    }
+    return out;
+  }
+
+  it("finds all 14 operations (a guard on the guard)", () => {
+    expect(names.length).toBeGreaterThan(0);
+    expect([...names].sort()).toEqual([...OPERATIONS].sort());
+  });
+
+  it("each refuses a read-scope and a write-scope token with the session-only message, before touching anything", async () => {
+    expect(await unguarded(all)).toEqual([]);
+  });
+
+  it("the check sees a planted resolver that is not guarded", async () => {
+    expect(await unguarded({ ...all, reflectBare: async () => "leak" })).toEqual(["reflectBare", "reflectBare"]);
+    // And one that refuses with the wrong words (convention 11: never "Unauthorized").
+    const wrong = {
+      reflectWrong: async () => {
+        throw new Error("Unauthorized");
+      },
+    };
+    expect(await unguarded(wrong)).toEqual(["reflectWrong", "reflectWrong"]);
+  });
+});
+
+/** Every model accessor on any client variable (`prisma`, `tx`, `ctx.prisma`) that names a model Reflect must not touch. */
+function modelCallViolations(text: string): string[] {
+  return [...text.matchAll(/\b\w+\.(action|interval\w*|goal|journal\w*|loop\w*|frameCompletion)\.\w+\(/g)].map((m) => m[0]);
+}
+
+describe("the model-call fence (AC-47, AC-26's table half)", () => {
+  const files = sourceFiles(join(API_SRC, "services/reflect"));
+
+  it("services/reflect names no action, interval, goal, journal, loop or frameCompletion model", () => {
+    expect(files.length).toBeGreaterThan(0);
+    const offenders = files.flatMap(([p, text]) => modelCallViolations(text).map((v) => `${p}: ${v}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it("services/reflect has no console call", () => {
+    const offenders = files.filter(([, text]) => /\bconsole\s*\./.test(text)).map(([p]) => p);
+    expect(offenders).toEqual([]);
+  });
+
+  it("the check sees a planted violation of each kind", () => {
+    expect(modelCallViolations("await prisma.action.create({})")).toHaveLength(1);
+    expect(modelCallViolations("tx.interval.findMany()")).toHaveLength(1);
+    expect(modelCallViolations("ctx.prisma.intervalStep.deleteMany()")).toHaveLength(1);
+    expect(modelCallViolations("prisma.goal.count()")).toHaveLength(1);
+    expect(modelCallViolations("prisma.journalEntry.create()")).toHaveLength(1);
+    expect(modelCallViolations("prisma.loopSitting.count()")).toHaveLength(1);
+    expect(modelCallViolations("prisma.frameCompletion.findFirst()")).toHaveLength(1);
+    expect(modelCallViolations("prisma.reflectEntry.findFirst()")).toEqual([]);
   });
 });
