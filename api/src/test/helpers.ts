@@ -56,6 +56,11 @@ export async function clearDb() {
     prisma.noticingSitting.deleteMany(),
     prisma.noticingFrame.deleteMany(),
     prisma.noticingState.deleteMany(),
+    // Reflect: moments and readings hang off entries; state stands alone.
+    prisma.reflectReading.deleteMany(),
+    prisma.reflectMoment.deleteMany(),
+    prisma.reflectEntry.deleteMany(),
+    prisma.reflectState.deleteMany(),
     prisma.user.deleteMany(),
   ]);
 }

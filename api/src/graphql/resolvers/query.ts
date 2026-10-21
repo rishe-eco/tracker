@@ -1,4 +1,7 @@
-import { requireAuth } from "../auth";
+import { requireAuth, requireReflectSession } from "../auth";
+import { getContent as getReflectContent, getServedPack as getReflectServedPack } from "../../services/reflect/content";
+import { getHome as getReflectHome, getOpenEntry as getOpenReflectEntry, getPast as getPastReflectEntry, listPast as listPastReflectEntries } from "../../services/reflect/entry";
+
 import { getTodayActions, getPreDayStatus, getNotDoneActionsForDate } from "../../services/todayPreDayAfterDay";
 import { intervalOccursOnDate } from "../../services/actionGathering";
 import { getModules, getProgress } from "../../services/skills/evidenceSession";
@@ -43,6 +46,14 @@ const PROJECT_WITH_DATES_INCLUDE = {
     intervals: INTERVAL_DATES_SELECT,
   },
 } as const;
+
+/**
+ * Reflect: a real sign-in only. `requireAuth` first, so no user is still
+ * `Unauthorized` (convention 11); then the session check, whose own message
+ * is not.
+ */
+const reflect = <TArgs,>(resolver: (parent: any, args: TArgs, ctx: any) => any) =>
+  requireAuth<TArgs>(requireReflectSession<TArgs>(resolver));
 
 export const queryResolvers = {
   actions: requireAuth((_, __, ctx) =>
@@ -425,4 +436,20 @@ export const queryResolvers = {
   noticingHistory: requireAuth((_, { limit }: any, ctx) =>
     getNoticingHistory(ctx.prisma, ctx.user.id, limit ?? undefined)
   ),
+
+  // ── Reflect ──
+  reflectHome: reflect(async (_, __: any, ctx) => ({
+    ...(await getReflectHome(ctx.prisma, ctx.user.id)),
+    ...(await getReflectServedPack(ctx.prisma, ctx.user.id)),
+  })),
+
+  reflectEntry: reflect((_, __: any, ctx) => getOpenReflectEntry(ctx.prisma, ctx.user.id)),
+
+  reflectContent: reflect((_, __: any, ctx) => getReflectContent(ctx.prisma, ctx.user.id)),
+
+  reflectPastEntries: reflect((_, { before }: any, ctx) =>
+    listPastReflectEntries(ctx.prisma, ctx.user.id, before)
+  ),
+
+  reflectPastEntry: reflect((_, { id }: any, ctx) => getPastReflectEntry(ctx.prisma, ctx.user.id, id)),
 };

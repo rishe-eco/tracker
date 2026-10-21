@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
-import { ensureOwned, requireAuth, signToken, SALT_ROUNDS } from "../auth";
+import { ensureOwned, requireAuth, requireReflectSession, signToken, SALT_ROUNDS } from "../auth";
+import { ensureReflectState } from "../../services/reflect/state";
+import * as reflectEntry from "../../services/reflect/entry";
 import { runActionGathering } from "../../services/actionGathering";
 import { isValidTagColor } from "../../services/tags";
 import { createFocusPeriod, recordLookback, updateFocusPeriod } from "../../services/focusPeriods";
@@ -1753,6 +1755,51 @@ mutations.addNoticingPass = requireAuth(async (_, { sittingId }: any, ctx) =>
 
 mutations.finishNoticingSitting = requireAuth(async (_, { sittingId }: any, ctx) =>
   finishNoticingSitting(ctx.prisma, ctx.user.id, sittingId, ctx.locale)
+);
+
+// ---- Reflect ----
+// Every operation: requireAuth, then the session-only check, then ownership
+// inside the service. Enum arguments arrive in their stored lowercase form
+// (see `typeResolvers.ts`).
+
+const reflect = <TArgs,>(resolver: (parent: any, args: TArgs, ctx: any) => any) =>
+  requireAuth<TArgs>(requireReflectSession<TArgs>(resolver));
+
+mutations.startReflectEntry = reflect(async (_, { replacing }: any, ctx) => {
+  await ensureReflectState(ctx.prisma, ctx.user.id);
+  return reflectEntry.startEntry(ctx.prisma, ctx.user.id, replacing);
+});
+
+mutations.saveReflectEntry = reflect((_, { entryId, ...patch }: any, ctx) =>
+  reflectEntry.save(ctx.prisma, ctx.user.id, entryId, patch)
+);
+
+mutations.saveReflectMoment = reflect((_, { entryId, position, ...patch }: any, ctx) =>
+  reflectEntry.saveMoment(ctx.prisma, ctx.user.id, entryId, position, patch)
+);
+
+mutations.saveReflectReading = reflect((_, { entryId, position, ...patch }: any, ctx) =>
+  reflectEntry.saveReading(ctx.prisma, ctx.user.id, entryId, position, patch)
+);
+
+mutations.moveReflectEntry = reflect((_, { entryId, to }: any, ctx) =>
+  reflectEntry.move(ctx.prisma, ctx.user.id, entryId, to)
+);
+
+mutations.stopReflectEntry = reflect((_, { entryId }: any, ctx) =>
+  reflectEntry.stop(ctx.prisma, ctx.user.id, entryId)
+);
+
+mutations.finishReflectEntry = reflect((_, { entryId }: any, ctx) =>
+  reflectEntry.finish(ctx.prisma, ctx.user.id, entryId)
+);
+
+mutations.answerReflectEntry = reflect((_, { entryId, answer }: any, ctx) =>
+  reflectEntry.answer(ctx.prisma, ctx.user.id, entryId, answer)
+);
+
+mutations.deleteReflectEntry = reflect((_, { entryId }: any, ctx) =>
+  reflectEntry.remove(ctx.prisma, ctx.user.id, entryId)
 );
 
 export const mutationResolvers = mutations;

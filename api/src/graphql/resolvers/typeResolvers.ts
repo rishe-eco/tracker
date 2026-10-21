@@ -514,4 +514,34 @@ export const typeResolvers = {
     completedAt: (parent: any) =>
       parent.completedAt != null ? new Date(parent.completedAt).toISOString() : null,
   },
+
+  /**
+   * Reflect's enums are stored lowercase (the schema's comments); mapping the
+   * values here means resolvers and services only ever see the stored form, and
+   * a bad value is refused by the schema with no message of ours.
+   */
+  ReflectStep: { PRECHECK: "precheck", STORY: "story", FEELINGS: "feelings", REALITY: "reality", CLOSE: "close" },
+  ReflectAfterAnswer: { DIFFERENTLY: "differently", SAME: "same", MORE_CAUGHT_UP: "more_caught_up" },
+  ReflectWordSource: { PALETTE: "palette", OWN: "own" },
+  ReflectMet: { MET: "met", UNMET: "unmet", NOT_SURE: "not_sure" },
+  ReflectPrecheckWhen: { DAYS: "days", WEEKS: "weeks", LONGER: "longer" },
+  ReflectPrecheckBefore: { YES: "yes", NO: "no" },
+
+  ReflectEntry: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+    moments: async (parent: any, _: any, ctx: any) =>
+      parent.moments != null
+        ? [...parent.moments].sort((a: any, b: any) => a.position - b.position)
+        : ctx.prisma.reflectMoment.findMany({ where: { entryId: parent.id }, orderBy: { position: "asc" } }),
+    readings: async (parent: any, _: any, ctx: any) =>
+      parent.readings != null
+        ? [...parent.readings].sort((a: any, b: any) => a.position - b.position)
+        : ctx.prisma.reflectReading.findMany({ where: { entryId: parent.id }, orderBy: { position: "asc" } }),
+  },
+  ReflectOpenEntry: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+  },
+  ReflectPastRow: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+  },
 };

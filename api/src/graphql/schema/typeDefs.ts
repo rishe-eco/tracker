@@ -1592,6 +1592,208 @@ export const typeDefs = gql`
     agreementReversal: String!
   }
 
+  # ── Reflect ───────────────────────────────────────────────────────────────
+  # Spec: root-sot tracker/modules/02-reflect/02-spec.md. Build plan §6.1.
+  # Every Reflect type starts with "Reflect", and this block sits BEFORE the
+  # Feelings & Needs banner below so Noticing's fences never slice it (D-2).
+  # No type here returns the pre-check answers, the after-entry answer, the
+  # outcome, which offers were surfaced, or the lexicon (AC-3, §6.5).
+  enum ReflectStep {
+    PRECHECK
+    STORY
+    FEELINGS
+    REALITY
+    CLOSE
+  }
+
+  enum ReflectAfterAnswer {
+    DIFFERENTLY
+    SAME
+    MORE_CAUGHT_UP
+  }
+
+  enum ReflectWordSource {
+    PALETTE
+    OWN
+  }
+
+  enum ReflectMet {
+    MET
+    UNMET
+    NOT_SURE
+  }
+
+  enum ReflectPrecheckWhen {
+    DAYS
+    WEEKS
+    LONGER
+  }
+
+  enum ReflectPrecheckBefore {
+    YES
+    NO
+  }
+
+  type ReflectMoment {
+    id: ID!
+    position: Int!
+    whenText: String
+    feeling: String
+    feelingSource: ReflectWordSource
+    need: String
+    needSource: ReflectWordSource
+    met: ReflectMet
+  }
+
+  type ReflectReading {
+    id: ID!
+    position: Int!
+    reading: String
+    camera: String
+  }
+
+  type ReflectEntry {
+    id: ID!
+    step: ReflectStep!
+    scene: String
+    story: String
+    close: String
+    createdAt: String!
+    moments: [ReflectMoment!]!
+    readings: [ReflectReading!]!
+  }
+
+  type ReflectOpenEntry {
+    id: ID!
+    createdAt: String!
+    "Whether any story text is written: the home's line for Start a new one."
+    hasStory: Boolean!
+  }
+
+  type ReflectHome {
+    openEntry: ReflectOpenEntry
+    "True when a listable entry exists. No count, ever."
+    hasPast: Boolean!
+    practiceLocale: String!
+    reviewStatus: String!
+  }
+
+  type ReflectPastRow {
+    id: ID!
+    createdAt: String!
+    scene: String
+    storyStart: String!
+  }
+
+  type ReflectPastPage {
+    rows: [ReflectPastRow!]!
+    hasOlder: Boolean!
+  }
+
+  type ReflectWord {
+    id: String!
+    label: String!
+  }
+
+  type ReflectLimits {
+    scene: Int!
+    story: Int!
+    storySoftLine: Int!
+    whenText: Int!
+    reading: Int!
+    camera: Int!
+    ownWord: Int!
+    close: Int!
+    momentsCap: Int!
+    readingsCap: Int!
+  }
+
+  type ReflectStoryPrompts {
+    scenePrompt: String!
+    scenePlaceholder: String!
+    storyPrompt: String!
+  }
+
+  type ReflectMetOptions {
+    met: String!
+    unmet: String!
+    notSure: String!
+  }
+
+  type ReflectFeelingsPrompts {
+    prompt: String!
+    whenLabel: String!
+    whenPlaceholder: String!
+    feelingLabel: String!
+    needLabel: String!
+    metLabel: String!
+    metOptions: ReflectMetOptions!
+  }
+
+  type ReflectRealityPrompts {
+    prompt: String!
+    readingLabel: String!
+    cameraLabel: String!
+  }
+
+  type ReflectClosePrompts {
+    prompt: String!
+  }
+
+  type ReflectInterpretationPrompts {
+    offerLine: String!
+    useLabel: String!
+    dismissLabel: String!
+  }
+
+  type ReflectPrompts {
+    story: ReflectStoryPrompts!
+    feelings: ReflectFeelingsPrompts!
+    reality: ReflectRealityPrompts!
+    close: ReflectClosePrompts!
+    interpretation: ReflectInterpretationPrompts!
+  }
+
+  "Practice content in the practice locale. Never the lexicon."
+  type ReflectContent {
+    locale: String!
+    reviewStatus: String!
+    prompts: ReflectPrompts!
+    feelings: [ReflectWord!]!
+    needs: [ReflectWord!]!
+    otherLabel: String!
+    limits: ReflectLimits!
+  }
+
+  "The word as the lexicon writes it, and the person's own sentence. Nothing else of the lexicon leaves the server (PD-13)."
+  type ReflectInterpretationOffer {
+    word: String!
+    sentence: String!
+  }
+
+  "The faux-feeling offer: the moment's position, and the fields of the Feelings & Needs catch."
+  type ReflectFauxOffer {
+    position: Int!
+    conceptId: String!
+    line: String!
+    feelingHints: [String!]!
+    needHints: [String!]!
+    feelingHintsLabel: String!
+    needHintsLabel: String!
+    dismiss: String!
+    note: String!
+  }
+
+  type ReflectMomentResult {
+    moment: ReflectMoment!
+    fauxOffer: ReflectFauxOffer
+  }
+
+  type ReflectMoveResult {
+    entry: ReflectEntry!
+    interpretationOffer: ReflectInterpretationOffer
+  }
+
   # ── Learn · Feelings & Needs (Module 1) ───────────────────────────────────
   # Plan: ecosystem/working/learn-build/00-module1-demo-plan.md. A Tracker-
   # namespaced tool. The tool home reads only enough state to route into the
@@ -2290,6 +2492,18 @@ export const typeDefs = gql`
     because a day is a local-timezone concept the server does not know.
     """
     noticingHistory(limit: Int): [NtcSitting!]!
+
+    # ── Reflect ──
+    "Reflect: the home. Session only; an API token is refused."
+    reflectHome: ReflectHome!
+    "Reflect: the open entry, at any age, or null."
+    reflectEntry: ReflectEntry
+    "Reflect: practice content in the practice locale, the palettes and the limits."
+    reflectContent: ReflectContent!
+    "Reflect: closed entries with story text, newest first, fifty a page. before is the last row of the page before."
+    reflectPastEntries(before: ID): ReflectPastPage!
+    "Reflect: one closed entry with story text, or Not found."
+    reflectPastEntry(id: ID!): ReflectEntry!
   }
 
   type AuthPayload {
@@ -2961,6 +3175,21 @@ export const typeDefs = gql`
     deleteFocusPeriod(id: ID!): Boolean!
     "answer is oriented, behind, or null (dismissed). Only once the period has ended before dateKey."
     recordFocusLookback(id: ID!, answer: String, dateKey: String!): FocusPeriod!
+
+    # ── Reflect ──
+    "Reflect: the open entry, or a new one. replacing closes only that entry."
+    startReflectEntry(replacing: ID): ReflectEntry!
+    "Reflect: omitted arguments are untouched, an empty string clears. The pre-check arguments are accepted only on the pre-check step."
+    saveReflectEntry(entryId: ID!, scene: String, story: String, close: String, precheckWhen: ReflectPrecheckWhen, precheckBefore: ReflectPrecheckBefore): ReflectEntry!
+    saveReflectMoment(entryId: ID!, position: Int!, whenText: String, feeling: String, feelingSource: ReflectWordSource, need: String, needSource: ReflectWordSource, met: ReflectMet): ReflectMomentResult!
+    saveReflectReading(entryId: ID!, position: Int!, reading: String, camera: String): ReflectReading!
+    moveReflectEntry(entryId: ID!, to: ReflectStep!): ReflectMoveResult!
+    stopReflectEntry(entryId: ID!): ReflectEntry!
+    finishReflectEntry(entryId: ID!): ReflectEntry!
+    "Reflect: once, and for a finished entry only. Returns nothing about the answer."
+    answerReflectEntry(entryId: ID!, answer: ReflectAfterAnswer!): Boolean!
+    "Reflect: a hard delete of any owned entry, open or closed."
+    deleteReflectEntry(entryId: ID!): Boolean!
 
     register(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!

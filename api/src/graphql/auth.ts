@@ -32,3 +32,20 @@ export function ensureOwned<T extends { userId: string }>(resource: T | null, ct
     throw new Error("Not found");
   }
 }
+
+/** Reflect's refusal of an API-token caller, any scope. Not "Unauthorized": convention 11 treats that exact string as a dead session. */
+export const REFLECT_SESSION_ONLY = "Reflect is only available in the app, not to API tokens.";
+
+/**
+ * Reflect holds the most private text in the app, so it is for a real sign-in
+ * only (spec AC-4): a personal API token, read or write, is refused. Wrap it
+ * inside `requireAuth`, so a caller with no user still gets `Unauthorized`.
+ */
+export function requireReflectSession<TArgs>(
+  resolver: (parent: any, args: TArgs, ctx: any) => any
+) {
+  return (parent: any, args: TArgs, ctx: any) => {
+    if (ctx.auth?.kind !== "session") throw new Error(REFLECT_SESSION_ONLY);
+    return resolver(parent, args, ctx);
+  };
+}
