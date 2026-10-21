@@ -19,6 +19,9 @@ function assertScratchDatabase(url: string) {
 }
 assertScratchDatabase(E2E_DATABASE_URL);
 
+/** The same file from the API entry's cwd: Prisma resolves `file:./` against `api/prisma/`. */
+const E2E_DATABASE_FILE = `prisma/${E2E_DATABASE_URL.slice("file:./".length)}`;
+
 const slot = String(API_PORT);
 
 export default defineConfig({
@@ -40,12 +43,14 @@ export default defineConfig({
 
   webServer: [
     {
-      command: "npx prisma db push --skip-generate --force-reset && npx ts-node src/index.ts",
+      // clearScratchDb first: a killed API leaves -wal/-shm files that make --force-reset push nothing
+      command: `node ../client/e2e/clearScratchDb.mjs ${E2E_DATABASE_FILE} && npx prisma db push --skip-generate --force-reset && npx ts-node src/index.ts`,
       cwd: "../api",
       // /graphql answers a bare GET with 400 (it wants Accept: text/html); the health route is a plain 200
       url: API_HEALTH_URL,
       reuseExistingServer: process.env.E2E_REUSE === "1",
-      timeout: 120_000,
+      // db push writes ~40 tables with an fsync each: 7-60 s alone on the Windows machine, and two slots contend
+      timeout: 300_000,
       env: {
         DATABASE_URL: E2E_DATABASE_URL,
         PORT: String(API_PORT),

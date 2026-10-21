@@ -13,7 +13,7 @@ Each run gets its own ports and its own scratch database, so lanes can run side 
 
 The config refuses a port that isn't a whole number from 1 to 65535, the dev servers' `4000` or `5173` (with `E2E_REUSE=1` a run there would write to the dev database), or one port for both.
 
-Per API port too: the scratch database, the credentials file, the report folders, and (per web port) the Vite dependency cache `client/node_modules/.vite-e2e-<web port>`; two Vite servers on one cache race on Windows (EPERM). The scratch database is `api/prisma/prisma/p<API port>-e2e.db` (gitignored via `*.db`), reset on every run. The config refuses to start unless the URL ends in `e2e.db` and names no `dev.db`, `test.db` or `prod.db`. `DATABASE_URL` from your shell is never used.
+Per API port too: the scratch database, the credentials file, the report folders, and (per web port) the Vite dependency cache `client/node_modules/.vite-e2e-<web port>`; two Vite servers on one cache race on Windows (EPERM). The scratch database is `api/prisma/prisma/p<API port>-e2e.db` (gitignored via `*.db`), deleted with its `-wal` and `-shm` files and rebuilt on every run (`e2e/clearScratchDb.mjs`, then `prisma db push --force-reset`). The push takes 7–60 s on the Windows machine, so the API gets 5 minutes to start. The config refuses to start unless the URL ends in `e2e.db` and names no `dev.db`, `test.db` or `prod.db`. `DATABASE_URL` from your shell is never used.
 
 ## Slots
 
