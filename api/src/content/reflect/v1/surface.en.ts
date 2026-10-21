@@ -89,16 +89,15 @@ export const SURFACE_EN: ReflectSurface = {
     scenePlaceholder: "the kitchen, my sister and me",
     storyPrompt:
       "Tell it as if you were watching from across the room: what each person said and did, one thing after another.",
-    softLine: "Try keeping it to one scene. What came after can be its own entry.",
   },
 
   feelings: {
     prompt: "Where in the story did a feeling come up?",
     whenLabel: "When",
     whenPlaceholder: "when she closed the door",
-    feelingLabel: "The feeling",
-    needLabel: "What you needed",
-    metLabel: "Was it met?",
+    feelingLabel: "Feeling",
+    needLabel: "Need",
+    metLabel: "Met or unmet?",
     metOptions: { met: "Met", unmet: "Unmet", not_sure: "Not sure" },
   },
 

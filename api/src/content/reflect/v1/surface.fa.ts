@@ -106,7 +106,6 @@ export const SURFACE_FA: ReflectSurface = {
     scenePlaceholder: "آشپزخانه، من و خواهرم",
     storyPrompt:
       "طوری تعریفش کن که انگار از آن سر اتاق نگاه می‌کردی: هر کس چه گفت و چه کرد، یکی پس از دیگری.",
-    softLine: "سعی کن همه‌چیز در یک صحنه بماند. آنچه بعدش اتفاق افتاد می‌تواند نوشتهٔ جدایی باشد.",
   },
 
   feelings: {
@@ -114,8 +113,8 @@ export const SURFACE_FA: ReflectSurface = {
     whenLabel: "کِی",
     whenPlaceholder: "وقتی در را بست",
     feelingLabel: "حس",
-    needLabel: "نیازت",
-    metLabel: "برآورده شد؟",
+    needLabel: "نیاز",
+    metLabel: "برآورده شد یا نه؟",
     metOptions: { met: "برآورده شد", unmet: "نشد", not_sure: "مطمئن نیستم" },
   },
 

@@ -35,12 +35,14 @@ export type ReflectSpec = {
 
 // ─── Surface (per locale) ────────────────────────────────────────────────────
 
-/** Step 2: the story. `softLine` shows once the story passes `DIALS.storySoftLine`. */
+/**
+ * Step 2: the story. The sentence past `DIALS.storySoftLine` is an interface
+ * string in `common.json`, not practice content (plan §6.5).
+ */
 export type StoryCopy = {
   scenePrompt: string;
   scenePlaceholder: string;
   storyPrompt: string;
-  softLine: string;
 };
 
 /** Step 3: moments. Palettes come from Feelings & Needs' pack, not from here. */

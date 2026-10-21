@@ -82,6 +82,26 @@ describe("the pack's two surfaces (AC-42)", () => {
   it.each(SURFACES)("%s: the offer line has its {word} slot", (_locale, surface) => {
     expect(surface.interpretation.offerLine).toContain("{word}");
   });
+
+  it.each(SURFACES)("%s: holds practice content only, not the interface strings of plan §6.5", (_locale, surface) => {
+    // The soft-line and bound sentences are interface strings, keys in common.json (§6.5).
+    expect(Object.keys(surface.story).sort()).toEqual(["scenePrompt", "scenePlaceholder", "storyPrompt"].sort());
+  });
+
+  it("en carries the labels the spec names (§4.5, §4.6; plates 3 to 7 agree)", () => {
+    expect(SURFACE_EN.feelings).toMatchObject({
+      whenLabel: "When",
+      feelingLabel: "Feeling",
+      needLabel: "Need",
+      metLabel: "Met or unmet?",
+      metOptions: { met: "Met", unmet: "Unmet", not_sure: "Not sure" },
+    });
+    expect(SURFACE_EN.reality).toMatchObject({
+      readingLabel: "A reading in it",
+      cameraLabel: "What a camera would have caught there",
+    });
+    expect(SURFACE_EN.interpretation).toMatchObject({ useLabel: "Use this", dismissLabel: "Not this one" });
+  });
 });
 
 describe("no prompt asks why (AC-19)", () => {
