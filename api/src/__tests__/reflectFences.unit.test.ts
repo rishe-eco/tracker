@@ -229,10 +229,13 @@ function reflectSdlSection(text: string = typeDefsText): string {
   return text.slice(start, end);
 }
 
-/** The type-system definitions in a text. Bodies run to the next line holding only a closing brace. */
+/**
+ * The type-system definitions in a text, `extend` ones included (they build into
+ * the same schema). Bodies run to the next line holding only a closing brace.
+ */
 function definitions(text: string): Array<{ kind: string; name: string; body: string; at: number }> {
   const out: Array<{ kind: string; name: string; body: string; at: number }> = [];
-  for (const m of text.matchAll(/^[ \t]*(type|enum|input|interface)\s+(\w+)[^{\n]*\{([\s\S]*?)^[ \t]*\}/gm)) {
+  for (const m of text.matchAll(/^[ \t]*(?:extend\s+)?(type|enum|input|interface)\s+(\w+)[^{\n]*\{([\s\S]*?)^[ \t]*\}/gm)) {
     out.push({ kind: m[1], name: m[2], body: m[3], at: m.index! });
   }
   return out;
@@ -321,6 +324,10 @@ describe("the SDL fence (AC-3, AC-5, D-2)", () => {
     // A Reflect type outside the block; another pillar's type inside it.
     expect(sdlViolations(withBlock(clean, "  type ReflectStray {\n    id: ID!\n  }\n"))).toHaveLength(1);
     expect(sdlViolations(withBlock("  type Stranger {\n    id: ID!\n  }\n"))).toHaveLength(1);
+    // `extend type` builds into the same schema, so it is a definition too (found at verify B2):
+    // a Reflect extension outside the block, carrying a hidden field, is two violations.
+    expect(sdlViolations(withBlock(clean, "  extend type ReflectEntry {\n    outcome: String\n  }\n"))).toHaveLength(2);
+    expect(sdlViolations(withBlock(clean, "  extend type Query {\n    reflectFind(search: String): Int\n  }\n"))).toHaveLength(1);
     // An operation argument named like a search.
     for (const arg of FORBIDDEN_ARGS) {
       const q = `  type Query {\n    reflectFind(${arg}: String): Int\n  }\n`;
@@ -381,15 +388,24 @@ describe("tokens are refused on every Reflect operation (AC-4)", () => {
   });
 });
 
-/** Every model accessor on any client variable (`prisma`, `tx`, `ctx.prisma`) that names a model Reflect must not touch. */
+/**
+ * Every model accessor on any client variable (`prisma`, `tx`, `ctx.prisma`) that names a model Reflect must not
+ * touch, dotted or bracketed, and any raw query, which could reach any table.
+ */
 function modelCallViolations(text: string): string[] {
-  return [...text.matchAll(/\b\w+\.(action|interval\w*|goal|journal\w*|loop\w*|frameCompletion)\.\w+\(/g)].map((m) => m[0]);
+  const models = "(?:action|interval\\w*|goal|journal\\w*|loop\\w*|frameCompletion)";
+  const patterns = [
+    new RegExp(`\\b\\w+\\.${models}\\.\\w+\\(`, "g"),
+    new RegExp(`\\b\\w+\\[\\s*["'\`]${models}["'\`]\\s*\\]`, "g"),
+    /\$(?:query|execute)Raw\w*/g,
+  ];
+  return patterns.flatMap((p) => [...text.matchAll(p)].map((m) => m[0]));
 }
 
 describe("the model-call fence (AC-47, AC-26's table half)", () => {
   const files = sourceFiles(join(API_SRC, "services/reflect"));
 
-  it("services/reflect names no action, interval, goal, journal, loop or frameCompletion model", () => {
+  it("services/reflect names no action, interval, goal, journal, loop or frameCompletion model, and makes no raw query", () => {
     expect(files.length).toBeGreaterThan(0);
     const offenders = files.flatMap(([p, text]) => modelCallViolations(text).map((v) => `${p}: ${v}`));
     expect(offenders).toEqual([]);
@@ -409,5 +425,9 @@ describe("the model-call fence (AC-47, AC-26's table half)", () => {
     expect(modelCallViolations("prisma.loopSitting.count()")).toHaveLength(1);
     expect(modelCallViolations("prisma.frameCompletion.findFirst()")).toHaveLength(1);
     expect(modelCallViolations("prisma.reflectEntry.findFirst()")).toEqual([]);
+    // Raw SQL and a bracketed accessor reach the same tables (found at verify B2).
+    expect(modelCallViolations("prisma.$queryRaw`SELECT * FROM Action`")).toHaveLength(1);
+    expect(modelCallViolations("tx.$executeRawUnsafe(sql)")).toHaveLength(1);
+    expect(modelCallViolations('prisma["goal"].create()')).toHaveLength(1);
   });
 });
