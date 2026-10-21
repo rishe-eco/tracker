@@ -7,7 +7,7 @@
 | Stage | What | Record | Status |
 |---|---|---|---|
 | B0 | e2e lanes prep: own ports, scratch database and Vite cache per slot | [B0.md](B0.md) | verified 2026-10-21 |
-| B1 | Schema, content pack and fences | | |
+| B1 | Schema, content pack and fences | [B1.md](B1.md) | verified 2026-10-21 |
 | B2 | The entry API | | |
 | B3 | The two catches | | |
 | B4 | Home, entry shell, pre-check, story, calm close | | |
