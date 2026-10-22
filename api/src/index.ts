@@ -8,6 +8,7 @@ import cors from "cors";
 import { authenticateApiToken, looksLikeApiToken } from "./services/apiTokens";
 import { applySqlitePragmas } from "./db/sqlitePragmas";
 import { requestLocale } from "./graphql/requestLocale";
+import { errorPolicy } from "./graphql/errorPolicy";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -87,6 +88,10 @@ async function startServer() {
     typeDefs,
     resolvers,
     plugins: [enforceTokenScope],
+    ...errorPolicy(),
+    // Apollo turns introspection off when NODE_ENV is production. It has always
+    // been on here, and the schema is in a public repo anyway.
+    introspection: true,
     context: async ({ req }) => {
       const { user, auth } = await authenticate(req);
       return { user, auth, prisma, locale: requestLocale(req) };
