@@ -84,11 +84,20 @@ const ARABIC_FOLDS: Array<[RegExp, string]> = [
   [/ـ/g, ""], //                ـ (tatweel), decorative only
 ];
 
-/** Put a string into the one form the matcher compares in. See the sibling function in `feelingsNeeds/distinctions.ts` for the full reasoning; identical logic, kept independent per build plan §3, §4. */
+/**
+ * A curly apostrophe (U+2019), what phone keyboards type, folds to the straight
+ * one the lexicons are authored in, so `bad if i don’t` meets `bad if i don't`.
+ * Reflect's matcher folds it too; `feelingsNeeds/distinctions.ts` doesn't,
+ * having no trigger with an apostrophe.
+ */
+const CURLY_APOSTROPHE = /’/g;
+
+/** Put a string into the one form the matcher compares in. See the sibling function in `feelingsNeeds/distinctions.ts` for the full reasoning; the same logic plus the apostrophe fold, kept independent per build plan §3, §4. */
 export function normalizeForMatch(s: string): string {
   let out = s.normalize("NFC").toLowerCase();
   for (const [re, to] of ARABIC_FOLDS) out = out.replace(re, to);
   return out
+    .replace(CURLY_APOSTROPHE, "'")
     .replace(COMBINING_MARKS, "")
     .replace(/‌/g, " ")
     .replace(/\s+/g, " ")

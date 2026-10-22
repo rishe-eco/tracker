@@ -52,11 +52,18 @@ const ARABIC_FOLDS: Array<[RegExp, string]> = [
   [/ـ/g, ""], //                ـ (tatweel), decorative only
 ];
 
+/**
+ * A curly apostrophe (U+2019), what phone keyboards type, folds to the straight
+ * one the lexicons are authored in, so `didn’t care` meets `didn't care`.
+ */
+const CURLY_APOSTROPHE = /’/g;
+
 /** Put a string into the one form the matcher compares in. */
 export function normalizeForMatch(s: string): string {
   let out = s.normalize("NFC").toLowerCase();
   for (const [re, to] of ARABIC_FOLDS) out = out.replace(re, to);
   return out
+    .replace(CURLY_APOSTROPHE, "'")
     .replace(COMBINING_MARKS, "")
     .replace(/‌/g, " ")
     .replace(/\s+/g, " ")

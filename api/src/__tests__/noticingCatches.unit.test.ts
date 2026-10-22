@@ -62,6 +62,10 @@ describe("the detector — word boundaries and longest match", () => {
     expect(detectCatch(pack, "protective", "I have to, I think")).toBe("have to");
   });
 
+  it("a curly apostrophe, what phone keyboards type, meets the authored straight one", () => {
+    expect(detectCatch(pack, "protective", "it feels bad if I don’t")).toBe("bad if i don't");
+  });
+
   it("returns null for an unknown catch type", () => {
     expect(detectCatch(pack, "nonsense" as any, "rude")).toBeNull();
   });

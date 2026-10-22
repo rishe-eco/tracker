@@ -36,6 +36,7 @@ function normalize(s: string): string {
   let out = s.normalize("NFC").toLowerCase();
   for (const [re, to] of ARABIC_FOLDS) out = out.replace(re, to);
   return out
+    .replace(/’/g, "'")
     .replace(/\p{M}+/gu, "")
     .replace(/‌/g, " ")
     .replace(/\s+/g, " ")

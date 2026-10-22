@@ -117,4 +117,9 @@ describe("the fold", () => {
     expect(normalizeForMatch("می‌خواست")).toBe("می خواست");
     expect(normalizeForMatch("جـمـله")).toBe("جمله");
   });
+
+  it("a curly apostrophe, what phone keyboards type, meets the authored straight one", () => {
+    expect(normalizeForMatch("didn’t")).toBe("didn't");
+    expect(detectInterpretation(en, "He didn’t care.")).toMatchObject({ word: "didn't care" });
+  });
 });
