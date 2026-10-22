@@ -11,6 +11,7 @@
 | B2 | The entry API: every Reflect operation but the catches, session only | [B2.md](B2.md) | verified 2026-10-22 |
 | B3 | The two catches: the interpretation and faux-feeling offers, server side | [B3.md](B3.md) | verified 2026-10-22 |
 | B4 | Home, entry shell, pre-check, story, calm close | [B4.md](B4.md) | verified 2026-10-22 (e2e not rerun, founder's word) |
+| B5 | Feelings and needs, reality check, close, after the entry | [B5.md](B5.md) | verified 2026-10-22 |
 | B5 | Feelings and needs, reality check, close, after the entry | | |
 | B6 | Past entries | | |
 | B7 | Open the door | | |
