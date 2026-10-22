@@ -383,6 +383,26 @@ describe("Back (G2, PD-6)", () => {
     expect(callsTo("MoveReflectEntry")[0][0].variables).toEqual({ entryId: "e1", to: "REALITY" });
   });
 
+  it("Back sits at the start of the footer and Next at the end, on all three steps (W2)", async () => {
+    for (const step of ["FEELINGS", "REALITY"]) {
+      entry = entryAt(step, step === "REALITY" ? { story: "x" } : {});
+      const { unmount } = render(<ReflectEntryPage />);
+      const back = await screen.findByText("reflect.nav.back");
+      const next = screen.getByText("reflect.nav.next");
+      expect(back.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(back.parentElement).toBe(next.parentElement);
+      expect(back.parentElement!.firstElementChild).toBe(back);
+      expect(back.parentElement!.lastElementChild).toBe(next);
+      unmount();
+    }
+    entry = entryAt("CLOSE");
+    render(<ReflectEntryPage />);
+    const back = await screen.findByText("reflect.nav.back");
+    const finish = screen.getByText("reflect.nav.finish");
+    expect(back.parentElement!.firstElementChild).toBe(back);
+    expect(back.parentElement!.lastElementChild).toBe(finish);
+  });
+
   it("the story and the pre-check still have no Back", async () => {
     entry = entryAt("STORY");
     render(<ReflectEntryPage />);

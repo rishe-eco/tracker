@@ -45,7 +45,8 @@ const STEP_NAME_KEY: Record<ReflectStep, string> = {
 
 /**
  * The step named (never numbered, W3), with Stop here at the end of the bar
- * (W1): the same place on every step, left in `fa` by `ms-auto`.
+ * (W1): the same place on every step, left in `fa` by `ms-auto`. It wraps below
+ * a long step name at a narrow width (the reflow rule: 180 px).
  */
 export function ReflectStepBar({
   step,
@@ -58,7 +59,7 @@ export function ReflectStepBar({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <h2 className="text-lg font-semibold" data-testid="reflect-step-name">
         {t(STEP_NAME_KEY[step])}
       </h2>
