@@ -112,6 +112,8 @@ export default function ReflectEntryPage() {
   entryIdRef.current = entry?.id ?? null;
   const lock = useRef(false);
   const answerLock = useRef(false);
+  // The feeling the faux offer on screen was surfaced by.
+  const fauxWord = useRef<string | null>(null);
   const lastAction = useRef<(() => Promise<void>) | null>(null);
 
   /** A write refused as closed leaves for the home. True when it did. */
@@ -145,7 +147,14 @@ export default function ReflectEntryPage() {
             return false;
           }
           setStored((n) => ({ ...n, moments: Math.max(n.moments, position + 1) }));
-          if (saved.fauxOffer) setFaux(saved.fauxOffer);
+          if (saved.fauxOffer) {
+            fauxWord.current = word(value).text;
+            setFaux(saved.fauxOffer);
+          } else if (field === "feeling") {
+            // The offer is about the word that surfaced it (AC-25): a different feeling saved under it takes it away.
+            const text = word(value).text;
+            setFaux((f) => (f && f.position === position && text !== fauxWord.current ? null : f));
+          }
           return true;
         }
         if (kind === "reading") {

@@ -348,6 +348,37 @@ describe("the faux-feeling offer (AC-25, PD-9)", () => {
     expect(callsTo("SaveReflectMoment")[1][0].variables).toMatchObject({ feeling: "somethingelse", feelingSource: "OWN" });
   });
 
+  it("goes when the feeling changes under it: a chip tapped as the own word's field loses focus (verify B5)", async () => {
+    fauxFor = { ignored: FAUX };
+    render(<ReflectEntryPage />);
+    fireEvent.click((await screen.findAllByText("other…"))[0]);
+    const own = screen.getByRole("textbox", { name: "FEELING-LABEL" });
+    fireEvent.change(own, { target: { value: "ignored" } });
+    // A real tap on a chip blurs the field at mousedown, so the own word is sent, then the chip's click.
+    fireEvent.blur(own);
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(screen.getByText("hurt"));
+    await waitFor(() => expect(callsTo("SaveReflectMoment")).toHaveLength(2));
+    expect(callsTo("SaveReflectMoment")[1][0].variables).toMatchObject({ feeling: "hurt", feelingSource: "PALETTE" });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("reflect-faux-offer")).toBeNull();
+  });
+
+  it("stays when the same word is committed again", async () => {
+    await surface();
+    const own = screen.getByRole("textbox", { name: "FEELING-LABEL" });
+    fireEvent.change(own, { target: { value: "ignoredx" } });
+    fireEvent.change(own, { target: { value: "ignored" } });
+    fireEvent.keyDown(own, { key: "Enter" });
+    await waitFor(() => expect(callsTo("SaveReflectMoment")).toHaveLength(2));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("reflect-faux-offer")).toBeTruthy();
+  });
+
   it("is dropped on any move (G11)", async () => {
     await surface();
     fireEvent.click(screen.getByText("reflect.nav.back"));
