@@ -63,6 +63,9 @@ const stripQuestion = (hint: string) => hint.replace(/[?؟]+\s*$/u, "").trim();
 
 const key = (i: number, field: string) => `moment:${i}:${field}`;
 
+/** A small button that wraps its label instead of overflowing; one line keeps `sm`'s 32 px. */
+const WRAPS = "h-auto min-h-8 max-w-full whitespace-normal py-1";
+
 /**
  * The faux-feeling offer (spec §4.5, W8), inside its moment and under the
  * feeling. It lives in the page, from the save result that carried it, and is
@@ -105,13 +108,14 @@ function FauxOffer({
           </div>
         </div>
       )}
+      {/* The buttons wrap their own text at a narrow width (180 px, the reflow rule): Keep mine in fa is wider than the box. */}
       <div className="flex flex-wrap gap-2">
         {!choosing && (
-          <Button variant="outline" size="sm" onClick={() => setChoosing(true)}>
+          <Button variant="outline" size="sm" className={WRAPS} onClick={() => setChoosing(true)}>
             {t("reflect.faux.useOne")}
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={onKeep}>
+        <Button variant="outline" size="sm" className={WRAPS} onClick={onKeep}>
           {t("reflect.faux.keepMine")}
         </Button>
       </div>
