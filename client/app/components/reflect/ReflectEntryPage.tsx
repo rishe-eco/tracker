@@ -308,7 +308,7 @@ export default function ReflectEntryPage() {
     });
   };
 
-  /** One answer, or Skip (null): the question's own lock lets this run once. An answer that can't be stored doesn't hold the person here. */
+  /** One answer, or Skip (null): the page's one lock, never released, lets this run once. An answer that can't be stored doesn't hold the person here. */
   const answer = (value: AfterAnswer | null) => {
     if (answerLock.current) return;
     answerLock.current = true;
