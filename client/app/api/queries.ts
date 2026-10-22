@@ -3059,3 +3059,89 @@ export const RECORD_FOCUS_LOOKBACK = `
     recordFocusLookback(id: $id, answer: $answer, dateKey: $dateKey) { id lookbackAnswer lookbackSeenAt }
   }
 `;
+
+// ── Reflect ────────────────────────────────────────────────────────────────
+// Build plan §6.1. Only the fields B4 reads: B5 widens the moment and reading
+// selections and adds the content it needs. Nothing here ever selects a
+// pre-check answer, the outcome or a catch: the API has no such field (AC-3).
+
+const REFLECT_ENTRY_FIELDS = `
+  id step scene story close createdAt
+  moments { id position whenText feeling need }
+  readings { id position reading camera }
+`;
+
+export const GET_REFLECT_HOME = `
+  query ReflectHome {
+    reflectHome {
+      openEntry { id createdAt hasStory }
+      hasPast
+      practiceLocale
+      reviewStatus
+    }
+  }
+`;
+
+export const GET_REFLECT_ENTRY = `
+  query ReflectEntry {
+    reflectEntry { ${REFLECT_ENTRY_FIELDS} }
+  }
+`;
+
+export const GET_REFLECT_CONTENT = `
+  query ReflectContent {
+    reflectContent {
+      locale
+      reviewStatus
+      prompts { story { scenePrompt scenePlaceholder storyPrompt } }
+      limits { scene story storySoftLine whenText reading camera ownWord close momentsCap readingsCap }
+    }
+  }
+`;
+
+/** `replacing` closes only that entry (D-14): a double tap can't close the one it just opened. */
+export const START_REFLECT_ENTRY = `
+  mutation StartReflectEntry($replacing: ID) {
+    startReflectEntry(replacing: $replacing) { ${REFLECT_ENTRY_FIELDS} }
+  }
+`;
+
+export const SAVE_REFLECT_ENTRY = `
+  mutation SaveReflectEntry(
+    $entryId: ID!
+    $scene: String
+    $story: String
+    $close: String
+    $precheckWhen: ReflectPrecheckWhen
+    $precheckBefore: ReflectPrecheckBefore
+  ) {
+    saveReflectEntry(
+      entryId: $entryId
+      scene: $scene
+      story: $story
+      close: $close
+      precheckWhen: $precheckWhen
+      precheckBefore: $precheckBefore
+    ) { id step }
+  }
+`;
+
+export const MOVE_REFLECT_ENTRY = `
+  mutation MoveReflectEntry($entryId: ID!, $to: ReflectStep!) {
+    moveReflectEntry(entryId: $entryId, to: $to) {
+      entry { ${REFLECT_ENTRY_FIELDS} }
+    }
+  }
+`;
+
+export const STOP_REFLECT_ENTRY = `
+  mutation StopReflectEntry($entryId: ID!) {
+    stopReflectEntry(entryId: $entryId) { ${REFLECT_ENTRY_FIELDS} }
+  }
+`;
+
+export const DELETE_REFLECT_ENTRY = `
+  mutation DeleteReflectEntry($entryId: ID!) {
+    deleteReflectEntry(entryId: $entryId)
+  }
+`;

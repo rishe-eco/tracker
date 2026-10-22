@@ -46,6 +46,8 @@ import NoticingPage from "./components/impact/NoticingPage";
 import NoticingFramePage from "./components/impact/NoticingFramePage";
 import NoticingLoopPage from "./components/impact/NoticingLoopPage";
 import NoticingLogPage from "./components/impact/NoticingLogPage";
+import ReflectHomePage from "./components/reflect/ReflectHomePage";
+import ReflectEntryPage from "./components/reflect/ReflectEntryPage";
 import { Navigate } from "react-router";
 
 export default [
@@ -179,6 +181,17 @@ export default [
   {
     path: "/tools/impact/noticing/log",
     element: <NoticingLogPage />,
+  },
+  {
+    // Reflect (B4). Live but unlinked until B7 puts the card on the Tools home (PD-5).
+    // The entry route is the open entry, the calm close and, from B5, the after-entry
+    // question and the done line.
+    path: "/tools/reflect",
+    element: <ReflectHomePage />,
+  },
+  {
+    path: "/tools/reflect/entry",
+    element: <ReflectEntryPage />,
   },
   {
     path: "/tools/journals/:id",

@@ -2416,5 +2416,71 @@
       "titleRequired": "Name is required.",
       "endAfterStart": "\"To\" must be after \"From\"."
     }
+  },
+  "reflect": {
+    "title": "Reflect",
+    "nav": {
+      "next": "Next",
+      "back": "Back",
+      "stop": "Stop here"
+    },
+    "steps": {
+      "precheck": "Before you start",
+      "story": "The scene",
+      "feelings": "Feelings and needs",
+      "reality": "Reality check",
+      "close": "Looking at it now"
+    },
+    "home": {
+      "intro": "An entry is one scene, told the way someone watching from the side would tell it.",
+      "start": "Start an entry",
+      "continue": "Continue the entry you started on {{date}}",
+      "startNew": "Start a new one",
+      "startNewKept": "The entry you started is kept in Past entries.",
+      "startNewEnds": "Nothing is written in it yet, so it simply ends.",
+      "past": "Past entries"
+    },
+    "banner": {
+      "body": "The practice content here is in English, and its Persian version is still a draft."
+    },
+    "precheck": {
+      "when": {
+        "question": "When did this happen?",
+        "days": "In the last few days",
+        "weeks": "In the last few weeks",
+        "longer": "Longer ago"
+      },
+      "before": {
+        "question": "Have you written about it here before?",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "advisory": "It may still be close, and writing now can stir it more than settle it. It could wait, or you could keep it short.",
+      "keepGoing": "Keep going",
+      "notNow": "Not now"
+    },
+    "story": {
+      "softLine": "That's getting long. Try keeping it to one scene; what came after can be its own entry."
+    },
+    "bound": "That's as long as an entry can hold here.",
+    "notSaved": "This isn't saved yet.",
+    "tryAgain": "Try again",
+    "calmClose": {
+      "_draft": "B7 replaces these values (P0-1)",
+      "title": "It's fine to stop here.",
+      "fine": "You don't have to finish anything today.",
+      "kept": "What you wrote is kept, and you can delete it whenever you like.",
+      "support": "If this feels like too much to hold on your own, it may help to talk with someone you trust, or with a professional.",
+      "back": "Back to Reflect",
+      "delete": "Delete what I wrote",
+      "confirmTitle": "Delete what you wrote?",
+      "confirmBody": "This can't be undone."
+    },
+    "errors": {
+      "couldNotLoad": "Reflect couldn't load. Check your connection and try again.",
+      "start": "Couldn't start an entry. Try again.",
+      "action": "That didn't go through. Try again.",
+      "delete": "Couldn't delete it. Try again."
+    }
   }
 }
