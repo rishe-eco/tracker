@@ -115,7 +115,8 @@ export function PrecheckStep({
 
       {advisory ? (
         <ReflectFooter>
-          <div className="flex items-center gap-2">
+          {/* Wraps at a narrow width (180 px, the reflow rule) rather than pushing Keep going out of the column. */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" onClick={onNotNow} disabled={held}>
               {t("reflect.precheck.notNow")}
             </Button>
