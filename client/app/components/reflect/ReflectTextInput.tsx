@@ -42,7 +42,10 @@ export function ReflectTextInput({
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="block text-sm font-medium">
-        {label}
+        {/* The prompt is practice content, in the practice locale, which needn't be
+            the page's (PD-7): isolated, so an English prompt in a Persian page keeps
+            its question mark at its end. The line still aligns with the page. */}
+        <span dir="auto">{label}</span>
       </label>
       {multiline ? (
         <Textarea

@@ -299,6 +299,19 @@ describe("the story and autosave", () => {
     expect(document.body.textContent).not.toMatch(/1501|1,500|5000/);
   });
 
+  it("isolates each prompt's direction, so an English prompt in a Persian page keeps its end punctuation (G7)", async () => {
+    // The prompts are practice content in the practice locale; under `dir="rtl"`
+    // an un-isolated "Where were you?" renders as "?Where were you".
+    lang = "fa";
+    entry = entryAt("STORY");
+    render(<ReflectEntryPage />);
+    for (const prompt of ["SCENE-PROMPT", "STORY-PROMPT"]) {
+      const text = await screen.findByText(prompt);
+      expect(text.closest("[dir='auto']")?.tagName).not.toBe(undefined);
+      expect(text.closest("[dir='auto']")!.closest("label")).toBeTruthy();
+    }
+  });
+
   it("at the bound the page says so in one sentence, with no number (AC-51)", async () => {
     entry = entryAt("STORY");
     render(<ReflectEntryPage />);
