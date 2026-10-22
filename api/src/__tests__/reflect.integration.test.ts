@@ -507,6 +507,37 @@ describe("through the schema (AC-3 in practice)", () => {
     const bad = await run(a.id, `mutation($id: ID!) { moveReflectEntry(entryId: $id, to: NOWHERE) { entry { step } } }`, { id: entry.id });
     expect(bad.errors).toBeDefined();
   });
+
+  it("carries both offers, every field, through the transport (B3, verify)", async () => {
+    const { a } = await twoUsers();
+    const s = await run(a.id, `mutation { startReflectEntry { id } }`);
+    const id = (s.data as any).startReflectEntry.id;
+    await run(a.id, `mutation($id: ID!) { saveReflectEntry(entryId: $id, story: "We ate. She always leaves early.") { id } }`, { id });
+    await run(a.id, `mutation($id: ID!) { moveReflectEntry(entryId: $id, to: STORY) { entry { step } } }`, { id });
+    await run(a.id, `mutation($id: ID!) { moveReflectEntry(entryId: $id, to: FEELINGS) { entry { step } } }`, { id });
+
+    const m = await run(
+      a.id,
+      `mutation($id: ID!) { saveReflectMoment(entryId: $id, position: 0, feeling: "betrayed") { fauxOffer { position conceptId line feelingHints needHints feelingHintsLabel needHintsLabel dismiss note } } }`,
+      { id }
+    );
+    expect(m.errors).toBeUndefined();
+    const offer = (m.data as any).saveReflectMoment.fauxOffer;
+    expect(offer).toMatchObject({ position: 0, conceptId: "betrayed" });
+    for (const k of ["line", "feelingHintsLabel", "needHintsLabel", "dismiss", "note"]) expect(typeof offer[k]).toBe("string");
+    expect(offer.feelingHints.length).toBeGreaterThan(0);
+
+    const r = await run(
+      a.id,
+      `mutation($id: ID!) { moveReflectEntry(entryId: $id, to: REALITY) { entry { step } interpretationOffer { word sentence } } }`,
+      { id }
+    );
+    expect(r.errors).toBeUndefined();
+    expect((r.data as any).moveReflectEntry).toEqual({
+      entry: { step: "REALITY" },
+      interpretationOffer: { word: "always", sentence: "She always leaves early" },
+    });
+  });
 });
 
 describe("deleting (AC-7, D-1)", () => {
