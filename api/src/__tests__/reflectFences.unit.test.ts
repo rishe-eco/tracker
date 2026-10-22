@@ -436,6 +436,7 @@ describe("the model-call fence (AC-47, AC-26's table half)", () => {
 
 const NOTICING_DIR = join(API_SRC, "services/noticing").replace(/\\/g, "/");
 const DISTINCTIONS = join(API_SRC, "services/feelingsNeeds/distinctions").replace(/\\/g, "/");
+const FN_DIR = join(API_SRC, "services/feelingsNeeds").replace(/\\/g, "/");
 const BORROWED = ["detectFauxFeeling", "composeCatch"];
 
 /** Every module specifier a text pulls in: static, re-exported, side-effect, dynamic or required, each with its clause. */
@@ -461,6 +462,11 @@ function importViolations(file: string, text: string): string[] {
       out.push(`imports Noticing: ${spec}`);
       continue;
     }
+    // F&N's other service files read its tables and call its whole-decision function (AC-26, found at verify B3).
+    if ((resolved === FN_DIR || resolved.startsWith(FN_DIR + "/")) && resolved !== DISTINCTIONS) {
+      out.push(`imports Feelings & Needs' service: ${spec}`);
+      continue;
+    }
     if (resolved !== DISTINCTIONS) continue;
     // Only `detectFauxFeeling`, `composeCatch` and types may be borrowed from the faux-feeling file.
     if (typeOnly) continue;
@@ -481,7 +487,7 @@ function importViolations(file: string, text: string): string[] {
 describe("the catches' imports fence (AC-26)", () => {
   const files = sourceFiles(join(API_SRC, "services/reflect"));
 
-  it("services/reflect imports nothing from Noticing, and only detectFauxFeeling, composeCatch and types from distinctions", () => {
+  it("services/reflect imports nothing from Noticing or F&N's other service files, and only detectFauxFeeling, composeCatch and types from distinctions", () => {
     expect(files.length).toBeGreaterThan(0);
     const offenders = files.flatMap(([p, text]) => importViolations(p, text).map((v) => `${p}: ${v}`));
     expect(offenders).toEqual([]);
@@ -516,5 +522,9 @@ describe("the catches' imports fence (AC-26)", () => {
     expect(importViolations(f, `import { x } from "services/noticing/catches.js";`)).toHaveLength(1);
     expect(importViolations(f, `import type { SurfacedCatch } from "../noticing/catches";`)).toHaveLength(1);
     expect(importViolations(f, `const n = require("../noticing/state");`)).toHaveLength(1);
+    // F&N's other service files reach its tables and its whole-decision function by another door (found at verify B3).
+    expect(importViolations(f, `import { updateEntry } from "../feelingsNeeds/session";`)).toHaveLength(1);
+    expect(importViolations(f, `import { ensureLoopState } from "../feelingsNeeds/state";`)).toHaveLength(1);
+    expect(importViolations(f, `import { x } from "../feelingsNeeds";`)).toHaveLength(1);
   });
 });
