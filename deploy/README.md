@@ -27,7 +27,7 @@ Nginx proxies `/graphql` to the container.
 |---|---|
 | Checkout | `/opt/stacks/tracker`, a clone of `main`, owned by **root**. `git` there needs `sudo`. It is **sparse**: only `api/` and `client/` are on disk, so `deploy/` is read from the commit with `git show` |
 | API | `api/docker-compose.yml`, run from `/opt/stacks/tracker/api`. The project name comes from the directory, `api`, so the container is `api-api-1`, on `127.0.0.1:4000` |
-| API environment | `/opt/stacks/tracker/api/.env` (`JWT_SECRET`, `CORS_ORIGINS`, the Anthropic key), read by Compose. `DATABASE_URL` is not in it: the compose file sets it to `file:/app/data/prod.db` |
+| API environment | `/opt/stacks/tracker/api/.env` (`JWT_SECRET`, `CORS_ORIGINS`, the Anthropic key), read by Compose. `DATABASE_URL` is not in it: the compose file sets it to `file:/app/data/prod.db`. Nor is `NODE_ENV`: `api/Dockerfile` sets it to `production`, which keeps stack traces out of GraphQL errors |
 | Database | `/opt/stacks/tracker/api/data/prod.db`, the container's `/app/data`. Pre-migration backups are in `api/data/backups/` |
 | Web | `/opt/stacks/tracker/releases/<UTC stamp>-<short sha>/`, with `/opt/stacks/tracker/current` linking to the live one. Nginx's `root` is `current` |
 | Nginx site | the one file under `/etc/nginx/sites-enabled/` naming the domain: `grep -Rl tracker.m-root.com /etc/nginx/sites-enabled/` (`-R`, because those are links) |
