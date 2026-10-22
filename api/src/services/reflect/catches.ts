@@ -28,7 +28,6 @@ import type { PrismaClient } from "@prisma/client";
 import { DIALS, getReflectPack, type ReflectPack } from "../../content/reflect";
 import { getFeelingsNeedsPack } from "../../content/feelings-needs";
 import { composeCatch, detectFauxFeeling } from "../feelingsNeeds/distinctions";
-import { pinnedVersions } from "./state";
 
 // ─── The matcher (a copy; see the docblock) ──────────────────────────────────
 
@@ -199,8 +198,8 @@ export async function fauxOfferFor(
   if (!state) return null;
   const last = parseLastCatchAt(state.lastCatchAt);
   if (!offCooldown(last, "faux")) return null;
-  const v = await pinnedVersions(prisma, userId);
-  const fnPack = getFeelingsNeedsPack(v.fnContentVersion, DIALS.practiceLocale);
+  // The pinned F&N version, from the row already read, in the practice locale (PD-7, D-16).
+  const fnPack = getFeelingsNeedsPack(state.fnContentVersion, DIALS.practiceLocale);
   const hit = detectFauxFeeling(fnPack, feeling);
   if (!hit) return null;
   const composed = composeCatch(fnPack, hit.conceptId);
