@@ -93,7 +93,7 @@ export function ReflectFooter({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between gap-2 pt-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
       {onBack ? (
         <Button variant="outline" onClick={onBack} disabled={backDisabled}>
           {t("reflect.nav.back")}

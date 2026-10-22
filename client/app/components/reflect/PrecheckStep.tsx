@@ -23,14 +23,29 @@ export function precheckNeedsAdvisory(when: PrecheckWhen | null, before: Prechec
   return when === "DAYS" || before === "YES";
 }
 
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
+/** A single-choice chip. B5's palettes and Met choices use it too, with `dir` set for practice content. */
+export function Chip({
+  on,
+  onClick,
+  children,
+  dir,
+  disabled,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: string;
+  dir?: "ltr" | "auto";
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       aria-pressed={on}
+      dir={dir}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition-colors",
+        "max-w-full rounded-full border px-3 py-1.5 text-sm transition-colors [overflow-wrap:anywhere]",
         on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent"
       )}
     >

@@ -2422,7 +2422,8 @@
     "nav": {
       "next": "Next",
       "back": "Back",
-      "stop": "Stop here"
+      "stop": "Stop here",
+      "finish": "Finish"
     },
     "steps": {
       "precheck": "Before you start",
@@ -2475,6 +2476,27 @@
       "delete": "Delete what I wrote",
       "confirmTitle": "Delete what you wrote?",
       "confirmBody": "This can't be undone."
+    },
+    "feelings": {
+      "addMoment": "Add another moment",
+      "emptyMoment": "A moment"
+    },
+    "faux": {
+      "useOne": "Use one",
+      "keepMine": "Keep mine"
+    },
+    "reality": {
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "addPair": "Add another"
+    },
+    "after": {
+      "differently": "I see it a bit differently",
+      "same": "About the same",
+      "moreCaughtUp": "More caught up in it",
+      "skip": "Skip",
+      "done": "That's the entry. It's kept, and you can come back to it whenever you like.",
+      "back": "Back to Reflect"
     },
     "errors": {
       "couldNotLoad": "Reflect couldn't load. Check your connection and try again.",

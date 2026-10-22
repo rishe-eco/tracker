@@ -1,32 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Button } from "~/components/ui/button";
 import { LoadingBlock } from "~/components/ui/spinner";
 import InternalPageLayout from "~/layout/InternalPageLayout";
 import { useApi } from "~/api/useApi";
 import {
+  ANSWER_REFLECT_ENTRY,
   DELETE_REFLECT_ENTRY,
+  FINISH_REFLECT_ENTRY,
   GET_REFLECT_CONTENT,
   GET_REFLECT_ENTRY,
   MOVE_REFLECT_ENTRY,
   SAVE_REFLECT_ENTRY,
+  SAVE_REFLECT_MOMENT,
+  SAVE_REFLECT_READING,
   STOP_REFLECT_ENTRY,
 } from "~/api/queries";
+import { AfterEntryQuestion, ReflectDone, type AfterAnswer } from "./AfterEntry";
 import { CalmClose } from "./CalmClose";
+import { CloseStep } from "./CloseStep";
+import { FeelingsStep } from "./FeelingsStep";
+import { RealityStep } from "./RealityStep";
 import { PrecheckStep, type PrecheckBefore, type PrecheckWhen } from "./PrecheckStep";
 import { ReflectBanner, ReflectNotSaved, ReflectStepBar } from "./ReflectShell";
 import { StoryStep } from "./StoryStep";
-import { holdsWrittenText, type ReflectContent, type ReflectEntry, type ReflectStep } from "./types";
+import {
+  holdsWrittenText,
+  type ReflectContent,
+  type ReflectEntry,
+  type ReflectFauxOffer,
+  type ReflectInterpretationOffer,
+  type ReflectStep,
+  type SaveValue,
+} from "./types";
 import { useReflectAutosave } from "./useReflectAutosave";
 
-/** The step after each one, for Next. Back is B5's, and only from the story on. */
+/** The step after each one, for Next. */
 const NEXT_STEP: Partial<Record<ReflectStep, ReflectStep>> = {
   PRECHECK: "STORY",
   STORY: "FEELINGS",
   FEELINGS: "REALITY",
   REALITY: "CLOSE",
 };
+
+/** The step before each one, for Back: from the story on, never to the pre-check (D-3, PD-6). */
+const PREV_STEP: Partial<Record<ReflectStep, ReflectStep>> = {
+  FEELINGS: "STORY",
+  REALITY: "FEELINGS",
+  CLOSE: "REALITY",
+};
+
+/** B2's refusal for a write to a closed entry (`REFUSALS.closed`), read with `getLastError()`. */
+const CLOSED_REFUSAL = "This entry is closed.";
 
 type Failure = "notSaved" | "action" | null;
 
@@ -38,8 +64,17 @@ type Failure = "notSaved" | "action" | null;
  * cache, so a deleted entry has nothing to be evicted from (D-9, B4 card).
  *
  * B4 owns the frame: the banner, the step bar with Stop here, the footer, the
- * pre-check, the story and the calm close. B5 plugs the other steps into the
- * switch below.
+ * pre-check, the story and the calm close. B5 adds the feelings and needs step,
+ * the reality check, the close, and after Finish the question and the done line.
+ *
+ * The two catches' offers live in this page's state, from the result that
+ * carried them, and are dropped on any move (G11): a reload, Back or Continue
+ * never shows one again. After Finish the route's history state is replaced with
+ * `{ finished: true }` (PD-14), so a reload lands on the done line and not on the
+ * home or the question.
+ *
+ * A write refused as `closed` (the entry was closed in another tab) leaves for
+ * the Reflect home instead of showing a not-saved line that can never clear.
  *
  * Leaving a step commits it first (D-15): `flush()` resolves before any move or
  * stop is sent. A failed save leaves the text in the page, shows the not-saved
@@ -48,12 +83,21 @@ type Failure = "notSaved" | "action" | null;
 export default function ReflectEntryPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { call } = useApi();
+  const location = useLocation();
+  const { call, getLastError } = useApi();
 
   const [phase, setPhase] = useState<"loading" | "failed" | "ready">("loading");
   const [entry, setEntry] = useState<ReflectEntry | null>(null);
   const [content, setContent] = useState<ReflectContent | null>(null);
   const [calm, setCalm] = useState<{ holdsText: boolean } | null>(null);
+  // After Finish: the question (only in the page that tapped Finish), then the done line.
+  const [after, setAfter] = useState<"question" | "done" | null>(null);
+  const [faux, setFaux] = useState<ReflectFauxOffer | null>(null);
+  const [interpretation, setInterpretation] = useState<ReflectInterpretationOffer | null>(null);
+  // The reality check shows, its pairs dimmed, while the move that opens it is out.
+  const [arriving, setArriving] = useState(false);
+  // How many moment and reading rows the server holds: a new card's first write is the next free position (B2).
+  const [stored, setStored] = useState({ moments: 0, readings: 0 });
 
   // The pre-check's answers wait in the page until the step is left (PD-6).
   const [when, setWhen] = useState<PrecheckWhen | null>(null);
@@ -67,19 +111,72 @@ export default function ReflectEntryPage() {
   const entryIdRef = useRef<string | null>(null);
   entryIdRef.current = entry?.id ?? null;
   const lock = useRef(false);
+  const answerLock = useRef(false);
   const lastAction = useRef<(() => Promise<void>) | null>(null);
+
+  /** A write refused as closed leaves for the home. True when it did. */
+  const leftIfClosed = useCallback(() => {
+    if (getLastError() !== CLOSED_REFUSAL) return false;
+    navigate("/tools/reflect", { replace: true });
+    return true;
+  }, [getLastError, navigate]);
 
   const autosave = useReflectAutosave(
     useCallback(
-      async (fields) => {
+      async (key: string, value: SaveValue) => {
         const entryId = entryIdRef.current;
         if (!entryId) return false;
-        const res = await call({ query: SAVE_REFLECT_ENTRY, variables: { entryId, ...fields } });
-        return !!res?.saveReflectEntry;
+        const [kind, at, field] = key.split(":");
+        if (kind === "moment") {
+          const position = Number(at);
+          const word = (v: SaveValue) => (typeof v === "object" && v ? v : { text: "", source: "OWN" as const });
+          const fields =
+            field === "whenText"
+              ? { whenText: value as string }
+              : field === "feeling"
+                ? { feeling: word(value).text, feelingSource: word(value).source }
+                : field === "need"
+                  ? { need: word(value).text, needSource: word(value).source }
+                  : { met: value as string | null };
+          const res = await call({ query: SAVE_REFLECT_MOMENT, variables: { entryId, position, ...fields } });
+          const saved = res?.saveReflectMoment;
+          if (!saved?.moment) {
+            leftIfClosed();
+            return false;
+          }
+          setStored((n) => ({ ...n, moments: Math.max(n.moments, position + 1) }));
+          if (saved.fauxOffer) setFaux(saved.fauxOffer);
+          return true;
+        }
+        if (kind === "reading") {
+          const position = Number(at);
+          const res = await call({
+            query: SAVE_REFLECT_READING,
+            variables: { entryId, position, [field]: value as string },
+          });
+          if (!res?.saveReflectReading) {
+            leftIfClosed();
+            return false;
+          }
+          setStored((n) => ({ ...n, readings: Math.max(n.readings, position + 1) }));
+          return true;
+        }
+        const res = await call({ query: SAVE_REFLECT_ENTRY, variables: { entryId, [key]: value as string } });
+        if (!res?.saveReflectEntry) {
+          leftIfClosed();
+          return false;
+        }
+        return true;
       },
-      [call]
+      [call, leftIfClosed]
     )
   );
+
+  /** Takes the entry the server returned, and with it what the server holds of the two row lists. */
+  const applyEntry = useCallback((e: ReflectEntry) => {
+    setEntry(e);
+    setStored({ moments: e.moments.length, readings: e.readings.length });
+  }, []);
 
   const load = useCallback(async () => {
     setPhase("loading");
@@ -91,16 +188,23 @@ export default function ReflectEntryPage() {
       setPhase("failed");
       return;
     }
-    // G15, first half: the entry URL with no open entry goes to the home. The
-    // after-entry done line that survives a reload (PD-14) is B5's.
+    // G15: the entry URL with no open entry goes to the home, unless Finish was
+    // tapped on this history entry: then the done line, not the question (PD-14).
     if (!e.reflectEntry) {
+      if ((location.state as { finished?: boolean } | null)?.finished) {
+        setAfter("done");
+        setPhase("ready");
+        return;
+      }
       navigate("/tools/reflect", { replace: true });
       return;
     }
-    setEntry(e.reflectEntry);
+    applyEntry(e.reflectEntry);
     setContent(c.reflectContent);
     setPhase("ready");
-  }, [call, navigate]);
+    // Read once, at mount: Finish changes the history state without a reload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [call, navigate, applyEntry]);
 
   useEffect(() => {
     void load();
@@ -136,6 +240,7 @@ export default function ReflectEntryPage() {
         variables: { entryId: current.id, precheckWhen: when, precheckBefore: before },
       });
       if (!res?.saveReflectEntry) {
+        if (leftIfClosed()) return false;
         setFailure("notSaved");
         return false;
       }
@@ -144,20 +249,62 @@ export default function ReflectEntryPage() {
     return true;
   };
 
-  const goNext = () => {
+  /** Moves one step, after the step's own commit. A forward move into the reality check carries the offer; any move drops the offers on screen (G11). */
+  const goTo = (to: ReflectStep) => {
     if (!entry) return;
-    const to = NEXT_STEP[entry.step];
-    if (!to) return;
+    const forward = NEXT_STEP[entry.step] === to;
     void run(async () => {
       if (!(await commitStep(entry))) return;
-      const res = await call({ query: MOVE_REFLECT_ENTRY, variables: { entryId: entry.id, to } });
-      if (!res?.moveReflectEntry) {
-        setFailure("action");
+      if (to === "REALITY" && forward) setArriving(true);
+      try {
+        const res = await call({ query: MOVE_REFLECT_ENTRY, variables: { entryId: entry.id, to } });
+        if (!res?.moveReflectEntry) {
+          if (!leftIfClosed()) setFailure("action");
+          return;
+        }
+        setFaux(null);
+        setInterpretation(res.moveReflectEntry.interpretationOffer ?? null);
+        applyEntry(res.moveReflectEntry.entry);
+        setBannerGone(true);
+      } finally {
+        setArriving(false);
+      }
+    });
+  };
+
+  const goNext = () => {
+    const to = entry && NEXT_STEP[entry.step];
+    if (to) goTo(to);
+  };
+
+  const goBack = () => {
+    const to = entry && PREV_STEP[entry.step];
+    if (to) goTo(to);
+  };
+
+  const finishEntry = () => {
+    if (!entry) return;
+    void run(async () => {
+      if (!(await commitStep(entry))) return;
+      const res = await call({ query: FINISH_REFLECT_ENTRY, variables: { entryId: entry.id } });
+      if (!res?.finishReflectEntry) {
+        if (!leftIfClosed()) setFailure("action");
         return;
       }
-      setEntry(res.moveReflectEntry.entry);
-      setBannerGone(true);
+      // PD-14: a reload from here finds no open entry, and this state says why.
+      navigate(".", { replace: true, state: { finished: true } });
+      setFaux(null);
+      setInterpretation(null);
+      setAfter("question");
     });
+  };
+
+  /** One answer, or Skip (null): the question's own lock lets this run once. An answer that can't be stored doesn't hold the person here. */
+  const answer = (value: AfterAnswer | null) => {
+    if (answerLock.current) return;
+    answerLock.current = true;
+    if (value && entry) void call({ query: ANSWER_REFLECT_ENTRY, variables: { entryId: entry.id, answer: value } });
+    setAfter("done");
   };
 
   const stopHere = () => {
@@ -166,7 +313,7 @@ export default function ReflectEntryPage() {
       if (!(await commitStep(entry))) return;
       const res = await call({ query: STOP_REFLECT_ENTRY, variables: { entryId: entry.id } });
       if (!res?.stopReflectEntry) {
-        setFailure("action");
+        if (!leftIfClosed()) setFailure("action");
         return;
       }
       // AC-56: what the calm close offers follows what the server holds.
@@ -199,7 +346,23 @@ export default function ReflectEntryPage() {
     );
   }
 
+  if (phase === "ready" && after === "done") {
+    return (
+      <InternalPageLayout title={t("reflect.title")} maxWidth="max-w-xl">
+        <ReflectDone onBack={() => navigate("/tools/reflect")} />
+      </InternalPageLayout>
+    );
+  }
+
   if (phase === "loading" || !entry || !content) return <LoadingBlock />;
+
+  if (after === "question") {
+    return (
+      <InternalPageLayout title={t("reflect.title")} maxWidth="max-w-xl">
+        <AfterEntryQuestion onAnswer={answer} onSkip={() => answer(null)} />
+      </InternalPageLayout>
+    );
+  }
 
   if (calm) {
     return (
@@ -213,6 +376,7 @@ export default function ReflectEntryPage() {
     );
   }
 
+  const shown: ReflectStep = arriving ? "REALITY" : entry.step;
   const showBanner =
     !bannerGone && (i18n.language !== content.locale || content.reviewStatus === "draft");
 
@@ -221,9 +385,9 @@ export default function ReflectEntryPage() {
       <div className="space-y-6">
         {showBanner && <ReflectBanner practiceLocale={content.locale} reviewStatus={content.reviewStatus} />}
 
-        <ReflectStepBar step={entry.step} onStop={stopHere} stopDisabled={busy || autosave.failed || failure === "notSaved"} />
+        <ReflectStepBar step={shown} onStop={stopHere} stopDisabled={busy || autosave.failed || failure === "notSaved"} />
 
-        {entry.step === "PRECHECK" && (
+        {shown === "PRECHECK" && (
           <PrecheckStep
             when={when}
             before={before}
@@ -237,7 +401,7 @@ export default function ReflectEntryPage() {
           />
         )}
 
-        {entry.step === "STORY" && (
+        {shown === "STORY" && (
           <StoryStep
             entry={entry}
             content={content}
@@ -249,7 +413,51 @@ export default function ReflectEntryPage() {
           />
         )}
 
-        {/* FEELINGS, REALITY and CLOSE: B5's step bodies plug in here. */}
+        {shown === "FEELINGS" && (
+          <FeelingsStep
+            entry={entry}
+            content={content}
+            autosave={autosave}
+            storedMoments={stored.moments}
+            fauxOffer={faux}
+            onDismissFaux={() => setFaux(null)}
+            onBack={goBack}
+            onNext={goNext}
+            failed={autosave.failed}
+            onRetry={() => void autosave.retry()}
+            busy={busy}
+          />
+        )}
+
+        {shown === "REALITY" && (
+          <RealityStep
+            entry={entry}
+            content={content}
+            autosave={autosave}
+            storedReadings={stored.readings}
+            offer={interpretation}
+            onDismissOffer={() => setInterpretation(null)}
+            waiting={arriving}
+            onBack={goBack}
+            onNext={goNext}
+            failed={autosave.failed}
+            onRetry={() => void autosave.retry()}
+            busy={busy}
+          />
+        )}
+
+        {shown === "CLOSE" && (
+          <CloseStep
+            entry={entry}
+            content={content}
+            onChange={autosave.setField}
+            failed={autosave.failed}
+            onRetry={() => void autosave.retry()}
+            onBack={goBack}
+            onFinish={finishEntry}
+            busy={busy}
+          />
+        )}
 
         {failure && (
           <ReflectNotSaved

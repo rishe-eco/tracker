@@ -224,7 +224,8 @@ export function saveMoment(
       feelingSource: patch.feelingSource ?? undefined,
       need: norm(patch.need),
       needSource: patch.needSource ?? undefined,
-      met: patch.met ?? undefined,
+      // B5: Met is the one clearable choice, so an explicit null clears it and an omitted met leaves it.
+      met: patch.met,
     };
     const moment = await prisma.reflectMoment.upsert({
       where: { entryId_position: { entryId, position } },

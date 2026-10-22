@@ -146,6 +146,17 @@ describe("saves", () => {
     expect(rows[1]).toMatchObject({ whenText: "w1", feeling: "tired", feelingSource: "own", met: "unmet" });
   });
 
+  it("an explicit met: null clears Met; an omitted met leaves it (B5, AC-11)", async () => {
+    const { ca } = await twoUsers();
+    const e = await start(ca);
+    await moment(ca, e.id, 0, { whenText: "w", met: "unmet" });
+    const kept = await moment(ca, e.id, 0, { whenText: "w2" });
+    expect(kept.moment.met).toBe("unmet");
+    const cleared = await moment(ca, e.id, 0, { met: null });
+    expect(cleared.moment.met).toBeNull();
+    expect(cleared.moment.whenText).toBe("w2");
+  });
+
   it("returns a moment result carrying the faux offer, and a move result with no interpretation offer", async () => {
     const { ca } = await twoUsers();
     const e = await start(ca);

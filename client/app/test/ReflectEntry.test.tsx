@@ -14,6 +14,7 @@ let entry: any;
 let stopped: any;
 let saveOk = true;
 let saveDelay = 0;
+let locationState: any = null;
 // What the server saw, in the order it saw it: a save counts when it finishes, a move or a stop when it arrives.
 let events: string[] = [];
 const navigate = vi.fn();
@@ -21,7 +22,24 @@ const navigate = vi.fn();
 const CONTENT = {
   locale: "en",
   reviewStatus: "reviewed",
-  prompts: { story: { scenePrompt: "SCENE-PROMPT", scenePlaceholder: "ph", storyPrompt: "STORY-PROMPT" } },
+  prompts: {
+    story: { scenePrompt: "SCENE-PROMPT", scenePlaceholder: "ph", storyPrompt: "STORY-PROMPT" },
+    feelings: {
+      prompt: "FEELINGS-PROMPT",
+      whenLabel: "WHEN",
+      whenPlaceholder: "",
+      feelingLabel: "FEELING",
+      needLabel: "NEED",
+      metLabel: "MET",
+      metOptions: { met: "Met", unmet: "Unmet", notSure: "Not sure" },
+    },
+    reality: { prompt: "RP", readingLabel: "R", cameraLabel: "C" },
+    close: { prompt: "CP" },
+    interpretation: { offerLine: "{word}", useLabel: "use", dismissLabel: "no" },
+  },
+  feelings: [{ id: "hurt", label: "hurt" }],
+  needs: [{ id: "respect", label: "respect" }],
+  otherLabel: "other…",
   limits: {
     scene: 140,
     story: 5000,
@@ -63,7 +81,7 @@ const opNames = () =>
     .filter((n) => n && n !== "ReflectEntry" && n !== "ReflectContent");
 const callsTo = (name: string) => mockCall.mock.calls.filter((c) => String(c[0]?.query).includes(`mutation ${name}`));
 
-vi.mock("~/api/useApi", () => ({ useApi: () => ({ call: mockCall }) }));
+vi.mock("~/api/useApi", () => ({ useApi: () => ({ call: mockCall, getLastError: () => null }) }));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -76,6 +94,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("react-router", () => ({
   useNavigate: () => navigate,
+  useLocation: () => ({ state: locationState }),
   Link: ({ to, children }: any) => <a href={typeof to === "string" ? to : "#"}>{children}</a>,
 }));
 
@@ -97,6 +116,7 @@ beforeEach(() => {
   lang = "en";
   saveOk = true;
   saveDelay = 0;
+  locationState = null;
   events = [];
   entry = entryAt("PRECHECK");
   stopped = entryAt("PRECHECK");
@@ -326,6 +346,16 @@ describe("the entry route", () => {
     entry = null;
     render(<ReflectEntryPage />);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/tools/reflect", { replace: true }));
+  });
+
+  it("shows the done line, not the home or the question, when there is no open entry and Finish was tapped here (G15, PD-14)", async () => {
+    entry = null;
+    locationState = { finished: true };
+    render(<ReflectEntryPage />);
+    expect(await screen.findByText("reflect.after.done")).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.queryByText("reflect.after.skip")).toBeNull(); // the question isn't asked again
+    expect(screen.queryByText("reflect.after.same")).toBeNull();
   });
 
   it("shows the banner on the first step, and not after the person moves on (G17)", async () => {

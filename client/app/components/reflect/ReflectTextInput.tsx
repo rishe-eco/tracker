@@ -22,6 +22,7 @@ export function ReflectTextInput({
   placeholder,
   softLine,
   disabled,
+  inputRef,
 }: {
   id: string;
   label: string;
@@ -33,6 +34,8 @@ export function ReflectTextInput({
   /** Past this many characters the keep-it-to-one-scene sentence shows (AC-20). Story only. */
   softLine?: number;
   disabled?: boolean;
+  /** For the one place that moves focus into a field (the reality check's camera half, W10). */
+  inputRef?: (el: HTMLInputElement | null) => void;
 }) {
   const { t } = useTranslation();
   const atBound = value.length >= max;
@@ -62,6 +65,7 @@ export function ReflectTextInput({
       ) : (
         <Input
           id={id}
+          ref={inputRef}
           dir="auto"
           value={value}
           maxLength={max}

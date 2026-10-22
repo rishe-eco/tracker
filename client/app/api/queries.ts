@@ -3061,13 +3061,15 @@ export const RECORD_FOCUS_LOOKBACK = `
 `;
 
 // ── Reflect ────────────────────────────────────────────────────────────────
-// Build plan §6.1. Only the fields B4 reads: B5 widens the moment and reading
-// selections and adds the content it needs. Nothing here ever selects a
-// pre-check answer, the outcome or a catch: the API has no such field (AC-3).
+// Build plan §6.1. Nothing here ever selects a pre-check answer, the outcome or
+// a surfaced-at time: the API has no such field (AC-3). The two offers arrive
+// only in the result of the save or move that surfaced them (G11).
+
+const REFLECT_MOMENT_FIELDS = `id position whenText feeling feelingSource need needSource met`;
 
 const REFLECT_ENTRY_FIELDS = `
   id step scene story close createdAt
-  moments { id position whenText feeling need }
+  moments { ${REFLECT_MOMENT_FIELDS} }
   readings { id position reading camera }
 `;
 
@@ -3093,7 +3095,16 @@ export const GET_REFLECT_CONTENT = `
     reflectContent {
       locale
       reviewStatus
-      prompts { story { scenePrompt scenePlaceholder storyPrompt } }
+      prompts {
+        story { scenePrompt scenePlaceholder storyPrompt }
+        feelings { prompt whenLabel whenPlaceholder feelingLabel needLabel metLabel metOptions { met unmet notSure } }
+        reality { prompt readingLabel cameraLabel }
+        close { prompt }
+        interpretation { offerLine useLabel dismissLabel }
+      }
+      feelings { id label }
+      needs { id label }
+      otherLabel
       limits { scene story storySoftLine whenText reading camera ownWord close momentsCap readingsCap }
     }
   }
@@ -3130,7 +3141,57 @@ export const MOVE_REFLECT_ENTRY = `
   mutation MoveReflectEntry($entryId: ID!, $to: ReflectStep!) {
     moveReflectEntry(entryId: $entryId, to: $to) {
       entry { ${REFLECT_ENTRY_FIELDS} }
+      interpretationOffer { word sentence }
     }
+  }
+`;
+
+/** A save of one moment; the faux-feeling offer, if the feeling surfaced one, comes back in this result. */
+export const SAVE_REFLECT_MOMENT = `
+  mutation SaveReflectMoment(
+    $entryId: ID!
+    $position: Int!
+    $whenText: String
+    $feeling: String
+    $feelingSource: ReflectWordSource
+    $need: String
+    $needSource: ReflectWordSource
+    $met: ReflectMet
+  ) {
+    saveReflectMoment(
+      entryId: $entryId
+      position: $position
+      whenText: $whenText
+      feeling: $feeling
+      feelingSource: $feelingSource
+      need: $need
+      needSource: $needSource
+      met: $met
+    ) {
+      moment { ${REFLECT_MOMENT_FIELDS} }
+      fauxOffer { position conceptId line feelingHints needHints feelingHintsLabel needHintsLabel dismiss note }
+    }
+  }
+`;
+
+export const SAVE_REFLECT_READING = `
+  mutation SaveReflectReading($entryId: ID!, $position: Int!, $reading: String, $camera: String) {
+    saveReflectReading(entryId: $entryId, position: $position, reading: $reading, camera: $camera) {
+      id position reading camera
+    }
+  }
+`;
+
+export const FINISH_REFLECT_ENTRY = `
+  mutation FinishReflectEntry($entryId: ID!) {
+    finishReflectEntry(entryId: $entryId) { id step }
+  }
+`;
+
+/** Sent at most once by the page (the server refuses a second answer). */
+export const ANSWER_REFLECT_ENTRY = `
+  mutation AnswerReflectEntry($entryId: ID!, $answer: ReflectAfterAnswer!) {
+    answerReflectEntry(entryId: $entryId, answer: $answer)
   }
 `;
 
