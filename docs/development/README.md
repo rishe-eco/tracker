@@ -12,8 +12,7 @@
 | B3 | The two catches: the interpretation and faux-feeling offers, server side | [B3.md](B3.md) | verified 2026-10-22 |
 | B4 | Home, entry shell, pre-check, story, calm close | [B4.md](B4.md) | verified 2026-10-22 (e2e not rerun, founder's word) |
 | B5 | Feelings and needs, reality check, close, after the entry | [B5.md](B5.md) | verified 2026-10-22 |
-| B5 | Feelings and needs, reality check, close, after the entry | | |
-| B6 | Past entries | | |
+| B6 | Past entries: the list and one entry read back, with delete; the list rule any written text, a past entry without step | [B6.md](B6.md) | verified 2026-10-23 |
 | B7 | Open the door | | |
 
 ## Fixes
