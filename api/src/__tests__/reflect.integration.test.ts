@@ -67,6 +67,14 @@ async function toClose(ctx: any, entryId: string) {
   for (const to of ["story", "feelings", "reality", "close"]) await move(ctx, entryId, to);
 }
 
+/** A closed entry the test fills in as it likes, stopped. */
+async function closedWith(ctx: any, build: (entryId: string) => Promise<unknown>) {
+  const e = await start(ctx);
+  await build(e.id);
+  await stop(ctx, e.id);
+  return e.id as string;
+}
+
 /** A closed entry with story text. */
 async function closedWithStory(ctx: any, story = "It happened.", scene?: string) {
   const e = await start(ctx);
@@ -394,11 +402,11 @@ describe("the after-entry answer (AC-36)", () => {
 });
 
 describe("Past entries (AC-46, AC-14's list half, D-5)", () => {
-  it("lists closed entries with story text only, newest first, with four fields", async () => {
+  it("lists closed entries with any written text, newest first, with three fields (AC-37, AC-46)", async () => {
     const { ca } = await twoUsers();
     vi.setSystemTime(new Date("2031-03-01T09:00:00.000Z"));
     const older = await closedWithStory(ca, "older story", "older scene");
-    // Stopped at the pre-check, no story: never listed (AC-14).
+    // Stopped at the pre-check, no text: never listed (AC-14).
     vi.setSystemTime(new Date("2031-03-02T09:00:00.000Z"));
     const nothing = await start(ca);
     await stop(ca, nothing.id);
@@ -412,23 +420,107 @@ describe("Past entries (AC-46, AC-14's list half, D-5)", () => {
     const page = await past(ca);
     expect(page.hasOlder).toBe(false);
     expect(page.rows.map((r: any) => r.id)).toEqual([newer, older]);
-    expect(Object.keys(page.rows[0]).sort()).toEqual(["createdAt", "id", "scene", "storyStart"]);
-    expect(page.rows[0].storyStart).toBe("n".repeat(80));
-    expect(page.rows[1].scene).toBe("older scene");
+    expect(Object.keys(page.rows[0]).sort()).toEqual(["createdAt", "firstWriting", "id"]);
+    expect(page.rows[0].firstWriting).toBe("n".repeat(80));
+    expect(page.rows[1].firstWriting).toBe("older scene");
     expect((await (Q.reflectHome as any)(null, {}, ca)).hasPast).toBe(true);
   });
 
-  it("serves a past entry only when it is closed and has a story", async () => {
+  it("lists an entry stopped with a moment and no story, labelled by its when (AC-37, D-4)", async () => {
+    const { ca } = await twoUsers();
+    const id = await closedWith(ca, async (e) => {
+      await moment(ca, e, 0, { whenText: "when he turned away" });
+    });
+    const page = await past(ca);
+    expect(page.rows.map((r: any) => r.id)).toEqual([id]);
+    expect(page.rows[0].firstWriting).toBe("when he turned away");
+  });
+
+  it("labels by the first writing in step order, one fallback at a time (AC-37, decision 2)", async () => {
+    const { ca } = await twoUsers();
+    const labelOf = async (build: (e: string) => Promise<void>) => {
+      vi.setSystemTime(new Date(Date.now() + 60_000));
+      const id = await closedWith(ca, build);
+      return (await past(ca)).rows.find((r: any) => r.id === id).firstWriting;
+    };
+    // Everything written: the scene wins, then each part drops out in turn.
+    const all = async (e: string, leave: string[]) => {
+      const patch: any = { scene: "S", story: "T", close: "C" };
+      for (const k of leave) delete patch[k];
+      await save(ca, e, patch);
+      await moment(ca, e, 0, { whenText: "W", feeling: "F", need: "N" });
+      await reading(ca, e, 0, { reading: "R", camera: "K" });
+    };
+    expect(await labelOf((e) => all(e, []))).toBe("S");
+    expect(await labelOf((e) => all(e, ["scene"]))).toBe("T");
+    expect(await labelOf(async (e) => {
+      await all(e, ["scene", "story"]);
+    })).toBe("W");
+    expect(await labelOf(async (e) => {
+      await save(ca, e, { close: "C" });
+      await reading(ca, e, 0, { reading: "R", camera: "K" });
+    })).toBe("R");
+    expect(await labelOf((e) => save(ca, e, { close: "C" }))).toBe("C");
+    // Only a feeling, a need or a camera line: the entry is listable, so it has text.
+    expect(await labelOf(async (e) => {
+      await moment(ca, e, 0, { feeling: "F", need: "N" });
+      await reading(ca, e, 0, { camera: "K" });
+    })).toBe("F");
+    expect(await labelOf(async (e) => {
+      await moment(ca, e, 0, { need: "N" });
+      await reading(ca, e, 0, { camera: "K" });
+    })).toBe("N");
+    expect(await labelOf((e) => reading(ca, e, 0, { camera: "K" }))).toBe("K");
+    // The first moment in position order with the part, not only moment 0.
+    expect(await labelOf(async (e) => {
+      await moment(ca, e, 0, { feeling: "F0" });
+      await moment(ca, e, 1, { whenText: "W1" });
+    })).toBe("W1");
+  });
+
+  it("counts whitespace as written, and labels it as it is (decision 1)", async () => {
+    const { ca } = await twoUsers();
+    const id = await closedWithStory(ca, "   ");
+    expect((await past(ca)).rows).toEqual([expect.objectContaining({ id, firstWriting: "   " })]);
+    expect((await (Q.reflectPastEntry as any)(null, { id }, ca)).story).toBe("   ");
+  });
+
+  it("cuts the label at the dial without splitting a surrogate pair, and sends no whole story (AC-46)", async () => {
+    const { ca } = await twoUsers();
+    await closedWithStory(ca, "x".repeat(79) + "😀" + "tail");
+    const [row] = (await past(ca)).rows;
+    expect(row.firstWriting).toBe("x".repeat(79));
+    expect(JSON.stringify(row)).not.toContain("tail");
+  });
+
+  it("serves a past entry only when it is closed and holds written text, and without a step (AC-48)", async () => {
     const { ca } = await twoUsers();
     const ok = await closedWithStory(ca, "kept");
     const got = await (Q.reflectPastEntry as any)(null, { id: ok }, ca);
     expect(got.story).toBe("kept");
+    expect(Object.keys(got)).not.toContain("step");
+    // No story, but a moment: served (D-4).
+    const moments = await closedWith(ca, async (e) => {
+      await moment(ca, e, 0, { feeling: "tired" });
+    });
+    const mine = await (Q.reflectPastEntry as any)(null, { id: moments }, ca);
+    expect(mine.moments).toHaveLength(1);
+    expect(Object.keys(mine)).not.toContain("step");
     const open = await start(ca);
     await save(ca, open.id, { story: "open" });
     await expect((Q.reflectPastEntry as any)(null, { id: open.id }, ca)).rejects.toThrow("Not found");
     const empty = await start(ca, open.id);
     await stop(ca, empty.id);
     await expect((Q.reflectPastEntry as any)(null, { id: empty.id }, ca)).rejects.toThrow("Not found");
+  });
+
+  it("says whether the open entry holds any written text: hasWriting (AC-53)", async () => {
+    const { ca } = await twoUsers();
+    const open = await start(ca);
+    const home = async () => (await (Q.reflectHome as any)(null, {}, ca)).openEntry;
+    expect(await home()).toEqual(expect.objectContaining({ hasWriting: false }));
+    await moment(ca, open.id, 0, { feeling: "tired" });
+    expect((await home()).hasWriting).toBe(true);
   });
 
   it("pages of 50 with a before cursor, ordered under equal timestamps (decision 7)", async () => {

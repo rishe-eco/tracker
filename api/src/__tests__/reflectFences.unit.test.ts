@@ -280,6 +280,20 @@ function sdlViolations(text: string): string[] {
   return out;
 }
 
+/**
+ * AC-48: the type a past entry is returned as has no field for the step it
+ * reached or its outcome, so nothing can show that an entry was stopped. Only
+ * the open entry (`ReflectEntry`) carries its step, for resuming.
+ */
+function pastEntryViolations(text: string): string[] {
+  const def = definitions(text).find((d) => d.name === "ReflectPastEntry");
+  if (!def) return ["ReflectPastEntry is missing"];
+  return [...def.body.matchAll(/^[ \t]*(\w+)[ \t]*(?:\([^)]*\))?[ \t]*:/gm)]
+    .map((f) => f[1])
+    .filter((f) => f === "step" || f === "outcome")
+    .map((f) => `ReflectPastEntry.${f}`);
+}
+
 describe("the SDL fence (AC-3, AC-5, D-2)", () => {
   it("the block sits before the Feelings & Needs and Noticing banners", () => {
     const start = typeDefsText.indexOf(SDL_START);
@@ -292,13 +306,24 @@ describe("the SDL fence (AC-3, AC-5, D-2)", () => {
 
   it("holds the Reflect types (a guard on the guard)", () => {
     const names = definitions(reflectSdlSection()).map((d) => d.name);
-    for (const n of ["ReflectEntry", "ReflectHome", "ReflectPastRow", "ReflectContent", "ReflectMoveResult", "ReflectStep"]) {
+    for (const n of ["ReflectEntry", "ReflectHome", "ReflectPastRow", "ReflectPastEntry", "ReflectContent", "ReflectMoveResult", "ReflectStep"]) {
       expect(names).toContain(n);
     }
   });
 
   it("no Reflect type is outside its block, no field returns a hidden value, no operation takes a search-like argument", () => {
     expect(sdlViolations(typeDefsText)).toEqual([]);
+  });
+
+  it("a past entry carries no step and no outcome (AC-48, G10)", () => {
+    expect(pastEntryViolations(typeDefsText)).toEqual([]);
+    // The fence sees each planted field, and an absent type (a guard on the guard).
+    for (const field of ["step: ReflectStep!", "outcome: String"]) {
+      const planted = typeDefsText.replace(/(type ReflectPastEntry \{\r?\n)/, "$1    " + field + "\n");
+      expect(planted).not.toBe(typeDefsText);
+      expect(pastEntryViolations(planted)).toHaveLength(1);
+    }
+    expect(pastEntryViolations("type ReflectEntry {\n  step: ReflectStep!\n}\n")).toEqual(["ReflectPastEntry is missing"]);
   });
 
   it("declares all 14 operations, each with Reflect in its name", () => {

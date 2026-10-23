@@ -1663,11 +1663,22 @@ export const typeDefs = gql`
     readings: [ReflectReading!]!
   }
 
+  "A closed entry as Past entries reads it back: no step and no outcome, so nothing says how it ended."
+  type ReflectPastEntry {
+    id: ID!
+    scene: String
+    story: String
+    close: String
+    createdAt: String!
+    moments: [ReflectMoment!]!
+    readings: [ReflectReading!]!
+  }
+
   type ReflectOpenEntry {
     id: ID!
     createdAt: String!
-    "Whether any story text is written: the home's line for Start a new one."
-    hasStory: Boolean!
+    "Whether the entry holds any written text: the home's line for Start a new one."
+    hasWriting: Boolean!
   }
 
   type ReflectHome {
@@ -1681,8 +1692,8 @@ export const typeDefs = gql`
   type ReflectPastRow {
     id: ID!
     createdAt: String!
-    scene: String
-    storyStart: String!
+    "The start of the entry's first writing, in step order; cut by the server."
+    firstWriting: String!
   }
 
   type ReflectPastPage {
@@ -2500,10 +2511,10 @@ export const typeDefs = gql`
     reflectEntry: ReflectEntry
     "Reflect: practice content in the practice locale, the palettes and the limits."
     reflectContent: ReflectContent!
-    "Reflect: closed entries with story text, newest first, fifty a page. before is the last row of the page before."
+    "Reflect: closed entries with any written text, newest first, fifty a page. before is the last row of the page before."
     reflectPastEntries(before: ID): ReflectPastPage!
-    "Reflect: one closed entry with story text, or Not found."
-    reflectPastEntry(id: ID!): ReflectEntry!
+    "Reflect: one closed entry with any written text, or Not found."
+    reflectPastEntry(id: ID!): ReflectPastEntry!
   }
 
   type AuthPayload {

@@ -538,6 +538,11 @@ export const typeResolvers = {
         ? [...parent.readings].sort((a: any, b: any) => a.position - b.position)
         : ctx.prisma.reflectReading.findMany({ where: { entryId: parent.id }, orderBy: { position: "asc" } }),
   },
+  ReflectPastEntry: {
+    createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
+    moments: async (parent: any) => [...parent.moments].sort((a: any, b: any) => a.position - b.position),
+    readings: async (parent: any) => [...parent.readings].sort((a: any, b: any) => a.position - b.position),
+  },
   ReflectOpenEntry: {
     createdAt: (parent: any) => new Date(parent.createdAt).toISOString(),
   },

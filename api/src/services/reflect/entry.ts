@@ -70,18 +70,61 @@ export function getOpenEntry(prisma: PrismaClient, userId: string) {
   });
 }
 
-/** Closed entries that hold story text are the listable ones (AC-37 as written, PD-12). */
-const LISTABLE = { closedAt: { not: null }, story: { not: null } } as const;
+const TEXT_COLUMNS = {
+  moments: { select: { whenText: true, feeling: true, need: true }, orderBy: { position: "asc" as const } },
+  readings: { select: { reading: true, camera: true }, orderBy: { position: "asc" as const } },
+};
+
+const written = (v: string | null | undefined): v is string => v != null && v !== "";
+
+/**
+ * Does the entry hold any written text (AC-37, AC-53; spec §2.2 #19)? A scene,
+ * story or close, any moment's when, feeling or need, any reading's reading or
+ * camera. Whitespace counts as written: no text is trimmed anywhere (rule 2),
+ * and the calm close already offers Delete for it. The same fields as the
+ * client's `holdsWrittenText`, and as `LISTABLE` below, which is this rule as
+ * one `where`.
+ */
+function holdsText(e: {
+  scene: string | null;
+  story: string | null;
+  close: string | null;
+  moments: { whenText: string | null; feeling: string | null; need: string | null }[];
+  readings: { reading: string | null; camera: string | null }[];
+}): boolean {
+  return (
+    written(e.scene) ||
+    written(e.story) ||
+    written(e.close) ||
+    e.moments.some((m) => written(m.whenText) || written(m.feeling) || written(m.need)) ||
+    e.readings.some((r) => written(r.reading) || written(r.camera))
+  );
+}
+
+/**
+ * Listable entries are closed and hold any written text (AC-37 as amended, PD-12).
+ * An empty string is stored as null (rule 2), so "not null" is "written".
+ */
+const LISTABLE = {
+  closedAt: { not: null },
+  OR: [
+    { scene: { not: null } },
+    { story: { not: null } },
+    { close: { not: null } },
+    { moments: { some: { OR: [{ whenText: { not: null } }, { feeling: { not: null } }, { need: { not: null } }] } } },
+    { readings: { some: { OR: [{ reading: { not: null } }, { camera: { not: null } }] } } },
+  ],
+};
 
 export async function getHome(prisma: PrismaClient, userId: string) {
   const open = await prisma.reflectEntry.findFirst({
     where: { userId, closedAt: null },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { id: true, createdAt: true, story: true },
+    select: { id: true, createdAt: true, scene: true, story: true, close: true, ...TEXT_COLUMNS },
   });
   const past = await prisma.reflectEntry.findFirst({ where: { userId, ...LISTABLE }, select: { id: true } });
   return {
-    openEntry: open ? { id: open.id, createdAt: open.createdAt, hasStory: open.story != null } : null,
+    openEntry: open ? { id: open.id, createdAt: open.createdAt, hasWriting: holdsText(open) } : null,
     hasPast: past != null,
   };
 }
@@ -92,6 +135,32 @@ function storyStart(story: string): string {
   const last = s.charCodeAt(s.length - 1);
   if (story.length > s.length && last >= 0xd800 && last <= 0xdbff) s = s.slice(0, -1);
   return s;
+}
+
+/**
+ * The start of an entry's first writing, in step order (spec §4.10, decision 2
+ * of B6's card): scene, story, the first moment's when, the first reading, the
+ * close; then, for an entry the five leave empty, the first feeling, the first
+ * need, the first camera line. A listable entry always has one.
+ */
+function firstWriting(e: {
+  scene: string | null;
+  story: string | null;
+  close: string | null;
+  moments: { whenText: string | null; feeling: string | null; need: string | null }[];
+  readings: { reading: string | null; camera: string | null }[];
+}): string {
+  const first = [
+    e.scene,
+    e.story,
+    e.moments.find((m) => written(m.whenText))?.whenText,
+    e.readings.find((r) => written(r.reading))?.reading,
+    e.close,
+    e.moments.find((m) => written(m.feeling))?.feeling,
+    e.moments.find((m) => written(m.need))?.need,
+    e.readings.find((r) => written(r.camera))?.camera,
+  ].find(written);
+  return storyStart(first ?? "");
 }
 
 export async function listPast(prisma: PrismaClient, userId: string, before?: string | null) {
@@ -107,28 +176,32 @@ export async function listPast(prisma: PrismaClient, userId: string, before?: st
     };
   }
   const rows = await prisma.reflectEntry.findMany({
-    where: { userId, ...LISTABLE, ...cursor },
+    where: { userId, AND: [LISTABLE, cursor] },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: DIALS.pastPageSize + 1,
-    select: { id: true, createdAt: true, scene: true, story: true },
+    select: { id: true, createdAt: true, scene: true, story: true, close: true, ...TEXT_COLUMNS },
   });
   return {
     rows: rows.slice(0, DIALS.pastPageSize).map((r) => ({
       id: r.id,
       createdAt: r.createdAt,
-      scene: r.scene,
-      storyStart: storyStart(r.story ?? ""),
+      firstWriting: firstWriting(r),
     })),
     hasOlder: rows.length > DIALS.pastPageSize,
   };
 }
 
-/** One past entry: closed and listable only, otherwise the same `Not found` as a stranger's. */
+/**
+ * One past entry: closed and holding written text only, otherwise the same
+ * `Not found` as a stranger's. Returned without `step` (AC-48): the type has
+ * no such field, and the object doesn't carry it either.
+ */
 export async function getPast(prisma: PrismaClient, userId: string, id: string) {
   const entry = await prisma.reflectEntry.findUnique({ where: { id }, include: WITH_CHILDREN });
   ensureOwned(entry, { user: { id: userId } });
-  if (!entry.closedAt || entry.story == null) throw new Error(REFUSALS.notFound);
-  return entry;
+  if (!entry.closedAt || !holdsText(entry)) throw new Error(REFUSALS.notFound);
+  const { step: _step, ...past } = entry;
+  return past;
 }
 
 // ─── Writes ──────────────────────────────────────────────────────────────────

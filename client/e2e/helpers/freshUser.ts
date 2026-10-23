@@ -1,5 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { API_URL } from "../ports";
+import { MODULE_KEYS } from "./moduleKeys";
 
 /**
  * A user signed up through the API for one test, with onboarding and the module
@@ -9,18 +10,6 @@ import { API_URL } from "../ports";
  * second run, or a CI retry (B5 card, decision 3). Lives in the run's scratch
  * database, keyed by the slot's API port like everything else.
  */
-const MODULE_KEYS = [
-  "today",
-  "pre-day",
-  "after-day",
-  "goals-list",
-  "manage-goal",
-  "projects-list",
-  "intervals-list",
-  "calendar",
-  "journals",
-];
-
 async function post(request: APIRequestContext, query: string, variables: object, token?: string) {
   const res = await request.post(API_URL, {
     data: JSON.stringify({ query, variables }),

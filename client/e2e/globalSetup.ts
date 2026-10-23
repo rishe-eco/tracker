@@ -2,20 +2,9 @@ import { request } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { API_URL, AUTH_FILE } from "./ports";
+import { MODULE_KEYS } from "./helpers/moduleKeys";
 
 export { AUTH_FILE };
-
-const MODULE_KEYS = [
-  "today",
-  "pre-day",
-  "after-day",
-  "goals-list",
-  "manage-goal",
-  "projects-list",
-  "intervals-list",
-  "calendar",
-  "journals",
-];
 
 async function post(ctx: Awaited<ReturnType<typeof request.newContext>>, query: string, variables: object, token?: string) {
   const res = await ctx.post(API_URL, {
