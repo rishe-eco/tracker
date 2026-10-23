@@ -151,6 +151,20 @@ describe("One past entry", () => {
     for (const hidden of ["step", "outcome", "precheck", "afterAnswer"]) expect(sent).not.toMatch(new RegExp(`\\b${hidden}`));
   });
 
+  it("a moment's feeling, need and Met are kept apart by a dot, as plate 11 draws them", async () => {
+    entry = entryWith({
+      moments: [
+        { id: "m1", position: 0, whenText: null, feeling: "hurt", feelingSource: "own", need: "to be seen", needSource: "own", met: "UNMET" },
+        { id: "m2", position: 1, whenText: null, feeling: "tired", feelingSource: "own", need: null, needSource: null, met: null },
+      ],
+    });
+    render(<ReflectPastEntryPage />);
+    const line = (await screen.findByText("hurt")).parentElement!;
+    // Without the dots, "hurt to be seen" reads as one phrase.
+    expect(line.textContent).toBe("hurt·to be seen·reflect.past.met.unmet");
+    expect(screen.getByText("tired").parentElement!.textContent).toBe("tired");
+  });
+
   it("Delete asks first, then removes the entry and lands on the list, replacing history", async () => {
     render(<ReflectPastEntryPage />);
     fireEvent.click(await screen.findByText("reflect.past.delete"));

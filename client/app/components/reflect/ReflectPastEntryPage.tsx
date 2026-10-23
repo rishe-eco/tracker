@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -140,18 +140,29 @@ export default function ReflectPastEntryPage() {
         {moments.length > 0 && (
           <Part label={t("reflect.past.moments")}>
             <ul className="space-y-3">
-              {moments.map((m) => (
-                <li key={m.id} className="space-y-1">
-                  {has(m.whenText) && <Text>{m.whenText}</Text>}
-                  {(has(m.feeling) || has(m.need) || m.met != null) && (
-                    <p className="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
-                      {has(m.feeling) && <span dir="auto">{m.feeling}</span>}
-                      {has(m.need) && <span dir="auto">{m.need}</span>}
-                      {m.met != null && <span>{t(MET_KEY[m.met])}</span>}
-                    </p>
-                  )}
-                </li>
-              ))}
+              {moments.map((m) => {
+                // Plate 11's "feeling · need · Unmet": without the dot, "hurt to be seen" reads as one phrase.
+                const words = [
+                  has(m.feeling) && <span dir="auto">{m.feeling}</span>,
+                  has(m.need) && <span dir="auto">{m.need}</span>,
+                  m.met != null && <span>{t(MET_KEY[m.met])}</span>,
+                ].filter(Boolean);
+                return (
+                  <li key={m.id} className="space-y-1">
+                    {has(m.whenText) && <Text>{m.whenText}</Text>}
+                    {words.length > 0 && (
+                      <p className="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
+                        {words.map((w, i) => (
+                          <Fragment key={i}>
+                            {i > 0 && <span aria-hidden="true">·</span>}
+                            {w}
+                          </Fragment>
+                        ))}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </Part>
         )}
