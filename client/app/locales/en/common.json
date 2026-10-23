@@ -2498,6 +2498,26 @@
       "done": "That's the entry. It's kept, and you can come back to it whenever you like.",
       "back": "Back to Reflect"
     },
+    "past": {
+      "title": "Past entries",
+      "empty": "Nothing here yet.",
+      "backToReflect": "Back to Reflect",
+      "showOlder": "Show older",
+      "notFound": "That entry isn't here.",
+      "scene": "Scene",
+      "story": "What happened",
+      "moments": "Moments",
+      "readings": "Readings",
+      "close": "Looking at it now",
+      "met": {
+        "met": "Met",
+        "unmet": "Not met",
+        "notSure": "Not sure"
+      },
+      "delete": "Delete",
+      "confirmTitle": "Delete this entry?",
+      "confirmBody": "This can't be undone."
+    },
     "errors": {
       "couldNotLoad": "Reflect couldn't load. Check your connection and try again.",
       "start": "Couldn't start an entry. Try again.",

@@ -88,7 +88,7 @@ describe("Reflect home", () => {
 
   it("an entry open with a story: Continue names the date, Start a new one says it is kept (G4)", async () => {
     home = homeWith({
-      openEntry: { id: "e1", createdAt: "2031-03-04T10:00:00.000Z", hasStory: true },
+      openEntry: { id: "e1", createdAt: "2031-03-04T10:00:00.000Z", hasWriting: true },
       hasPast: true,
     });
     render(<ReflectHomePage />);
@@ -106,7 +106,7 @@ describe("Reflect home", () => {
   });
 
   it("an entry open with no story: the line says it simply ends", async () => {
-    home = homeWith({ openEntry: { id: "e1", createdAt: "2031-03-04T10:00:00.000Z", hasStory: false } });
+    home = homeWith({ openEntry: { id: "e1", createdAt: "2031-03-04T10:00:00.000Z", hasWriting: false } });
     render(<ReflectHomePage />);
     expect(await screen.findByText("reflect.home.startNewEnds")).toBeTruthy();
     expect(screen.queryByText("reflect.home.startNewKept")).toBeNull();

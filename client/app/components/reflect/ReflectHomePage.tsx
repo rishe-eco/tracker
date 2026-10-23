@@ -114,7 +114,7 @@ export default function ReflectHomePage() {
             </Button>
             {/* G4, AC-53: what becomes of the open entry, said before the tap. No dialog. */}
             <p className="text-sm text-muted-foreground">
-              {open.hasStory ? t("reflect.home.startNewKept") : t("reflect.home.startNewEnds")}
+              {open.hasWriting ? t("reflect.home.startNewKept") : t("reflect.home.startNewEnds")}
             </p>
           </div>
         )}

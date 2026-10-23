@@ -3076,7 +3076,7 @@ const REFLECT_ENTRY_FIELDS = `
 export const GET_REFLECT_HOME = `
   query ReflectHome {
     reflectHome {
-      openEntry { id createdAt hasStory }
+      openEntry { id createdAt hasWriting }
       hasPast
       practiceLocale
       reviewStatus
@@ -3204,5 +3204,27 @@ export const STOP_REFLECT_ENTRY = `
 export const DELETE_REFLECT_ENTRY = `
   mutation DeleteReflectEntry($entryId: ID!) {
     deleteReflectEntry(entryId: $entryId)
+  }
+`;
+
+// Past entries (B6). Read with `useApi`, so nothing of a past entry is ever in
+// Apollo's cache (D-9). A row has no text beyond the server's cut of its first
+// writing (AC-46); a past entry has no step and no outcome (AC-48).
+export const GET_REFLECT_PAST_ENTRIES = `
+  query ReflectPastEntries($before: ID) {
+    reflectPastEntries(before: $before) {
+      rows { id createdAt firstWriting }
+      hasOlder
+    }
+  }
+`;
+
+export const GET_REFLECT_PAST_ENTRY = `
+  query ReflectPastEntry($id: ID!) {
+    reflectPastEntry(id: $id) {
+      id scene story close createdAt
+      moments { ${REFLECT_MOMENT_FIELDS} }
+      readings { id position reading camera }
+    }
   }
 `;

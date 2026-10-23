@@ -48,6 +48,8 @@ import NoticingLoopPage from "./components/impact/NoticingLoopPage";
 import NoticingLogPage from "./components/impact/NoticingLogPage";
 import ReflectHomePage from "./components/reflect/ReflectHomePage";
 import ReflectEntryPage from "./components/reflect/ReflectEntryPage";
+import ReflectPastListPage from "./components/reflect/ReflectPastListPage";
+import ReflectPastEntryPage from "./components/reflect/ReflectPastEntryPage";
 import { Navigate } from "react-router";
 
 export default [
@@ -192,6 +194,15 @@ export default [
   {
     path: "/tools/reflect/entry",
     element: <ReflectEntryPage />,
+  },
+  {
+    // Past entries (B6): the list, and one entry read back. Unlinked from Tools until B7 (PD-5).
+    path: "/tools/reflect/past",
+    element: <ReflectPastListPage />,
+  },
+  {
+    path: "/tools/reflect/past/:id",
+    element: <ReflectPastEntryPage />,
   },
   {
     path: "/tools/journals/:id",

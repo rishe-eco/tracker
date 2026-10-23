@@ -385,3 +385,94 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+/** A closed entry with a story, written through the API as `token`'s user. Returns its id. */
+async function closedEntry(request: Parameters<typeof gql>[0], token: string, story: string, scene?: string) {
+  const started = await gqlAs(request, token, `mutation { startReflectEntry { id } }`);
+  const entryId = started.startReflectEntry.id as string;
+  await gqlAs(
+    request,
+    token,
+    `mutation($entryId: ID!, $story: String, $scene: String) { saveReflectEntry(entryId: $entryId, story: $story, scene: $scene) { id } }`,
+    { entryId, story, scene }
+  );
+  await gqlAs(request, token, `mutation($entryId: ID!) { stopReflectEntry(entryId: $entryId) { id } }`, { entryId });
+  return entryId;
+}
+
+// B6: Past entries (build plan §5 B6). Each walk signs up its own user, so what
+// it leaves behind is nobody else's home, and the empty list is really empty.
+for (const width of WIDTHS) {
+  test.describe(`Past entries at ${width} px`, () => {
+    test.use({ viewport: { width, height: 900 } });
+    test.describe.configure({ timeout: 120_000 });
+
+    test("open a past entry, delete it, and land on the list", async ({ page, request }) => {
+      const { token } = await signUpFreshUser(request);
+      await closedEntry(request, token, "He turned away.", "The bus stop");
+      await closedEntry(request, token, "The kitchen.", "Sunday lunch");
+
+      await authenticateAs(page, token);
+      await page.goto("/tools/reflect");
+      await page.getByRole("link", { name: "Past entries" }).click();
+      await expect(page).toHaveURL(/\/tools\/reflect\/past$/);
+      await expect(page.getByRole("main").getByRole("listitem").getByRole("link")).toHaveCount(2);
+      await expectReflow(page);
+
+      await page.getByRole("link", { name: /The bus stop/ }).click();
+      await expect(page).toHaveURL(/\/tools\/reflect\/past\/[\w-]+$/);
+      await expect(page.getByText("He turned away.")).toBeVisible();
+      await expect(page.getByText("Scene", { exact: true })).toBeVisible();
+      await expect(page.getByText(/stopped|incomplete/i)).toHaveCount(0);
+      await expectReflow(page);
+
+      await button(page, "Delete").click();
+      await expect(page.getByText("This can't be undone.")).toBeVisible();
+      await button(page, "Delete").last().click();
+
+      await expect(page).toHaveURL(/\/tools\/reflect\/past$/);
+      await expect(page.getByRole("link", { name: /Sunday lunch/ })).toBeVisible();
+      await expect(page.getByRole("link", { name: /The bus stop/ })).toHaveCount(0);
+      // Back can't return to the deleted entry: history was replaced.
+      await page.goBack();
+      await expect(page).not.toHaveURL(/\/tools\/reflect\/past\/[\w-]+$/);
+    });
+
+    test("delete the last entry: the empty line, and the home has no Past entries link", async ({ page, request }) => {
+      const { token } = await signUpFreshUser(request);
+      const id = await closedEntry(request, token, "Only one.");
+
+      await authenticateAs(page, token);
+      await page.goto(`/tools/reflect/past/${id}`);
+      await expect(page.getByText("Only one.")).toBeVisible();
+      await button(page, "Delete").click();
+      await button(page, "Delete").last().click();
+
+      await expect(page).toHaveURL(/\/tools\/reflect\/past$/);
+      await expect(page.getByText("Nothing here yet.")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Back to Reflect" })).toBeVisible();
+      await expectReflow(page);
+
+      await page.getByRole("link", { name: "Back to Reflect" }).click();
+      await expect(page).toHaveURL(/\/tools\/reflect$/);
+      await expect(page.getByRole("button", { name: "Start an entry" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Past entries" })).toHaveCount(0);
+    });
+
+    test("a deleted id and a stranger's id show the same not-found line", async ({ page, request }) => {
+      const mine = await signUpFreshUser(request);
+      const theirs = await signUpFreshUser(request);
+      const strangers = await closedEntry(request, theirs.token, "Not yours.");
+
+      await authenticateAs(page, mine.token);
+      await page.goto(`/tools/reflect/past/${strangers}`);
+      await expect(page.getByText("That entry isn't here.")).toBeVisible();
+      await expect(page.getByText("Not yours.")).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Back to Reflect" })).toBeVisible();
+      await expectReflow(page);
+
+      await page.goto("/tools/reflect/past/does-not-exist");
+      await expect(page.getByText("That entry isn't here.")).toBeVisible();
+    });
+  });
+}

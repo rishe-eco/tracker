@@ -39,7 +39,7 @@ export type ReflectEntry = {
 };
 
 export type ReflectHome = {
-  openEntry: { id: string; createdAt: string; hasStory: boolean } | null;
+  openEntry: { id: string; createdAt: string; hasWriting: boolean } | null;
   hasPast: boolean;
   practiceLocale: string;
   reviewStatus: string;
@@ -126,3 +126,11 @@ export function holdsWrittenText(entry: ReflectEntry): boolean {
     entry.readings.some((r) => has(r.reading) || has(r.camera))
   );
 }
+
+/** One row of Past entries: the date and the start of the first writing, cut by the server (AC-37, AC-46). */
+export type ReflectPastRow = { id: string; createdAt: string; firstWriting: string };
+
+export type ReflectPastPage = { rows: ReflectPastRow[]; hasOlder: boolean };
+
+/** A closed entry read back: `ReflectEntry` without the step it reached (AC-48). */
+export type ReflectPastEntry = Omit<ReflectEntry, "step">;
